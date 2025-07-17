@@ -1,9 +1,9 @@
 import React from 'react';
 import { Clock, BookOpen, Star, Users, Award, Play } from "lucide-react";
-import type { CourseDetail } from '../types/courseDetail';
+import type { Course, Topic } from '../types/courseDetail';
 
 interface CourseHeroProps {
-  course: CourseDetail;
+  course: Course;
   isEnrolled?: boolean;
   onEnroll: () => void;
   onStartLearning: () => void;
@@ -128,7 +128,7 @@ export const CourseHero: React.FC<CourseHeroProps> = ({
 
             {/* Topics */}
             <div className="flex flex-wrap gap-2">
-              {course.topics.map((topic) => (
+              {course.topics.map((topic: Topic) => (
                 <span
                   key={topic.id}
                   className="px-3 py-1 bg-white/10 backdrop-blur-sm text-white text-sm rounded-full border border-white/20"

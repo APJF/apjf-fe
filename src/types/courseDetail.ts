@@ -1,4 +1,7 @@
-import type { Course } from './course';
+export interface Topic {
+  id: number;
+  name: string;
+}
 
 export interface Exam {
   id: string;
@@ -30,7 +33,17 @@ export interface Chapter {
   units: Unit[];
 }
 
-export interface CourseDetail extends Course {
+export interface Course {
+  id: string;
+  title: string;
+  description: string;
+  duration: number;
+  level: string;
+  image: string | null;
+  requirement: string | null;
+  status: string;
+  prerequisiteCourseId: string | null;
+  topics: Topic[];
   exams: Exam[];
   chapters: Chapter[];
 }
@@ -39,7 +52,7 @@ export interface CourseDetailApiResponse {
   success: boolean;
   message: string;
   data: {
-    course: CourseDetail;
+    course: Course;
   };
   timestamp: number;
 }

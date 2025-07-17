@@ -8,6 +8,8 @@ import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
 import ForgotPasswordPage from '../pages/ForgotPasswordPage';
 import ResetPasswordPage from '../pages/ResetPasswordPage';
+import ChatbotPage from '../pages/ChatbotPage';
+import TestPage from '../pages/TestPage';
 
 /**
  * Router Configuration - Cấu hình routing cho ứng dụng
@@ -46,6 +48,14 @@ const router = createBrowserRouter([
   {
     path: '/reset-password',
     element: <ResetPasswordPage />, // Không có layout để giống như login/register hiện tại
+  },
+  {
+    path: '/chatbot',
+    element: <Layout><ChatbotPage /></Layout>,
+  },
+  {
+    path: '/test',
+    element: <Layout><TestPage /></Layout>,
   },
   // Catch all route for 404
   {
