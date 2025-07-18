@@ -19,7 +19,7 @@ interface Topic {
   name: string;
 }
 
-interface Exam {
+interface CourseExam {
   id: string;
   title: string;
   description: string;
@@ -35,7 +35,7 @@ interface Unit {
   status: string;
   chapterId: string;
   prerequisiteUnitId: string | null;
-  exams: Exam[];
+  exams: CourseExam[];
 }
 
 interface Chapter {
@@ -45,7 +45,7 @@ interface Chapter {
   status: string;
   courseId: string;
   prerequisiteChapterId: string | null;
-  exams: Exam[];
+  exams: CourseExam[];
   units: Unit[];
 }
 
@@ -60,16 +60,14 @@ interface Course {
   status: string;
   prerequisiteCourseId: string | null;
   topics: Topic[];
-  exams: Exam[];
+  exams: CourseExam[];
   chapters: Chapter[];
 }
 
 interface ApiResponse {
   success: boolean;
   message: string;
-  data: {
-    course: Course;
-  };
+  data: Course; // Changed from { course: Course } to Course directly
   timestamp: number;
 }
 
@@ -317,13 +315,38 @@ export default function CourseDetailPage() {
     setError(null);
 
     try {
-      const response = await fetch(`http://localhost:8080/api/courses/${courseId}`);
+      console.log("Fetching course detail for courseId:", courseId);
+      
+      // Prepare headers with authorization if token exists
+      const token = localStorage.getItem("token");
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
+      };
+      
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`http://localhost:8080/api/courses/${courseId}`, {
+        method: "GET",
+        headers,
+      });
+      
+      console.log("Response status:", response.status);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data: ApiResponse = await response.json();
+      console.log("API Response:", data);
 
       if (data.success) {
-        setCourse(data.data.course);
+        setCourse(data.data);
+        console.log("Course data set successfully:", data.data);
       } else {
         setError(data.message || "Không thể tải thông tin khóa học");
+        console.error("API returned success: false", data);
       }
     } catch (err) {
       setError("Lỗi kết nối. Vui lòng thử lại.");
@@ -347,7 +370,7 @@ export default function CourseDetailPage() {
   };
 
   const handleExamClick = (examId: string) => {
-    navigate(`/courses/${courseId}/exams/${examId}`);
+    navigate(`/exam/${examId}/preparation`);
   };
 
   if (loading) {
@@ -398,8 +421,8 @@ export default function CourseDetailPage() {
               </h2>
             </div>
             <ChapterList
-              chapters={course.chapters}
-              courseExams={course.exams}
+              chapters={course.chapters || []}
+              courseExams={course.exams || []}
               isEnrolled={isEnrolled}
               completedUnits={completedUnits}
               onUnitClick={handleUnitClick}
@@ -459,7 +482,7 @@ export default function CourseDetailPage() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Course Header */}
-            <CourseHeaderInfo course={course} chaptersCount={course.chapters.length} />
+            <CourseHeaderInfo course={course} chaptersCount={course.chapters?.length || 0} />
 
             {/* Tabs */}
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -472,9 +495,9 @@ export default function CourseDetailPage() {
           <div className="lg:col-span-1">
             <div className="sticky top-8">
               <LearningPathSidebar
-                chapters={course.chapters}
+                chapters={course.chapters || []}
                 completedChapters={completedChapters}
-                currentChapter={course.chapters[0]?.id}
+                currentChapter={course.chapters?.[0]?.id}
               />
             </div>
           </div>

@@ -8,6 +8,10 @@ import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
 import ForgotPasswordPage from '../pages/ForgotPasswordPage';
 import ResetPasswordPage from '../pages/ResetPasswordPage';
+import { ExamPreparationPage } from '../pages/ExamPreparationPage';
+import { ExamDoingPage } from '../pages/ExamDoingPage';
+import { ExamResultPage } from '../pages/ExamResultPage';
+import { ExamAnswerReviewPage } from '../pages/ExamAnswerReviewPage';
 
 /**
  * Router Configuration - Cấu hình routing cho ứng dụng
@@ -46,6 +50,22 @@ const router = createBrowserRouter([
   {
     path: '/reset-password',
     element: <ResetPasswordPage />, // Không có layout để giống như login/register hiện tại
+  },
+  {
+    path: '/exam/:examId/preparation',
+    element: <Layout><ExamPreparationPage /></Layout>,
+  },
+  {
+    path: '/exam/:examId/take',
+    element: <ExamDoingPage />, // No layout for exam taking page to avoid distractions
+  },
+  {
+    path: '/exam/:examId/result',
+    element: <Layout><ExamResultPage /></Layout>,
+  },
+  {
+    path: '/exam-result/:resultId/review',
+    element: <Layout><ExamAnswerReviewPage /></Layout>,
   },
   // Catch all route for 404
   {
