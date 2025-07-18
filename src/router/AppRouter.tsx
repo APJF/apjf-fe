@@ -10,6 +10,7 @@ import ForgotPasswordPage from '../pages/ForgotPasswordPage';
 import ResetPasswordPage from '../pages/ResetPasswordPage';
 import ChatbotPage from '../pages/ChatbotPage';
 import TestPage from '../pages/TestPage';
+import UserProfilePage from '../pages/UserProfilePage';
 
 /**
  * Router Configuration - Cấu hình routing cho ứng dụng
@@ -56,6 +57,10 @@ const router = createBrowserRouter([
   {
     path: '/test',
     element: <Layout><TestPage /></Layout>,
+  },
+  {
+    path: '/profile',
+    element: <Layout><UserProfilePage /></Layout>,
   },
   // Catch all route for 404
   {
