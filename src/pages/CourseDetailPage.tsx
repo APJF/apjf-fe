@@ -39,7 +39,7 @@ export default function CourseDetailPage() {
       console.log('Fetching detail for courseId:', courseId);
       const data = await CourseDetailService.getCourseDetail(courseId!);
       console.log('Course detail response:', data);
-      
+
       if (data.success && data.data?.course) {
         console.log('Setting course data:', data.data.course);
         setCourse(data.data.course);
@@ -69,7 +69,7 @@ export default function CourseDetailPage() {
   };
 
   const handleExamClick = (examId: string) => {
-    navigate(`/courses/${courseId}/exams/${examId}`);
+    navigate(`/exam/${examId}/preparation`);
   };
 
   if (loading) {
@@ -118,8 +118,8 @@ export default function CourseDetailPage() {
               </h2>
             </div>
             <ChapterList
-              chapters={course.chapters}
-              courseExams={course.exams}
+              chapters={course.chapters || []}
+              courseExams={course.exams || []}
               isEnrolled={isEnrolled}
               completedUnits={completedUnits}
               onUnitClick={handleUnitClick}
@@ -177,7 +177,7 @@ export default function CourseDetailPage() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Course Header */}
-            <CourseHeaderInfo course={course} chaptersCount={course.chapters.length} />
+            <CourseHeaderInfo course={course} chaptersCount={course.chapters?.length || 0} />
 
             {/* Tabs */}
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -190,9 +190,9 @@ export default function CourseDetailPage() {
           <div className="lg:col-span-1">
             <div className="sticky top-8">
               <LearningPathSidebar
-                chapters={course.chapters}
+                chapters={course.chapters || []}
                 completedChapters={completedChapters}
-                currentChapter={course.chapters[0]?.id}
+                currentChapter={course.chapters?.[0]?.id}
               />
             </div>
           </div>
