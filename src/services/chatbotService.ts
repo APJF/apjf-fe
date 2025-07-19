@@ -1,103 +1,87 @@
-const API_URL_AI = "http://localhost:8090";
+import axios from 'axios';
+import { refreshToken } from './authService';
 
-const handleResponse = async (response: Response) => {
-  if (!response.ok) {
-    let errorData;
-    try {
-      errorData = await response.json();
-      console.error("API Error Details:", errorData);
-    } catch {
-      errorData = { detail: "An unknown error occurred, and the response was not valid JSON." };
+const aiInstance = axios.create({
+  baseURL: 'http://localhost:8090',
+});
+
+aiInstance.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      config.headers['Authorization'] = 'Bearer ' + token;
     }
-    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-  }
-  if (response.status === 204) {
-    return null; // No content
-  }
-  return response.json();
-};
-
-const getToken = () => localStorage.getItem('token');
-
-const api = {
-  post: async (endpoint: string, body: Record<string, unknown>) => {
-    const token = getToken();
-    const response = await fetch(`${API_URL_AI}${endpoint}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-      body: JSON.stringify(body),
-    });
-    return handleResponse(response);
+    return config;
   },
-  get: async (endpoint: string) => {
-    const token = getToken();
-    const response = await fetch(`${API_URL_AI}${endpoint}`, {
-      headers: {
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-    });
-    return handleResponse(response);
+  (error: unknown) => {
+    return Promise.reject(new Error(error instanceof Error ? error.message : 'Request failed'));
+  }
+);
+
+aiInstance.interceptors.response.use(
+  (res) => {
+    return res;
   },
-  delete: async (endpoint: string) => {
-    const token = getToken();
-    const response = await fetch(`${API_URL_AI}${endpoint}`, {
-      method: 'DELETE',
-      headers: {
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-    });
-    if (response.status === 204) {
-      return null;
+  async (err) => {
+    const originalConfig = err.config;
+
+    if (err.response) {
+      // Access Token was expired
+      if (err.response.status === 401 && !originalConfig._retry) {
+        originalConfig._retry = true;
+
+        try {
+          await refreshToken();
+          return aiInstance(originalConfig);
+        } catch (_error: unknown) {
+          return Promise.reject(new Error(_error instanceof Error ? _error.message : 'Token refresh failed'));
+        }
+      }
     }
-    return handleResponse(response);
-  },
-  put: async (endpoint: string, body: Record<string, unknown>) => {
-    const token = getToken();
-    const response = await fetch(`${API_URL_AI}${endpoint}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-      body: JSON.stringify(body),
-    });
-    return handleResponse(response);
-  },
-};
+
+    return Promise.reject(new Error(err instanceof Error ? err.message : 'Response failed'));
+  }
+);
+
 
 export const chatbotService = {
-  invokeStateless: (userInput: string) => {
-    return api.post('/chat/invoke/stateless', { user_input: userInput });
+  invokeStateless: async (userInput: string) => {
+    const response = await aiInstance.post('/chat/invoke/stateless', { user_input: userInput });
+    return response.data;
   },
 
-  invoke: (sessionId: number, userInput: string) => {
-    return api.post('/chat/invoke', { session_id: sessionId.toString(), user_input: userInput });
+  invoke: async (sessionId: number, userInput: string) => {
+    const response = await aiInstance.post('/chat/invoke', { session_id: sessionId.toString(), user_input: userInput });
+    return response.data;
   },
 
-  editAndResubmit: (sessionId: number, correctedInput: string) => {
-    return api.post('/chat/edit_and_resubmit', { session_id: sessionId, corrected_input: correctedInput });
+  editAndResubmit: async (sessionId: number, correctedInput: string) => {
+    const response = await aiInstance.post('/chat/edit_and_resubmit', { session_id: sessionId, corrected_input: correctedInput });
+    return response.data;
   },
 
-  createSession: (userId: string, sessionName: string) => {
-    return api.post('/sessions/', { user_id: userId, session_name: sessionName });
+  createSession: async (userId: string, sessionName: string) => {
+    const response = await aiInstance.post('/sessions/', { user_id: userId, session_name: sessionName });
+    return response.data;
   },
 
-  getSessions: (userId: string) => {
-    return api.get(`/sessions/user/${userId}`);
+  getSessions: async (userId: string) => {
+    const response = await aiInstance.get(`/sessions/user/${userId}`);
+    return response.data;
   },
 
-  getSessionHistory: (sessionId: number) => {
-    return api.get(`/sessions/${sessionId}/history`);
+  getSessionHistory: async (sessionId: number) => {
+    const response = await aiInstance.get(`/sessions/${sessionId}/history`);
+    return response.data;
   },
 
-  deleteSession: (sessionId: number) => {
-    return api.delete(`/sessions/${sessionId}`);
+  deleteSession: async (sessionId: number) => {
+    const response = await aiInstance.delete(`/sessions/${sessionId}`);
+    return response.data;
   },
 
-  renameSession: (sessionId: number, newName: string) => {
-    return api.put(`/sessions/${sessionId}/rename`, { new_name: newName });
+  renameSession: async (sessionId: number, newName: string) => {
+    const response = await aiInstance.put(`/sessions/${sessionId}/rename`, { new_name: newName });
+    return response.data;
   },
 };

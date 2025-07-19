@@ -1,6 +1,7 @@
 import React, { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { BookOpen, Lock, Eye, EyeOff, AlertCircle, Shield, ArrowLeft } from "lucide-react"
+import authService from "../../services/authService"
 
 interface ResetPasswordData {
   otp: string
@@ -48,32 +49,37 @@ export function ResetPasswordForm() {
     
     const email = localStorage.getItem("email")
     
+    if (!email) {
+      setMessage("Email không tìm thấy. Vui lòng thực hiện lại quá trình quên mật khẩu.")
+      setIsLoading(false)
+      return
+    }
+    
     try {
-      const response = await fetch(
-        `http://localhost:8080/api/auth/reset-password?email=${email}&otp=${formData.otp}&newPassword=${formData.newPassword}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      )
+      const response = await authService.resetPassword({
+        email,
+        otp: formData.otp,
+        newPassword: formData.newPassword
+      })
 
-      const data = await response.json()
-
-      if (response.ok && data.success) {
+      if (response.success) {
         // Clear email from localStorage since password reset is complete
         localStorage.removeItem("email")
         // Store success message for login page
-        localStorage.setItem("loginMessage", data.message || "Đặt lại mật khẩu thành công.")
+        localStorage.setItem("loginMessage", response.message || "Đặt lại mật khẩu thành công.")
         localStorage.setItem("loginMessageType", "success")
         // Redirect directly to login page
         navigate("/login")
       } else {
-        setMessage(data.message || "Có lỗi xảy ra. Vui lòng thử lại.")
+        setMessage(response.message || "Có lỗi xảy ra. Vui lòng thử lại.")
       }
-    } catch (error) {
-      setMessage("Lỗi kết nối. Vui lòng thử lại.")
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { message?: string } } }
+        setMessage(axiosError.response?.data?.message || "Có lỗi xảy ra. Vui lòng thử lại.")
+      } else {
+        setMessage("Lỗi kết nối. Vui lòng thử lại.")
+      }
       console.error("Reset password error:", error)
     } finally {
       setIsLoading(false)

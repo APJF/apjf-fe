@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AlertCircle, ArrowLeft } from "lucide-react";
-import { ChapterList } from "../components/ChapterList";
+import { ChapterList } from "../components/course/ChapterList";
 import { CourseHeaderInfo } from "../components/course/CourseHeaderInfo";
 import { CourseDetailTabs } from "../components/course/CourseDetailTabs";
 import { LearningPathSidebar } from "../components/course/LearningPathSidebar";
-import type { Course, CourseDetailApiResponse } from "../types/courseDetail";
+import { CourseDetailService } from "../services/courseDetailService";
+import type { Course } from "../types/courseDetail";
 
 export default function CourseDetailPage() {
   const { courseId } = useParams<{ courseId: string }>();
@@ -20,8 +21,12 @@ export default function CourseDetailPage() {
 
   useEffect(() => {
     if (courseId) {
+      console.log('Fetching course detail for ID:', courseId);
       fetchCourseDetail();
       checkEnrollmentStatus();
+    } else {
+      console.error('Course ID is undefined');
+      setError('ID khóa học không hợp lệ');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId]);
@@ -31,12 +36,15 @@ export default function CourseDetailPage() {
     setError(null);
 
     try {
-      const response = await fetch(`http://localhost:8080/api/courses/${courseId}/detail`);
-      const data: CourseDetailApiResponse = await response.json();
-
-      if (data.success) {
+      console.log('Fetching detail for courseId:', courseId);
+      const data = await CourseDetailService.getCourseDetail(courseId!);
+      console.log('Course detail response:', data);
+      
+      if (data.success && data.data?.course) {
+        console.log('Setting course data:', data.data.course);
         setCourse(data.data.course);
       } else {
+        console.error('API returned unsuccessful response:', data);
         setError(data.message || "Không thể tải thông tin khóa học");
       }
     } catch (err) {

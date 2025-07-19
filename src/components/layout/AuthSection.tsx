@@ -1,93 +1,37 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { User, LogOut, Settings, BookOpen, ChevronDown } from 'lucide-react';
-
-interface UserData {
-  id: number
-  username: string
-  avatar?: string
-  roles?: string[]
-}
+import { useAuth } from '../../hooks/useAuth';
 
 export const AuthSection: React.FC = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [user, setUser] = useState<UserData | null>(null)
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
-  const navigate = useNavigate()
-  const location = useLocation()
-
-  // Check authentication status on component mount and route changes
-  useEffect(() => {
-    const checkAuthStatus = () => {
-      const token = localStorage.getItem("token")
-      const userData = localStorage.getItem("user")
-
-      if (token && userData) {
-        try {
-          const parsedUser = JSON.parse(userData)
-          if (parsedUser?.username) {
-            setUser(parsedUser)
-            setIsLoggedIn(true)
-          } else {
-            localStorage.removeItem("token")
-            localStorage.removeItem("user")
-            setIsLoggedIn(false)
-            setUser(null)
-          }
-        } catch {
-          localStorage.removeItem("token")
-          localStorage.removeItem("user")
-          setIsLoggedIn(false)
-          setUser(null)
-        }
-      } else {
-        setIsLoggedIn(false)
-        setUser(null)
-      }
-    }
-
-    // Check immediately
-    checkAuthStatus()
-
-    // Also check periodically to catch any missed changes
-    const interval = setInterval(checkAuthStatus, 1000)
-
-    return () => {
-      clearInterval(interval)
-    }
-  }, [location]) // Re-run when location changes
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false)
+        setIsDropdownOpen(false);
       }
-    }
+    };
 
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [])
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("token")
-    localStorage.removeItem("user")
-    setIsLoggedIn(false)
-    setUser(null)
-    setIsDropdownOpen(false)
-    
-    // Trigger custom event để cập nhật auth state
-    window.dispatchEvent(new Event('authStateChanged'))
-    
-    navigate("/")
-  }
+    logout();
+    setIsDropdownOpen(false);
+    navigate('/');
+  };
 
   const getAvatarText = (username: string) => {
     return username?.charAt(0)?.toUpperCase() || 'U'
   }
 
-  if (isLoggedIn && user) {
+  if (user) {
     return (
       <div className="relative" ref={dropdownRef}>
         {/* User Avatar Button */}

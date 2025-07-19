@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import * as authService from '../services/authService';
+import type { LoginCredentials } from '../types/auth';
 
 interface User {
   id: string;
@@ -29,7 +31,6 @@ export const useAuth = () => {
     };
 
     window.addEventListener('authStateChanged', handleAuthStateChange);
-    // Also listen for direct storage changes (e.g., from other tabs)
     window.addEventListener('storage', handleAuthStateChange);
 
     return () => {
@@ -38,5 +39,27 @@ export const useAuth = () => {
     };
   }, []);
 
-  return { user, userId: user?.id?.toString() };
+  const login = async (credentials: LoginCredentials) => {
+    const data = await authService.login(credentials);
+    if (data.success && data.data) {
+      // Map the auth service user to local User interface
+      const localUser: User = {
+        id: data.data.user.id,
+        username: data.data.user.name || data.data.user.email,
+        avatar: null,
+        roles: []
+      };
+      setUser(localUser);
+      window.dispatchEvent(new Event('authStateChanged'));
+    }
+    return data;
+  };
+
+  const logout = () => {
+    authService.logout();
+    setUser(null);
+    window.dispatchEvent(new Event('authStateChanged'));
+  };
+
+  return { user, login, logout, userId: user?.id?.toString() };
 };

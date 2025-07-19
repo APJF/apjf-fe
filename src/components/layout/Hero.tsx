@@ -1,4 +1,5 @@
-import { Play, Star, Users, BookOpen } from "lucide-react"
+import { ClipboardList, Eye } from "lucide-react";
+import NhatBanImg from "../../assets/NhatBan.webp";
 
 export function Hero() {
   return (
@@ -16,12 +17,7 @@ export function Hero() {
           {/* Content */}
           <div className="space-y-12">
             <div className="space-y-6">
-              <div className="inline-flex items-center space-x-2 bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
-                <Star className="h-4 w-4" />
-                <span>Phổ biến nhất</span>
-              </div>
-
-              <h1 className="text-4xl lg:text-6xl font-bold leading-tight">
+                <h1 className="text-4xl lg:text-6xl font-bold leading-tight">
                 Làm chủ{" "}
                 <span className="text-red-600 relative">
                   Tiếng Nhật
@@ -44,35 +40,22 @@ export function Hero() {
 
             <div className="flex flex-col sm:flex-row gap-4">
               <button className="inline-flex items-center justify-center px-8 py-3 text-lg font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors">
-                <BookOpen className="mr-2 h-5 w-5" />
-                Bắt đầu học miễn phí
+                <ClipboardList className="mr-2 h-5 w-5" />
+                Tư vấn lộ trình
               </button>
               <button className="inline-flex items-center justify-center px-8 py-3 text-lg font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors">
-                <Play className="mr-2 h-5 w-5" />
-                Xem thử
+                <Eye className="mr-2 h-5 w-5" />
+                Xem các khoá học
               </button>
             </div>
 
-            {/* Stats */}
-            <div className="flex items-center space-x-8 pt-6">
-              <div className="flex items-center space-x-2">
-                <Users className="h-5 w-5 text-gray-400" />
-                <span className="text-sm text-gray-600">100+ Students</span>
-              </div>
-              <div className="flex items-center space-x-1">
-                {Array.from({ length: 5 }, (_, i) => (
-                  <Star key={`star-${i}`} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                ))}
-                <span className="text-sm text-gray-600 ml-2">4.9/5 Rating</span>
-              </div>
-            </div>
           </div>
 
           {/* Hero Image */}
           <div className="relative">
             <div className="relative z-10">
               <img
-                src="/img/NhatBan.webp"
+                src={NhatBanImg}
                 alt="Japanese Learning Platform"
                 width={500}
                 height={450}

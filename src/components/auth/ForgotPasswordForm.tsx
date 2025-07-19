@@ -1,6 +1,7 @@
 import React, { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { BookOpen, Mail, AlertCircle, Send, ArrowLeft } from "lucide-react"
+import authService from "../../services/authService"
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState("")
@@ -24,28 +25,26 @@ export function ForgotPasswordForm() {
     setMessage("")
 
     try {
-      const response = await fetch(`http://localhost:8080/api/auth/forgot-password?email=${email}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
+      const response = await authService.forgotPassword(email)
 
-      const data = await response.json()
-
-      if (response.ok && data.success) {
+      if (response.success) {
         localStorage.setItem("email", email)
         setIsSuccess(true)
-        setMessage(data.message || "Đã gửi email xác thực đặt lại mật khẩu.")
+        setMessage(response.message || "Đã gửi email xác thực đặt lại mật khẩu.")
         // Navigate after showing success message for 2 seconds
         setTimeout(() => {
           navigate("/reset-password")
         }, 2000)
       } else {
-        setMessage(data.message || "Có lỗi xảy ra. Vui lòng thử lại.")
+        setMessage(response.message || "Có lỗi xảy ra. Vui lòng thử lại.")
       }
-    } catch (error) {
-      setMessage("Lỗi kết nối. Vui lòng thử lại.")
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { message?: string } } }
+        setMessage(axiosError.response?.data?.message || "Có lỗi xảy ra. Vui lòng thử lại.")
+      } else {
+        setMessage("Lỗi kết nối. Vui lòng thử lại.")
+      }
       console.error("Forgot password error:", error)
     } finally {
       setIsLoading(false)

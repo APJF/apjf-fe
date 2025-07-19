@@ -14,7 +14,7 @@ export function CourseDetailTabs({ activeTab, onTabChange }: Readonly<TabsProps>
 
   return (
     <div className="border-b border-gray-200 bg-white">
-      <div className="flex space-x-8">
+      <div className="flex justify-around">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (

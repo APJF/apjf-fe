@@ -1,7 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { User, Lock, Info, Link, Bell, Wifi } from "lucide-react"
+import React, { useState, useEffect } from "react"
+import { 
+  User, 
+  Lock,
+  Info,
+  Link,
+  Wifi,
+  Bell
+} from "lucide-react"
+import authService from "../services/authService"
 
 interface UserProfile {
   id: string;
@@ -31,22 +39,11 @@ export default function UserProfilePage() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          console.error("No token found");
-          return;
-        }
-
-        const response = await fetch("http://localhost:8080/api/auth/profile", {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        });
-        const result = await response.json();
-        if (result.success) {
-          setProfile(result.data);
+        const response = await authService.getProfile();
+        if (response.success && response.data) {
+          setProfile(response.data);
         } else {
-          console.error("Failed to fetch profile:", result.message);
+          console.error("Failed to fetch profile");
         }
       } catch (error) {
         console.error("Error fetching profile:", error);
@@ -115,7 +112,7 @@ const GeneralTab = ({ profile }: { profile: UserProfile }) => (
       <img src={profile.avatar} alt="avatar" className="w-24 h-24 rounded-full" />
       <div className="ml-6">
         <label htmlFor="avatar-upload" className="px-4 py-2 border border-red-600 text-red-600 rounded-lg cursor-pointer hover:bg-red-50">
-          Upload new photo
+          Upload new photo{" "}
           <input id="avatar-upload" type="file" className="hidden" />
         </label>
         <button type="button" className="ml-2 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Reset</button>
@@ -226,9 +223,9 @@ const ConnectionsTab = () => (
         <button type="button" className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Connect to Twitter</button>
         <hr className="my-6" />
         <div>
-            <h5 className="text-lg font-medium mb-2">
-                <button type="button" className="float-right text-gray-500 text-xs">Remove</button>
-                You are connected to Google:
+            <h5 className="text-lg font-medium mb-2 flex items-center justify-between">
+                <span>You are connected to Google:</span>
+                <button type="button" className="text-gray-500 text-xs ml-2">Remove</button>
             </h5>
             <a href="#!">[email protected]</a>
         </div>

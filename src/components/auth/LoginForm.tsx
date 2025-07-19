@@ -1,11 +1,8 @@
 import React, { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { BookOpen, Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react"
-
-interface LoginCredentials {
-  email: string
-  password: string
-}
+import { useAuth } from "../../hooks/useAuth"
+import type { LoginCredentials } from "../../types/auth"
 
 export function LoginForm() {
   const [formData, setFormData] = useState<LoginCredentials>({
@@ -17,6 +14,7 @@ export function LoginForm() {
   const [message, setMessage] = useState("")
   const [messageType, setMessageType] = useState<"success" | "error">("error")
   const navigate = useNavigate()
+  const { login } = useAuth()
 
   // Check for success message from password reset
   React.useEffect(() => {
@@ -47,32 +45,8 @@ export function LoginForm() {
     setIsLoading(true)
     setMessage("")
     try {
-      const response = await fetch("http://localhost:8080/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
-      })
-      const data = await response.json()
-      if (response.ok && data.success) {
-        const { access_token, user } = data.data
-        
-        // Lưu token và user info với structure đúng
-        localStorage.setItem("token", access_token)
-        localStorage.setItem("user", JSON.stringify({
-          id: user.id,
-          username: user.username,
-          avatar: user.avatar,
-          roles: user.roles
-        }))
-        
-        // Trigger custom event để AuthSection cập nhật
-        window.dispatchEvent(new Event('authStateChanged'))
-        
+      const data = await login(formData)
+      if (data.success) {
         navigate("/")
       } else {
         setMessage(data.message || "Đăng nhập thất bại")

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Clock, BookOpen, Star, Users, Award, Play } from "lucide-react";
-import type { Course, Topic } from '../types/courseDetail';
+import type { Course, Topic } from '../../types/courseDetail';
 
 interface CourseHeroProps {
   course: Course;

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { ChevronDown, ChevronRight, FileText, Clock } from "lucide-react";
-import type { Chapter, Exam } from '../types/courseDetail';
+import type { Chapter, Exam } from '../../types/courseDetail';
 import { UnitList } from './UnitList';
 
 interface ChapterListProps {
@@ -102,11 +102,9 @@ export const ChapterList: React.FC<ChapterListProps> = ({
               <div className="border-t border-gray-200">
                 <UnitList
                   chapter={chapter}
-                  chapterIndex={chapterIndex}
                   isEnrolled={isEnrolled}
                   completedUnits={completedUnits}
                   onUnitClick={onUnitClick}
-                  onExamClick={onExamClick}
                 />
               </div>
             )}

@@ -1,6 +1,7 @@
 import React, { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { BookOpen, Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react"
+import authService from "../../services/authService"
 
 interface RegisterData {
   email: string
@@ -39,50 +40,38 @@ export function RegisterForm() {
 
   const registerWithEmail = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (formData.password !== formData.confirmPassword) {
+      setErrors({ general: "Mật khẩu xác nhận không khớp" })
+      return
+    }
+
     setIsLoading(true)
     setErrors({})
     setMessage("")
 
-    // Simple client-side check for password confirmation
-    if (formData.password !== formData.confirmPassword) {
-      setErrors({ general: "Mật khẩu xác nhận không khớp" })
-      setIsLoading(false)
-      return
-    }
-
     try {
-      const response = await fetch("http://localhost:8080/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
+      const response = await authService.register({
+        email: formData.email,
+        password: formData.password,
       })
 
-      const data = await response.json()
-
-      if (response.ok && data.success) {
-        // Lưu email để sử dụng trong trang verify
-        localStorage.setItem("email", formData.email)
-        setMessage(data.message)
-        
-        // Redirect sau 2 giây để user đọc message
-        setTimeout(() => {
-          navigate("/verify")
-        }, 2000)
-      } else {
-        // Handle validation errors từ backend
-        if (data.data && typeof data.data === 'object') {
-          setErrors(data.data)
-        }
-        setMessage(data.message || "Đăng ký thất bại")
+      if (response.success) {
+        navigate("/login", { 
+          state: { message: "Đăng ký thành công! Vui lòng đăng nhập." }
+        })
       }
-    } catch (error) {
-      setMessage("Lỗi kết nối. Vui lòng thử lại.")
-      console.error("Register error:", error)
+    } catch (error: unknown) {
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { message?: string } } }
+        if (axiosError.response?.data?.message) {
+          setErrors({ general: axiosError.response.data.message })
+        } else {
+          setErrors({ general: "Có lỗi xảy ra. Vui lòng thử lại." })
+        }
+      } else {
+        setErrors({ general: "Có lỗi xảy ra. Vui lòng thử lại." })
+      }
     } finally {
       setIsLoading(false)
     }
