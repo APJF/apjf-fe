@@ -1,375 +1,209 @@
-import type { Exam, StartExamRequest, StartExamResponse, ExamResult } from "../types/exam"
+import api from '../api/axios';
+import type { 
+  ExamApiResponse, 
+  StartExamResponse, 
+  SubmitExamResponse,
+  SubmitExamAnswer
+} from '../types/exam';
 
-const BASE_URL = "http://localhost:8080/api"
-
-class ExamService {
-  private getAuthHeaders(): HeadersInit {
-    const token = localStorage.getItem("token")
-    return {
-      "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` })
+export class ExamService {
+  /**
+   * Test method để kiểm tra kết nối API
+   */
+  static async testConnection(): Promise<void> {
+    try {
+      console.log('🧪 Testing API connection...');
+      const response = await api.get('/exams');
+      console.log('✅ API connection successful:', response.status);
+    } catch (error) {
+      console.error('❌ API connection failed:', error);
+      throw error;
     }
   }
 
-  async getExamById(examId: string): Promise<Exam> {
+  /**
+   * Lấy thông tin chi tiết về bài thi
+   */
+  static async getExamDetail(examId: string): Promise<ExamApiResponse> {
     try {
-      console.log("Fetching exam with ID:", examId);
-      const response = await fetch(`${BASE_URL}/exams/${examId}`, {
-        method: "GET",
-        headers: this.getAuthHeaders()
-      })
-
-      console.log("Response status:", response.status);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      // API returns Exam object directly, not wrapped in success/data structure
-      const examData: Exam = await response.json()
-      console.log("Exam data received:", examData);
-      
-      return examData
+      const response = await api.get(`/exams/${examId}`);
+      return response.data;
     } catch (error) {
-      console.error("Error fetching exam:", error)
-      throw error
+      console.error('Error fetching exam detail:', error);
+      throw error;
     }
   }
 
-  async startExam(examId: string, userId: string): Promise<StartExamResponse> {
-    try {
-      const response = await fetch(`${BASE_URL}/exam-results/start`, {
-        method: "POST",
-        headers: this.getAuthHeaders(),
-        body: JSON.stringify({
-          examId,
-          userId
-        } as StartExamRequest)
-      })
-
-      if (!response.ok) {
-        // Try to parse error response
-        try {
-          const errorData = await response.json();
-          console.error('Error response from Start Exam API:', errorData);
-        } catch (e) {
-          console.error('Could not parse start exam error response', e);
-        }
-        
-        // If it's a CORS error or 404, simulate success for development
-        if (response.status === 0 || response.status === 404) {
-          console.warn("Start exam API not available, simulating success for development")
-          return {
-            success: true,
-            message: "Exam started successfully (simulated)",
-            data: {
-              id: `result_${examId}_${userId}_${Date.now()}`,
-              startedAt: new Date().toISOString(),
-              status: "IN_PROGRESS",
-              userId,
-              examId
-            },
-            timestamp: Date.now()
-          }
-        }
-        throw new Error(`HTTP error! status: ${response.status}`)
+  /**
+   * Debug method - Kiểm tra user data và token
+   */
+  static debugUserAuth(): void {
+    console.log('🔍 === DEBUG USER AUTH ===');
+    
+    // Check user data
+    const userJson = localStorage.getItem('user');
+    console.log('Raw user JSON:', userJson);
+    
+    if (userJson) {
+      try {
+        const user = JSON.parse(userJson);
+        console.log('Parsed user:', user);
+        console.log('User ID:', user.id);
+        console.log('User email:', user.email);
+      } catch (e) {
+        console.error('Failed to parse user JSON:', e);
       }
-
-      const data: StartExamResponse = await response.json()
-      
-      if (!data.success) {
-        throw new Error(data.message || "Failed to start exam")
-      }
-
-      return data
-    } catch (error) {
-      console.error("Error starting exam:", error)
-      
-      // Handle ALL network errors including CORS errors with "Failed to fetch" message
-      // and other network issues (connection refused, timeout)
-      if (
-        error instanceof TypeError || 
-        (error instanceof Error && 
-          (error.message.includes('fetch') || 
-           error.message.includes('network') ||
-           error.message.includes('CORS') ||
-           error.message.includes('ERR_FAILED')))
-      ) {
-        console.warn("Network/CORS error when starting exam, simulating success for development")
-        return {
-          success: true,
-          message: "Exam started successfully (simulated)",
-          data: {
-            id: `result_${examId}_${userId}_${Date.now()}`,
-            startedAt: new Date().toISOString(),
-            status: "IN_PROGRESS",
-            userId,
-            examId
-          },
-          timestamp: Date.now()
-        }
-      }
-      
-      throw error
+    } else {
+      console.log('No user data in localStorage');
     }
+    
+    // Check tokens
+    const accessToken = localStorage.getItem('access_token');
+    const refreshToken = localStorage.getItem('refresh_token');
+    
+    console.log('Access token exists:', !!accessToken);
+    console.log('Access token preview:', accessToken?.substring(0, 50) + '...');
+    console.log('Refresh token exists:', !!refreshToken);
+    
+    console.log('🔍 === END DEBUG ===');
   }
 
-  async submitExam(examId: string, answers: any[], userId: string): Promise<StartExamResponse> {
-    try {
-      // Log request payload to debug
-      const requestPayload = {
-        examId,
-        answers
-      };
-      console.log('Submit exam request payload:', requestPayload);
-      
-      const response = await fetch(`${BASE_URL}/exam-results/submit?userId=${userId}`, {
-        method: "POST",
-        headers: this.getAuthHeaders(),
-        body: JSON.stringify(requestPayload)
-      })
-
-      if (!response.ok) {
-        // Try to parse error response
-        try {
-          const errorData = await response.json();
-          console.error('Error response from Submit API:', errorData);
-          // Throw error with specific message from API if available
-          if (errorData?.message) {
-            throw new Error(errorData.message);
-          }
-        } catch (e) {
-          console.error('Could not parse error response:', e);
-        }
-        
-        // If it's a CORS error or 404, simulate success for development
-        if (response.status === 0 || response.status === 404) {
-          console.warn("Submit exam API not available, simulating success for development")
-          
-          // Create mock exam result with all required fields
-          const mockResult = {
-            id: `result_${examId}_${userId}_${Date.now()}`,
-            startedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-            submittedAt: new Date().toISOString(),
-            score: Math.floor(Math.random() * answers.length), // Random score for demo
-            status: "COMPLETED" as const,
-            userId,
-            examId,
-            examTitle: "Bài kiểm tra demo",
-            answers: answers.map((answer, index) => ({
-              id: `answer_${index}`,
-              userAnswer: answer.userAnswer,
-              isCorrect: Math.random() > 0.5, // Random correct/incorrect for demo
-              questionId: answer.questionId,
-              questionContent: `Câu hỏi ${index + 1}`,
-              selectedOptionId: answer.selectedOptionId,
-              correctAnswer: answer.selectedOptionId || "demo_answer"
-            })),
-            totalQuestions: answers.length,
-            correctAnswers: Math.floor(Math.random() * answers.length)
-          }
-          
-          return {
-            success: true,
-            message: "Exam submitted successfully (simulated)",
-            data: mockResult,
-            timestamp: Date.now()
-          }
-        }
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const data = await response.json()
-      
-      if (!data.success) {
-        throw new Error(data.message || "Failed to submit exam")
-      }
-
-      return data
-    } catch (error) {
-      console.error("Error submitting exam:", error)
-      
-      // Handle ALL network errors including CORS errors with "Failed to fetch" message
-      // and other network issues (connection refused, timeout)
-      if (
-        error instanceof TypeError || 
-        (error instanceof Error && 
-          (error.message.includes('fetch') || 
-           error.message.includes('network') ||
-           error.message.includes('CORS') ||
-           error.message.includes('ERR_FAILED')))
-      ) {
-        console.warn("Network/CORS error when submitting exam, simulating success for development")
-        
-        // Create mock exam result with all required fields
-        const mockResult = {
-          id: `result_${examId}_${userId}_${Date.now()}`,
-          startedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-          submittedAt: new Date().toISOString(),
-          score: Math.floor(Math.random() * answers.length), // Random score for demo
-          status: "COMPLETED" as const,
-          userId,
-          examId,
-          examTitle: "Bài kiểm tra demo",
-          answers: answers.map((answer, index) => ({
-            id: `answer_${index}`,
-            userAnswer: answer.userAnswer,
-            isCorrect: Math.random() > 0.5, // Random correct/incorrect for demo
-            questionId: answer.questionId,
-            questionContent: `Câu hỏi ${index + 1}`,
-            selectedOptionId: answer.selectedOptionId,
-            correctAnswer: answer.selectedOptionId || "demo_answer"
-          })),
-          totalQuestions: answers.length,
-          correctAnswers: Math.floor(Math.random() * answers.length)
-        }
-        
-        return {
-          success: true,
-          message: "Exam submitted successfully (simulated)",
-          data: mockResult,
-          timestamp: Date.now()
-        }
-      }
-      
-      throw error
+  /**
+   * SIMPLE test - chỉ log và thử nghiệm cơ bản
+   */
+  static async simpleStartExam(examId: string): Promise<StartExamResponse> {
+    console.log('=== SIMPLE START EXAM TEST ===');
+    console.log('ExamId:', examId);
+    
+    // Check user auth
+    const userJson = localStorage.getItem('user');
+    const token = localStorage.getItem('access_token');
+    
+    console.log('User data:', userJson);
+    console.log('Has token:', !!token);
+    
+    let userId = '2';
+    if (userJson) {
+      const user = JSON.parse(userJson);
+      userId = user.id || '2';
     }
+    
+    console.log('Using userId:', userId);
+    
+    // Test call - most basic
+    try {
+      console.log('Attempting simple POST to:', `/exam-results/exams/${examId}/start`);
+      const response = await api.post(`/exam-results/exams/${examId}/start`);
+      console.log('SUCCESS - Simple POST worked!', response);
+      return response.data;
+    } catch (e) {
+      console.log('Simple POST failed:', e);
+    }
+    
+    // Test call - with query param
+    try {
+      const url = `/exam-results/exams/${examId}/start?userId=${userId}`;
+      console.log('Attempting POST with query param to:', url);
+      const response = await api.post(url);
+      console.log('SUCCESS - Query param POST worked!', response);
+      return response.data;
+    } catch (e) {
+      console.log('Query param POST failed:', e);
+    }
+    
+    // Test call - with body
+    try {
+      console.log('Attempting POST with body');
+      const response = await api.post(`/exam-results/exams/${examId}/start`, { userId });
+      console.log('SUCCESS - Body POST worked!', response);
+      return response.data;
+    } catch (e) {
+      console.log('Body POST failed:', e);
+    }
+    
+    throw new Error('All tests failed');
   }
 
-  async getExamResult(resultId: string): Promise<ExamResult> {
+  /**
+   * Bắt đầu làm bài thi
+   */
+  static async startExam(examId: string): Promise<StartExamResponse> {
+    // Gọi simple test trước
+    return await this.simpleStartExam(examId);
+  }
+
+  /**
+   * DEBUG: Test multiple submit endpoints
+   */
+  static async debugSubmitExam(examId: string, answers: SubmitExamAnswer[]): Promise<SubmitExamResponse> {
+    console.log('🧪 DEBUG SUBMIT EXAM');
+    console.log('ExamId:', examId);
+    console.log('Original answers:', answers);
+    
+    // Transform answers to server format - keep selectedOptionId (no 's')
+    const formattedAnswers = answers.map(answer => ({
+      questionId: answer.questionId,
+      selectedOptionId: answer.selectedOptionId || "" // Server expects 'selectedOptionId' (no 's')
+    }));
+    
+    const requestBody = {
+      examId: examId,
+      answers: formattedAnswers
+    };
+    
+    console.log('Formatted request body:', JSON.stringify(requestBody, null, 2));
+    
+    // Test 1: /exam-results/submit
+    console.log('\n=== TEST 1: /exam-results/submit ===');
     try {
-      const response = await fetch(`${BASE_URL}/exam-results/${resultId}`, {
-        method: "GET",
-        headers: this.getAuthHeaders()
-      })
+      const response1 = await api.post('/exam-results/submit', requestBody);
+      console.log('✅ SUCCESS with /exam-results/submit:', response1.data);
+      return response1.data;
+    } catch (e) {
+      console.log('❌ FAILED /exam-results/submit:', e);
+    }
+    
+    // Test 2: /exam-results/exams/{examId}/submit
+    console.log('\n=== TEST 2: /exam-results/exams/{examId}/submit ===');
+    try {
+      const response2 = await api.post(`/exam-results/exams/${examId}/submit`, requestBody);
+      console.log('✅ SUCCESS with /exam-results/exams/{examId}/submit:', response2.data);
+      return response2.data;
+    } catch (e) {
+      console.log('❌ FAILED /exam-results/exams/{examId}/submit:', e);
+    }
+    
+    // Test 3: /exam-results/{examId}/submit  
+    console.log('\n=== TEST 3: /exam-results/{examId}/submit ===');
+    try {
+      const response3 = await api.post(`/exam-results/${examId}/submit`, requestBody);
+      console.log('✅ SUCCESS with /exam-results/{examId}/submit:', response3.data);
+      return response3.data;
+    } catch (e) {
+      console.log('❌ FAILED /exam-results/{examId}/submit:', e);
+    }
+    
+    throw new Error('All submit tests failed');
+  }
 
-      if (!response.ok) {
-        // If it's a CORS error or 404, simulate success for development
-        if (response.status === 0 || response.status === 404) {
-          console.warn("Get exam result API not available, simulating success for development")
-          
-          // Create mock exam result with all required fields
-          const mockResult: ExamResult = {
-            id: resultId,
-            startedAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-            submittedAt: new Date().toISOString(),
-            score: 2,
-            status: "PASSED",
-            userId: "1",
-            examId: "exam1",
-            examTitle: "Kiểm tra Hiragana cơ bản",
-            answers: [
-              {
-                id: "answer1",
-                userAnswer: null,
-                isCorrect: true,
-                questionId: "q1",
-                questionContent: "Hiragana あ được đọc như thế nào?",
-                selectedOptionId: "a",
-                correctAnswer: "a"
-              },
-              {
-                id: "answer2",
-                userAnswer: "wa",
-                isCorrect: true,
-                questionId: "q2",
-                questionContent: "Điền từ thích hợp: Watashi __ gakusei desu",
-                selectedOptionId: null,
-                correctAnswer: "wa"
-              },
-              {
-                id: "answer3",
-                userAnswer: null,
-                isCorrect: false,
-                questionId: "q3",
-                questionContent: "Tiếng Nhật có bao nhiêu chữ Hiragana cơ bản?",
-                selectedOptionId: "50",
-                correctAnswer: "46"
-              }
-            ],
-            totalQuestions: 3,
-            correctAnswers: 2
-          }
-          
-          return mockResult
-        }
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
+  /**
+   * Nộp bài thi
+   */
+  static async submitExam(examId: string, answers: SubmitExamAnswer[]): Promise<SubmitExamResponse> {
+    // Temporarily use debug method to find correct endpoint
+    return await this.debugSubmitExam(examId, answers);
+  }
 
-      const data = await response.json()
-      
-      if (!data.success) {
-        throw new Error(data.message || "Failed to get exam result")
-      }
-
-      // Log dữ liệu thực từ API để debug
-      console.log("API Response Data:", data.data)
-      console.log("API Response Answers:", data.data.answers)
-      
-      return data.data
+  /**
+   * Lấy kết quả bài thi theo ID
+   */
+  static async getExamResult(resultId: string): Promise<SubmitExamResponse> {
+    try {
+      const response = await api.get(`/exam-results/${resultId}`);
+      return response.data;
     } catch (error) {
-      console.error("Error fetching exam result:", error)
-      
-      // Handle ALL network errors including CORS errors
-      if (
-        error instanceof TypeError || 
-        (error instanceof Error && 
-          (error.message.includes('fetch') || 
-           error.message.includes('network') ||
-           error.message.includes('CORS') ||
-           error.message.includes('ERR_FAILED')))
-      ) {
-        console.warn("Network/CORS error when fetching exam result, simulating success for development")
-        
-        // Create mock exam result with all required fields
-        const mockResult: ExamResult = {
-          id: resultId,
-          startedAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-          submittedAt: new Date().toISOString(),
-          score: 0,
-          status: "FAILED",
-          userId: "1",
-          examId: "exam1",
-          examTitle: "Kiểm tra Hiragana cơ bản",
-          answers: [
-            {
-              id: "answer1",
-              userAnswer: null,
-              isCorrect: false,
-              questionId: "q1",
-              questionContent: "Hiragana あ được đọc như thế nào?",
-              selectedOptionId: null,
-              correctAnswer: "a"
-            },
-            {
-              id: "answer2",
-              userAnswer: null,
-              isCorrect: false,
-              questionId: "q2",
-              questionContent: "Katakana カ được đọc như thế nào?",
-              selectedOptionId: null,
-              correctAnswer: "ka"
-            },
-            {
-              id: "answer3",
-              userAnswer: null,
-              isCorrect: false,
-              questionId: "q3",
-              questionContent: "Tiếng Nhật có bao nhiêu chữ Hiragana cơ bản?",
-              selectedOptionId: null,
-              correctAnswer: "46"
-            }
-          ],
-          totalQuestions: 3,
-          correctAnswers: 0
-        }
-        
-        return mockResult
-      }
-      
-      throw error
+      console.error('Error fetching exam result:', error);
+      throw error;
     }
   }
 }
-
-export const examService = new ExamService()

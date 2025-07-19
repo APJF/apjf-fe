@@ -13,7 +13,7 @@ import {
   Loader
 } from "lucide-react"
 import type { ExamResultProps, Question } from "../../types/exam"
-import { examService } from "../../services/examService"
+import { ExamService } from "../../services/examService"
 
 /**
  * ExamResult Component - Hiển thị kết quả bài kiểm tra
@@ -32,16 +32,20 @@ export function ExamResult({ examResult, onRestart, onShowAnswers }: Readonly<Ex
       
       try {
         setIsLoadingExam(true)
-        const data = await examService.getExamById(examId)
+        const response = await ExamService.getExamDetail(examId)
+        
+        if (!response.success) {
+          throw new Error(response.message || "Không thể tải thông tin bài kiểm tra")
+        }
         
         // Tạo map các câu hỏi để dễ dàng truy cập theo ID
         const questionsMap: Record<string, Question> = {}
-        data.questions.forEach(question => {
+        response.data.questions.forEach((question: Question) => {
           questionsMap[question.id] = question
         })
         
         setExamQuestions(questionsMap)
-        console.log("ExamResult - Loaded exam data:", data)
+        console.log("ExamResult - Loaded exam data:", response.data)
         console.log("ExamResult - Questions map:", questionsMap)
       } catch (error) {
         console.error("Failed to load exam data:", error)
@@ -218,7 +222,7 @@ export function ExamResult({ examResult, onRestart, onShowAnswers }: Readonly<Ex
     if (Object.keys(examQuestions).length > 0) {
       Object.entries(examQuestions).forEach(([questionId, question]) => {
         // Xác định loại câu hỏi
-        let type = getQuestionType(question.type, question.content)
+        const type = getQuestionType(question.type, question.content)
         
         // Khởi tạo loại này trong typeStats nếu cần
         if (!typeStats[type]) {

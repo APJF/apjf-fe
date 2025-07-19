@@ -47,13 +47,7 @@ export interface StartExamRequest {
 export interface StartExamResponse {
   success: boolean
   message: string
-  data: {
-    id: string
-    startedAt: string
-    status: string
-    userId: string
-    examId: string
-  }
+  data: ExamResult
   timestamp: number
 }
 
@@ -83,8 +77,8 @@ export interface ExamResultAnswer {
 export interface ExamResult {
   id: string
   startedAt: string
-  submittedAt: string
-  score: number
+  submittedAt: string | null
+  score: number | null
   status: "PASSED" | "FAILED" | "IN_PROGRESS"
   userId: string
   examId: string

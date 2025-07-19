@@ -13,7 +13,7 @@ import {
   Flag,
   AlertCircle
 } from "lucide-react"
-import { examService } from "../../services/examService"
+import { ExamService } from "../../services/examService"
 import type { Exam, Question, SubmitExamAnswer } from "../../types/exam"
 
 interface UserAnswer {
@@ -24,7 +24,7 @@ interface UserAnswer {
 
 interface ExamDoingProps {
   examId: string
-  onSubmit: (result: any) => void
+  onSubmit: (result: unknown) => void
   onBack?: () => void
 }
 
@@ -39,9 +39,6 @@ export function ExamDoing({ examId, onSubmit, onBack }: Readonly<ExamDoingProps>
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [showTimeWarning, setShowTimeWarning] = useState(false)
-  const [hasShownTimeWarning, setHasShownTimeWarning] = useState(false)
-  const [showFinalWarning, setShowFinalWarning] = useState(false)
 
   const audioRef = useRef<HTMLAudioElement>(null)
 
@@ -65,9 +62,25 @@ export function ExamDoing({ examId, onSubmit, onBack }: Readonly<ExamDoingProps>
       try {
         setIsLoading(true)
         setError(null)
-        const examData = await examService.getExamById(examId)
-        setExam(examData)
-        setTimeLeft(examData.duration * 60) // Convert minutes to seconds
+        const response = await ExamService.getExamDetail(examId)
+        
+        if (!response.success) {
+          throw new Error(response.message || "Không thể tải thông tin bài kiểm tra")
+        }
+        
+        setExam(response.data)
+        setTimeLeft(response.data.duration * 60) // Convert minutes to seconds
+        
+        // Initialize answers object
+        const initialAnswers: Record<string, UserAnswer> = {}
+        response.data.questions.forEach((question: Question) => {
+          initialAnswers[question.id] = {
+            questionId: question.id,
+            selectedOptionId: null,
+            userAnswer: null
+          }
+        })
+        setAnswers(initialAnswers)
       } catch (err) {
         console.error("Error loading exam:", err)
         setError(err instanceof Error ? err.message : "Không thể tải thông tin bài kiểm tra")
@@ -95,6 +108,7 @@ export function ExamDoing({ examId, onSubmit, onBack }: Readonly<ExamDoingProps>
       console.log("Time's up, submitting exam...")
       handleSubmit()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, isSubmitting, exam])
 
   const formatTime = (seconds: number) => {
@@ -186,7 +200,7 @@ export function ExamDoing({ examId, onSubmit, onBack }: Readonly<ExamDoingProps>
       const userId = getUserId()
       console.log('User ID for submission:', userId);
       console.log('Exam ID for submission:', exam.id);
-      const result = await examService.submitExam(exam.id, submitAnswers, userId)
+      const result = await ExamService.submitExam(exam.id, submitAnswers)
       
       // Pass the entire result data to parent
       onSubmit(result.data)

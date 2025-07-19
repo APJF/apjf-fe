@@ -8,43 +8,288 @@ import {
   FileText, 
   Lightbulb 
 } from "lucide-react"
-import type { ExamResult } from "../../types/exam"
+import type { ExamResult, ExamResultAnswer } from "../../types/exam"
 
 interface ExamAnswerReviewProps {
-  examResult: ExamResult
-  onBack: () => void
+  readonly examResult: ExamResult
+  readonly onBack: () => void
+}
+
+// Helper functions
+const getQuestionIcon = (type: string) => {
+  switch (type) {
+    case "MULTIPLE_CHOICE":
+      return <FileText className="h-4 w-4" />
+    case "TRUE_FALSE":
+      return <CheckCircle className="h-4 w-4" />
+    case "WRITING":
+      return <Lightbulb className="h-4 w-4" />
+    default:
+      return <FileText className="h-4 w-4" />
+  }
+}
+
+const getQuestionTypeName = (type: string) => {
+  switch (type) {
+    case "MULTIPLE_CHOICE":
+      return "Trắc nghiệm"
+    case "TRUE_FALSE":
+      return "Đúng/Sai"
+    case "WRITING":
+      return "Tự luận"
+    default:
+      return "Văn bản"
+  }
+}
+
+const getOptionStyles = (isSelected: boolean, isCorrectOption: boolean) => {
+  if (isSelected && isCorrectOption) {
+    return { borderClass: "border-green-500", bgClass: "bg-green-50" }
+  } else if (isSelected && !isCorrectOption) {
+    return { borderClass: "border-red-500", bgClass: "bg-red-50" }
+  } else if (isCorrectOption) {
+    return { borderClass: "border-green-500", bgClass: "bg-green-50" }
+  }
+  return { borderClass: "border-gray-200", bgClass: "bg-white" }
+}
+
+// Component for rendering answer status message
+const AnswerStatusMessage = ({ hasAnswered, isCorrect, currentAnswer }: {
+  hasAnswered: boolean
+  isCorrect: boolean
+  currentAnswer: ExamResultAnswer
+}) => {
+  if (hasAnswered && currentAnswer.type === "WRITING") {
+    return (
+      <div className={`p-4 rounded-lg border-2 mb-4 ${
+        isCorrect 
+          ? "border-green-500 bg-green-50" 
+          : "border-red-500 bg-red-50"
+      }`}>
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2">
+            {isCorrect ? (
+              <CheckCircle className="h-5 w-5 text-green-600" />
+            ) : (
+              <XCircle className="h-5 w-5 text-red-600" />
+            )}
+            <span className="font-medium text-gray-700">Bạn đã trả lời:</span>
+          </div>
+          <span className="flex-1">{currentAnswer.userAnswer}</span>
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+            isCorrect 
+              ? "bg-green-100 text-green-800" 
+              : "bg-red-100 text-red-800"
+          }`}>
+            {isCorrect ? "Đúng" : "Sai"}
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  if (!hasAnswered) {
+    const messageMap = {
+      "WRITING": "Bạn chưa trả lời câu hỏi này",
+      "MULTIPLE_CHOICE": "Bạn chưa trả lời câu hỏi này",
+      "TRUE_FALSE": currentAnswer.options?.length && currentAnswer.options.length > 0
+        ? "Bạn chưa chọn đáp án Đúng/Sai" 
+        : "Bạn chưa trả lời câu hỏi này"
+    }
+    
+    return (
+      <div className="p-4 rounded-lg border-2 border-yellow-500 bg-yellow-50 mb-4">
+        <div className="flex items-center space-x-3">
+          <XCircle className="h-5 w-5 text-yellow-600" />
+          <span className="font-medium text-gray-700">
+            {messageMap[currentAnswer.type as keyof typeof messageMap] || messageMap.MULTIPLE_CHOICE}
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  return null
+}
+
+// Component for rendering multiple choice options
+const MultipleChoiceOptions = ({ currentAnswer }: { currentAnswer: ExamResultAnswer }) => {
+  if (currentAnswer.type !== "MULTIPLE_CHOICE" || !currentAnswer.options?.length) {
+    return null
+  }
+
+  return (
+    <div className="space-y-2">
+      {currentAnswer.options.map((option, index: number) => {
+        const optionLabel = ['A', 'B', 'C', 'D', 'E', 'F'][index] || `${index + 1}`
+        const isSelected = option.id === currentAnswer.selectedOptionId
+        const isCorrectOption = option.isCorrect
+        const { borderClass, bgClass } = getOptionStyles(isSelected, isCorrectOption)
+        
+        return (
+          <div 
+            key={option.id} 
+            className={`p-3 rounded-lg border ${borderClass} ${bgClass} flex items-center`}
+          >
+            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+              <span className="font-medium text-blue-800">{optionLabel}</span>
+            </div>
+            <div className="flex-grow">{option.content}</div>
+            <div className="flex-shrink-0 ml-3">
+              {(isSelected && isCorrectOption) && (
+                <CheckCircle className="h-5 w-5 text-green-600" />
+              )}
+              {(isSelected && !isCorrectOption) && (
+                <XCircle className="h-5 w-5 text-red-600" />
+              )}
+              {(!isSelected && isCorrectOption) && (
+                <CheckCircle className="h-5 w-5 text-green-600" />
+              )}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// Component for rendering true/false options
+const TrueFalseOptions = ({ currentAnswer, hasAnswered, isCorrect }: {
+  currentAnswer: ExamResultAnswer
+  hasAnswered: boolean
+  isCorrect: boolean
+}) => {
+  if (currentAnswer.type !== "TRUE_FALSE") {
+    return null
+  }
+
+  if (currentAnswer.options && currentAnswer.options.length > 0) {
+    return (
+      <div className="space-y-2">
+        {currentAnswer.options.map((option, index: number) => {
+          const optionLabel = ['A', 'B'][index] || `${index + 1}`
+          const isSelected = option.id === currentAnswer.selectedOptionId
+          const isCorrectOption = option.isCorrect
+          const { borderClass, bgClass } = getOptionStyles(isSelected, isCorrectOption)
+          
+          return (
+            <div 
+              key={option.id} 
+              className={`p-3 rounded-lg border ${borderClass} ${bgClass} flex items-center`}
+            >
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                <span className="font-medium text-blue-800">{optionLabel}</span>
+              </div>
+              <div className="flex-grow">{option.content}</div>
+              <div className="flex-shrink-0 ml-3">
+                {(isSelected && isCorrectOption) && (
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                )}
+                {(isSelected && !isCorrectOption) && (
+                  <XCircle className="h-5 w-5 text-red-600" />
+                )}
+                {(!isSelected && isCorrectOption) && (
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // Handle true/false without options
+  return (
+    <div className="space-y-4">
+      {hasAnswered && (
+        <div className={`p-4 rounded-lg border-2 mb-2 ${
+          isCorrect 
+            ? "border-green-500 bg-green-50" 
+            : "border-red-500 bg-red-50"
+        }`}>
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2">
+              {isCorrect ? (
+                <CheckCircle className="h-5 w-5 text-green-600" />
+              ) : (
+                <XCircle className="h-5 w-5 text-red-600" />
+              )}
+              <span className="font-medium text-gray-700">Bạn đã chọn:</span>
+            </div>
+            <span className="flex-1">
+              {currentAnswer.selectedOptionId === "true" || currentAnswer.userAnswer === "true" ? "Đúng" : "Sai"}
+            </span>
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+              isCorrect 
+                ? "bg-green-100 text-green-800" 
+                : "bg-red-100 text-red-800"
+            }`}>
+              {isCorrect ? "Đúng" : "Sai"}
+            </span>
+          </div>
+        </div>
+      )}
+      
+      {/* True option */}
+      <div className={`p-3 rounded-lg border ${
+        currentAnswer.correctAnswer === "true" ? "border-green-500 bg-green-50" : "border-gray-200 bg-white"
+      } flex items-center`}>
+        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+          <span className="font-medium text-blue-800">A</span>
+        </div>
+        <div className="flex-grow">Đúng</div>
+        <div className="flex-shrink-0 ml-3">
+          {currentAnswer.correctAnswer === "true" && (
+            <CheckCircle className="h-5 w-5 text-green-600" />
+          )}
+        </div>
+      </div>
+      
+      {/* False option */}
+      <div className={`p-3 rounded-lg border ${
+        currentAnswer.correctAnswer === "false" ? "border-green-500 bg-green-50" : "border-gray-200 bg-white"
+      } flex items-center`}>
+        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+          <span className="font-medium text-blue-800">B</span>
+        </div>
+        <div className="flex-grow">Sai</div>
+        <div className="flex-shrink-0 ml-3">
+          {currentAnswer.correctAnswer === "false" && (
+            <CheckCircle className="h-5 w-5 text-green-600" />
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Component for rendering writing question correct answer
+const WritingCorrectAnswer = ({ currentAnswer }: { currentAnswer: ExamResultAnswer }) => {
+  if (currentAnswer.type !== "WRITING") {
+    return null
+  }
+
+  return (
+    <div className="p-4 rounded-lg border-2 border-green-500 bg-green-50">
+      <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2">
+          <CheckCircle className="h-5 w-5 text-green-600" />
+          <span className="font-medium text-gray-700">Đáp án đúng:</span>
+        </div>
+        <span className="flex-1">{currentAnswer.correctAnswer}</span>
+        <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+          Đáp án chính xác
+        </span>
+      </div>
+    </div>
+  )
 }
 
 export function ExamAnswerReview({ examResult, onBack }: ExamAnswerReviewProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0)
 
-  const getQuestionIcon = (type: string) => {
-    switch (type) {
-      case "MULTIPLE_CHOICE":
-        return <FileText className="h-4 w-4" />
-      case "TRUE_FALSE":
-        return <CheckCircle className="h-4 w-4" />
-      case "WRITING":
-        return <Lightbulb className="h-4 w-4" />
-      default:
-        return <FileText className="h-4 w-4" />
-    }
-  }
-
-  const getQuestionTypeName = (type: string) => {
-    switch (type) {
-      case "MULTIPLE_CHOICE":
-        return "Trắc nghiệm"
-      case "TRUE_FALSE":
-        return "Đúng/Sai"
-      case "WRITING":
-        return "Tự luận"
-      default:
-        return "Văn bản"
-    }
-  }
-
-  // Bảo vệ trường hợp examResult không có dữ liệu
+  // Debug logs
   console.log("ExamAnswerReview - examResult:", examResult)
   console.log("ExamAnswerReview - examResult.answers:", examResult?.answers)
   console.log("ExamAnswerReview - examResult.answers.length:", examResult?.answers?.length)
@@ -73,27 +318,11 @@ export function ExamAnswerReview({ examResult, onBack }: ExamAnswerReviewProps) 
     userAnswer: null,
     questionId: "",
     options: [],
-    type: "MULTIPLE_CHOICE"
-  }
-  
-  // Tìm option mà người dùng đã chọn
-  const selectedOption = currentAnswer.options?.find(option => 
-    option.id === currentAnswer.selectedOptionId
-  )
-  
-  // Tìm option đúng
-  const correctOption = currentAnswer.options?.find(option => 
-    option.isCorrect
-  )
-  
-  // Thêm các hàm trợ giúp để hiển thị tên options
-  const getOptionLabel = (index: number): string => {
-    return ['A', 'B', 'C', 'D', 'E', 'F'][index] || `${index + 1}`;
+    type: "MULTIPLE_CHOICE" as const
   }
   
   const isCorrect = currentAnswer?.isCorrect || false
   const hasAnswered = currentAnswer?.selectedOptionId !== null || currentAnswer?.userAnswer !== null
-  const isMultipleChoiceQuestion = currentAnswer.type === "MULTIPLE_CHOICE"
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
@@ -152,255 +381,29 @@ export function ExamAnswerReview({ examResult, onBack }: ExamAnswerReviewProps) 
                   <div className="space-y-3">
                     <h3 className="font-medium text-gray-700">Các lựa chọn:</h3>
                     
-                    {/* Hiển thị các thông báo về trạng thái trả lời */}
                     <div className="space-y-2 mb-4">
-                      {/* Hiển thị câu trả lời của người dùng nếu đã trả lời cho câu tự luận */}
-                      {hasAnswered && currentAnswer.type === "WRITING" && (
-                        <div className={`p-4 rounded-lg border-2 mb-4 ${
-                          isCorrect 
-                            ? "border-green-500 bg-green-50" 
-                            : "border-red-500 bg-red-50"
-                        }`}>
-                          <div className="flex items-center space-x-3">
-                            <div className="flex items-center space-x-2">
-                              {isCorrect ? (
-                                <CheckCircle className="h-5 w-5 text-green-600" />
-                              ) : (
-                                <XCircle className="h-5 w-5 text-red-600" />
-                              )}
-                              <span className="font-medium text-gray-700">Bạn đã trả lời:</span>
-                            </div>
-                            <span className="flex-1">
-                              {currentAnswer.userAnswer}
-                            </span>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              isCorrect 
-                                ? "bg-green-100 text-green-800" 
-                                : "bg-red-100 text-red-800"
-                            }`}>
-                              {isCorrect ? "Đúng" : "Sai"}
-                            </span>
-                          </div>
-                        </div>
-                      )}
+                      <AnswerStatusMessage 
+                        hasAnswered={hasAnswered} 
+                        isCorrect={isCorrect} 
+                        currentAnswer={currentAnswer} 
+                      />
                       
-                      {/* Hiển thị thông báo chưa trả lời cho câu tự luận */}
-                      {!hasAnswered && currentAnswer.type === "WRITING" && (
-                        <div className="p-4 rounded-lg border-2 border-yellow-500 bg-yellow-50 mb-4">
-                          <div className="flex items-center space-x-3">
-                            <XCircle className="h-5 w-5 text-yellow-600" />
-                            <span className="font-medium text-gray-700">Bạn chưa trả lời câu hỏi này</span>
-                          </div>
-                        </div>
-                      )}
+                      <MultipleChoiceOptions currentAnswer={currentAnswer} />
                       
-                      {/* Hiển thị thông báo chưa trả lời cho câu hỏi trắc nghiệm */}
-                      {!hasAnswered && currentAnswer.type === "MULTIPLE_CHOICE" && (
-                        <div className="p-4 rounded-lg border-2 border-yellow-500 bg-yellow-50 mb-4">
-                          <div className="flex items-center space-x-3">
-                            <XCircle className="h-5 w-5 text-yellow-600" />
-                            <span className="font-medium text-gray-700">Bạn chưa trả lời câu hỏi này</span>
-                          </div>
-                        </div>
-                      )}
+                      <TrueFalseOptions 
+                        currentAnswer={currentAnswer} 
+                        hasAnswered={hasAnswered} 
+                        isCorrect={isCorrect} 
+                      />
                       
-                      {/* Hiển thị thông báo chưa trả lời cho câu hỏi TRUE_FALSE khi có options */}
-                      {!hasAnswered && currentAnswer.type === "TRUE_FALSE" && currentAnswer.options && currentAnswer.options.length > 0 && (
-                        <div className="p-4 rounded-lg border-2 border-yellow-500 bg-yellow-50 mb-4">
-                          <div className="flex items-center space-x-3">
-                            <XCircle className="h-5 w-5 text-yellow-600" />
-                            <span className="font-medium text-gray-700">Bạn chưa chọn đáp án Đúng/Sai</span>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Hiển thị tất cả options A, B, C, D nếu là câu hỏi trắc nghiệm */}
-                      {currentAnswer.type === "MULTIPLE_CHOICE" && currentAnswer.options && currentAnswer.options.length > 0 && (
-                        <div className="space-y-2">
-                          {currentAnswer.options.map((option, index) => {
-                            const optionLabel = ['A', 'B', 'C', 'D', 'E', 'F'][index] || `${index + 1}`;
-                            const isSelected = option.id === currentAnswer.selectedOptionId;
-                            const isCorrectOption = option.isCorrect;
-                            
-                            let borderClass = "border-gray-200";
-                            let bgClass = "bg-white";
-                            
-                            if (isSelected && isCorrectOption) {
-                              borderClass = "border-green-500";
-                              bgClass = "bg-green-50";
-                            } else if (isSelected && !isCorrectOption) {
-                              borderClass = "border-red-500";
-                              bgClass = "bg-red-50";
-                            } else if (isCorrectOption) {
-                              borderClass = "border-green-500";
-                              bgClass = "bg-green-50";
-                            }
-                            
-                            return (
-                              <div 
-                                key={option.id} 
-                                className={`p-3 rounded-lg border ${borderClass} ${bgClass} flex items-center`}
-                              >
-                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
-                                  <span className="font-medium text-blue-800">{optionLabel}</span>
-                                </div>
-                                <div className="flex-grow">
-                                  {option.content}
-                                </div>
-                                <div className="flex-shrink-0 ml-3">
-                                  {isSelected && isCorrectOption && (
-                                    <CheckCircle className="h-5 w-5 text-green-600" />
-                                  )}
-                                  {isSelected && !isCorrectOption && (
-                                    <XCircle className="h-5 w-5 text-red-600" />
-                                  )}
-                                  {!isSelected && isCorrectOption && (
-                                    <CheckCircle className="h-5 w-5 text-green-600" />
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                      
-                      {/* Hiển thị lựa chọn Đúng/Sai nếu là câu hỏi TRUE_FALSE */}
-                      {currentAnswer.type === "TRUE_FALSE" && currentAnswer.options && currentAnswer.options.length > 0 && (
-                        <div className="space-y-2">
-                          {currentAnswer.options.map((option, index) => {
-                            const optionLabel = ['A', 'B'][index] || `${index + 1}`;
-                            const isSelected = option.id === currentAnswer.selectedOptionId;
-                            const isCorrectOption = option.isCorrect;
-                            
-                            let borderClass = "border-gray-200";
-                            let bgClass = "bg-white";
-                            
-                            if (isSelected && isCorrectOption) {
-                              borderClass = "border-green-500";
-                              bgClass = "bg-green-50";
-                            } else if (isSelected && !isCorrectOption) {
-                              borderClass = "border-red-500";
-                              bgClass = "bg-red-50";
-                            } else if (isCorrectOption) {
-                              borderClass = "border-green-500";
-                              bgClass = "bg-green-50";
-                            }
-                            
-                            return (
-                              <div 
-                                key={option.id} 
-                                className={`p-3 rounded-lg border ${borderClass} ${bgClass} flex items-center`}
-                              >
-                                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
-                                  <span className="font-medium text-blue-800">{optionLabel}</span>
-                                </div>
-                                <div className="flex-grow">
-                                  {option.content}
-                                </div>
-                                <div className="flex-shrink-0 ml-3">
-                                  {isSelected && isCorrectOption && (
-                                    <CheckCircle className="h-5 w-5 text-green-600" />
-                                  )}
-                                  {isSelected && !isCorrectOption && (
-                                    <XCircle className="h-5 w-5 text-red-600" />
-                                  )}
-                                  {!isSelected && isCorrectOption && (
-                                    <CheckCircle className="h-5 w-5 text-green-600" />
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                      
-                      {/* Hiển thị thông báo khi không có options cho câu đúng/sai */}
-                      {currentAnswer.type === "TRUE_FALSE" && (!currentAnswer.options || currentAnswer.options.length === 0) && (
-                        <div className="space-y-4">
-                          {/* Hiển thị trạng thái câu trả lời cho câu hỏi đúng/sai */}
-                          {hasAnswered ? (
-                            <div className={`p-4 rounded-lg border-2 mb-2 ${
-                              isCorrect 
-                                ? "border-green-500 bg-green-50" 
-                                : "border-red-500 bg-red-50"
-                            }`}>
-                              <div className="flex items-center space-x-3">
-                                <div className="flex items-center space-x-2">
-                                  {isCorrect ? (
-                                    <CheckCircle className="h-5 w-5 text-green-600" />
-                                  ) : (
-                                    <XCircle className="h-5 w-5 text-red-600" />
-                                  )}
-                                  <span className="font-medium text-gray-700">Bạn đã chọn:</span>
-                                </div>
-                                <span className="flex-1">
-                                  {currentAnswer.selectedOptionId === "true" || currentAnswer.userAnswer === "true" ? "Đúng" : "Sai"}
-                                </span>
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                  isCorrect 
-                                    ? "bg-green-100 text-green-800" 
-                                    : "bg-red-100 text-red-800"
-                                }`}>
-                                  {isCorrect ? "Đúng" : "Sai"}
-                                </span>
-                              </div>
-                            </div>
-                          ) : null}
-                          
-                          {/* Hiển thị lựa chọn Đúng */}
-                          <div className={`p-3 rounded-lg border ${currentAnswer.correctAnswer === "true" ? "border-green-500 bg-green-50" : "border-gray-200 bg-white"} flex items-center`}>
-                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
-                              <span className="font-medium text-blue-800">A</span>
-                            </div>
-                            <div className="flex-grow">
-                              Đúng
-                            </div>
-                            <div className="flex-shrink-0 ml-3">
-                              {currentAnswer.correctAnswer === "true" && (
-                                <CheckCircle className="h-5 w-5 text-green-600" />
-                              )}
-                            </div>
-                          </div>
-                          
-                          {/* Hiển thị lựa chọn Sai */}
-                          <div className={`p-3 rounded-lg border ${currentAnswer.correctAnswer === "false" ? "border-green-500 bg-green-50" : "border-gray-200 bg-white"} flex items-center`}>
-                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mr-3">
-                              <span className="font-medium text-blue-800">B</span>
-                            </div>
-                            <div className="flex-grow">
-                              Sai
-                            </div>
-                            <div className="flex-shrink-0 ml-3">
-                              {currentAnswer.correctAnswer === "false" && (
-                                <CheckCircle className="h-5 w-5 text-green-600" />
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Hiển thị đáp án đúng cho câu hỏi tự luận */}
-                      {currentAnswer.type === "WRITING" && (
-                        <div className="p-4 rounded-lg border-2 border-green-500 bg-green-50">
-                          <div className="flex items-center space-x-3">
-                            <div className="flex items-center space-x-2">
-                              <CheckCircle className="h-5 w-5 text-green-600" />
-                              <span className="font-medium text-gray-700">Đáp án đúng:</span>
-                            </div>
-                            <span className="flex-1">{currentAnswer.correctAnswer}</span>
-                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              Đáp án chính xác
-                            </span>
-                          </div>
-                        </div>
-                      )}
+                      <WritingCorrectAnswer currentAnswer={currentAnswer} />
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Explanation - We'll show a placeholder for now */}
+            {/* Explanation */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
               <div className="flex items-center space-x-2 mb-4">
                 <Lightbulb className="h-5 w-5 text-blue-600" />
