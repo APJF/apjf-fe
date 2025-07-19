@@ -5,7 +5,7 @@ import { ChapterList } from "../components/course/ChapterList";
 import { CourseHeaderInfo } from "../components/course/CourseHeaderInfo";
 import { CourseDetailTabs } from "../components/course/CourseDetailTabs";
 import { LearningPathSidebar } from "../components/course/LearningPathSidebar";
-import { CourseDetailService } from "../services/courseDetailService";
+import { CourseDetailService } from "../services/courseDetailService.ts";
 import type { Course } from "../types/courseDetail";
 
 export default function CourseDetailPage() {
@@ -39,10 +39,17 @@ export default function CourseDetailPage() {
       console.log('Fetching detail for courseId:', courseId);
       const data = await CourseDetailService.getCourseDetail(courseId!);
       console.log('Course detail response:', data);
-      
-      if (data.success && data.data?.course) {
-        console.log('Setting course data:', data.data.course);
-        setCourse(data.data.course);
+
+      if (data.success) {
+        const courseData = data.data?.course;
+        
+        if (courseData && typeof courseData === 'object') {
+          console.log('Setting course data:', courseData);
+          setCourse(courseData);
+        } else {
+          console.error('No course data found in response:', data);
+          setError("Không tìm thấy thông tin khóa học");
+        }
       } else {
         console.error('API returned unsuccessful response:', data);
         setError(data.message || "Không thể tải thông tin khóa học");
@@ -69,7 +76,7 @@ export default function CourseDetailPage() {
   };
 
   const handleExamClick = (examId: string) => {
-    navigate(`/courses/${courseId}/exams/${examId}`);
+    navigate(`/exam/${examId}/preparation`);
   };
 
   if (loading) {
@@ -118,8 +125,8 @@ export default function CourseDetailPage() {
               </h2>
             </div>
             <ChapterList
-              chapters={course.chapters}
-              courseExams={course.exams}
+              chapters={course.chapters || []}
+              courseExams={course.exams || []}
               isEnrolled={isEnrolled}
               completedUnits={completedUnits}
               onUnitClick={handleUnitClick}
@@ -177,7 +184,7 @@ export default function CourseDetailPage() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Course Header */}
-            <CourseHeaderInfo course={course} chaptersCount={course.chapters.length} />
+            <CourseHeaderInfo course={course} chaptersCount={course.chapters?.length || 0} />
 
             {/* Tabs */}
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -190,9 +197,9 @@ export default function CourseDetailPage() {
           <div className="lg:col-span-1">
             <div className="sticky top-8">
               <LearningPathSidebar
-                chapters={course.chapters}
+                chapters={course.chapters || []}
                 completedChapters={completedChapters}
-                currentChapter={course.chapters[0]?.id}
+                currentChapter={course.chapters?.[0]?.id}
               />
             </div>
           </div>
