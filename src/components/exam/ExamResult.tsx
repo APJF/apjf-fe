@@ -216,39 +216,20 @@ export function ExamResult({ examResult, onRestart, onShowAnswers }: Readonly<Ex
     const typeStats: Record<string, { correct: number; total: number; answered: number; unanswered: number }> = {}
     
     console.log("Analyzing answers:", answers)
-    console.log("Available exam questions:", examQuestions)
     
-    // Đầu tiên, xử lý tất cả câu hỏi từ examQuestions để đảm bảo có đầy đủ thông tin
-    if (Object.keys(examQuestions).length > 0) {
-      Object.entries(examQuestions).forEach(([questionId, question]) => {
-        // Xác định loại câu hỏi
-        const type = getQuestionType(question.type, question.content)
-        
-        // Khởi tạo loại này trong typeStats nếu cần
-        if (!typeStats[type]) {
-          typeStats[type] = { correct: 0, total: 0, answered: 0, unanswered: 0 }
-        }
-        
-        // Tăng tổng số câu hỏi
-        typeStats[type].total++
-        
-        console.log(`Question ${questionId}: type=${question.type} -> ${type}, content=${question.content.substring(0, 30)}...`)
-      })
-    }
-    
-    // Dùng Set để theo dõi các questionId đã được xử lý từ answers
-    const processedAnswerIds = new Set<string>()
+    // Sử dụng Set để theo dõi các questionId đã xử lý
+    const processedQuestionIds = new Set<string>()
     
     // Xử lý các câu trả lời từ kết quả bài kiểm tra
     if (answers && Array.isArray(answers) && answers.length > 0) {
       answers.forEach(answer => {
         // Thêm questionId vào danh sách đã xử lý
-        processedAnswerIds.add(answer.questionId)
-      
-      // Kiểm tra xem câu hỏi đã được trả lời hay chưa
-      const hasAnswered = answer.selectedOptionId !== null && answer.selectedOptionId !== undefined || 
+        processedQuestionIds.add(answer.questionId)
+        
+        // Kiểm tra xem câu hỏi đã được trả lời hay chưa
+        const hasAnswered = answer.selectedOptionId !== null && answer.selectedOptionId !== undefined || 
                           answer.userAnswer !== null && answer.userAnswer !== undefined && answer.userAnswer !== '';
-      
+        
         // Lấy thông tin câu hỏi từ examQuestions nếu có
         const questionInfo = examQuestions[answer.questionId]
         
@@ -259,48 +240,49 @@ export function ExamResult({ examResult, onRestart, onShowAnswers }: Readonly<Ex
         // Xác định loại câu hỏi bằng helper function
         const type = getQuestionType(questionType, questionContent)
         
-        // Ghi log để kiểm tra dữ liệu
-        console.log(`Answer for Question ${answer.questionId}: type=${questionType} -> ${type}, hasAnswered=${hasAnswered}, isCorrect=${answer.isCorrect}`)      // Đảm bảo loại này được khởi tạo trong thống kê
-      if (!typeStats[type]) {
-        typeStats[type] = { correct: 0, total: 0, answered: 0, unanswered: 0 };
-      }
-      
-      // Luôn tăng tổng số câu hỏi của loại này
-      typeStats[type].total++;
-      
-      // Cập nhật số câu đã trả lời/chưa trả lời
-      if (hasAnswered) {
-        typeStats[type].answered++;
-      } else {
-        typeStats[type].unanswered++;
-      }
-      
+        console.log(`Answer for Question ${answer.questionId}: type=${questionType} -> ${type}, hasAnswered=${hasAnswered}, isCorrect=${answer.isCorrect}`)
+        
+        // Đảm bảo loại này được khởi tạo trong thống kê
+        if (!typeStats[type]) {
+          typeStats[type] = { correct: 0, total: 1, answered: 0, unanswered: 0 };
+        } else {
+          // Tăng tổng số câu hỏi của loại này
+          typeStats[type].total++;
+        }
+        
+        // Cập nhật số câu đã trả lời/chưa trả lời
+        if (hasAnswered) {
+          typeStats[type].answered++;
+        } else {
+          typeStats[type].unanswered++;
+        }
+        
         // Kiểm tra câu trả lời đúng
-        // Chỉ tính câu đúng nếu isCorrect là true
         if (answer.isCorrect === true) {
           typeStats[type].correct++;
         }
       })
     }
     
-    // Cập nhật số câu chưa trả lời cho các câu hỏi không có trong answers
+    // Kiểm tra xem có câu hỏi nào từ examQuestions chưa được đưa vào answers không
     if (Object.keys(examQuestions).length > 0) {
       Object.entries(examQuestions).forEach(([questionId, question]) => {
         // Bỏ qua câu hỏi đã được xử lý từ answers
-        if (processedAnswerIds.has(questionId)) {
-          return
+        if (processedQuestionIds.has(questionId)) {
+          return;
         }
         
-        const type = getQuestionType(question.type, question.content)
-        console.log(`Unprocessed question ${questionId}: type=${question.type} -> ${type} (no answer provided)`)
+        const type = getQuestionType(question.type, question.content);
+        console.log(`Unprocessed question ${questionId}: type=${question.type} -> ${type} (no answer provided)`);
         
-        // Đảm bảo loại này được khởi tạo trong thống kê 
+        // Đảm bảo loại này được khởi tạo trong thống kê
         if (!typeStats[type]) {
-          typeStats[type] = { correct: 0, total: 0, answered: 0, unanswered: 0 }
+          typeStats[type] = { correct: 0, total: 1, answered: 0, unanswered: 1 };
+        } else {
+          // Tăng tổng số câu hỏi và số câu chưa trả lời của loại này
+          typeStats[type].total++;
+          typeStats[type].unanswered++;
         }
-        
-        // Tăng số câu chưa trả lời cho loại này
-        typeStats[type].unanswered++
       })
     }
     
@@ -375,10 +357,9 @@ export function ExamResult({ examResult, onRestart, onShowAnswers }: Readonly<Ex
           {/* Score Card */}
           <div className={`bg-white rounded-lg border-2 ${evaluation.borderColor} p-6 text-center shadow-sm`}>
             <div className={`text-4xl font-bold ${evaluation.scoreColor} mb-2`}>
-              {score}
+              {score}%
             </div>
             <p className="text-sm text-gray-600 mb-4">Điểm số</p>
-            {/* <div className={`text-3xl font-bold ${evaluation.scoreColor}`}>{percentage}%</div> */}
           </div>
 
           {/* Evaluation Card */}
@@ -398,7 +379,7 @@ export function ExamResult({ examResult, onRestart, onShowAnswers }: Readonly<Ex
           <div className="bg-white rounded-lg p-4 text-center shadow-sm">
             <CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-2" />
             <div className="text-2xl font-bold text-green-600">
-              {examResult.correctAnswers}/{totalQuestions}
+              {examResult.correctAnswers}
             </div>
             <p className="text-sm text-gray-600">Câu đúng</p>
           </div>
@@ -472,7 +453,7 @@ export function ExamResult({ examResult, onRestart, onShowAnswers }: Readonly<Ex
                     <div className={`text-xs font-medium ${colorClass}`}>{typePercentage}%</div>
                     {stats.unanswered > 0 && (
                       <div className="text-xs text-yellow-600 mt-1">
-                        {stats.unanswered} câu chưa trả lời
+                        {stats.unanswered} câu chưa làm
                       </div>
                     )}
                   </div>

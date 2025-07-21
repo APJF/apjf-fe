@@ -72,6 +72,7 @@ export interface ExamResultAnswer {
   correctAnswer: string
   options?: QuestionOption[]
   type?: "MULTIPLE_CHOICE" | "TRUE_FALSE" | "WRITING"
+  explanation?: string | null
 }
 
 export interface ExamResult {
