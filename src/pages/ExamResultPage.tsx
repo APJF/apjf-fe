@@ -23,9 +23,11 @@ export function ExamResultPage() {
   }
 
   const handleShowAnswers = () => {
-    // Navigate to exam answer review page
+    // Navigate to exam answer review page with exam result data
     if (examResult?.id) {
-      navigate(`/exam-result/${examResult.id}/review`)
+      navigate(`/exam-result/${examResult.id}/review`, { 
+        state: { examResult } 
+      })
     } else {
       console.error("No exam result ID available")
       alert("Không thể xem chi tiết đáp án. Vui lòng thử lại.")

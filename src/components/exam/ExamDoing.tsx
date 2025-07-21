@@ -121,14 +121,33 @@ export function ExamDoing({ examId, onSubmit, onBack }: Readonly<ExamDoingProps>
     if (!exam) return
     
     const currentQ = exam.questions[currentQuestion]
-    setAnswers((prev) => ({
-      ...prev,
-      [currentQ.id]: {
-        questionId: currentQ.id,
-        selectedOptionId: optionId,
-        userAnswer: null
+    
+    setAnswers((prev) => {
+      // Check if this option is already selected
+      const isAlreadySelected = prev[currentQ.id]?.selectedOptionId === optionId
+      
+      // If it's already selected, unselect it
+      if (isAlreadySelected) {
+        return {
+          ...prev,
+          [currentQ.id]: {
+            questionId: currentQ.id,
+            selectedOptionId: null,
+            userAnswer: null
+          }
+        }
+      } 
+      
+      // Otherwise, select it
+      return {
+        ...prev,
+        [currentQ.id]: {
+          questionId: currentQ.id,
+          selectedOptionId: optionId,
+          userAnswer: null
+        }
       }
-    }))
+    })
   }
 
   const handleTextAnswerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -289,8 +308,13 @@ export function ExamDoing({ examId, onSubmit, onBack }: Readonly<ExamDoingProps>
     )
   }
 
-  const progress = ((currentQuestion + 1) / exam.questions.length) * 100
-  const answeredCount = Object.keys(answers).length
+  // Đếm số câu đã thực sự được trả lời (có selectedOptionId hoặc userAnswer)
+  const answeredCount = Object.values(answers).filter(answer => 
+    answer.selectedOptionId !== null || (answer.userAnswer !== null && answer.userAnswer !== "")
+  ).length
+  
+  // Tính phần trăm tiến trình dựa trên số câu đã trả lời thay vì số câu đã xem
+  const progress = (answeredCount / exam.questions.length) * 100
   const currentQ = exam.questions[currentQuestion]
 
   return (
@@ -500,10 +524,15 @@ export function ExamDoing({ examId, onSubmit, onBack }: Readonly<ExamDoingProps>
               <div className="p-4">
                 <div className="grid grid-cols-5 gap-2">
                   {exam.questions.map((q, index) => {
+                    // Kiểm tra xem câu hỏi này đã có câu trả lời hay chưa
+                    const isAnswered = answers[q.id]?.selectedOptionId !== null || 
+                                     (answers[q.id]?.userAnswer !== null && answers[q.id]?.userAnswer !== "")
+                    
                     let buttonClass = "border-gray-300 hover:border-gray-400"
                     if (currentQuestion === index) {
                       buttonClass = "border-blue-500 bg-blue-500 text-white"
-                    } else if (answers[q.id]) {
+                    } else if (isAnswered) {
+                      // Chỉ hiển thị màu xanh khi câu hỏi thực sự đã được trả lời
                       buttonClass = "border-green-500 bg-green-50 text-green-700"
                     }
                     
@@ -538,7 +567,7 @@ export function ExamDoing({ examId, onSubmit, onBack }: Readonly<ExamDoingProps>
                   <span className="font-medium">{flaggedQuestions.size}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Còn lại:</span>
+                  <span className="text-sm text-gray-600">Chưa trả lời:</span>
                   <span className="font-medium">{exam.questions.length - answeredCount}</span>
                 </div>
               </div>

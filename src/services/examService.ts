@@ -69,59 +69,42 @@ export class ExamService {
   }
 
   /**
-   * SIMPLE test - chỉ log và thử nghiệm cơ bản
+   * SIMPLE test - chỉ log và thử nghiệm cơ bản với endpoint chính xác
    */
   static async simpleStartExam(examId: string): Promise<StartExamResponse> {
-    console.log('=== SIMPLE START EXAM TEST ===');
+    console.log('=== START EXAM ===');
     console.log('ExamId:', examId);
     
-    // Check user auth
+    // Get userId from localStorage
     const userJson = localStorage.getItem('user');
     const token = localStorage.getItem('access_token');
     
     console.log('User data:', userJson);
     console.log('Has token:', !!token);
     
-    let userId = '2';
+    let userId = '2'; // fallback default
     if (userJson) {
-      const user = JSON.parse(userJson);
-      userId = user.id || '2';
+      try {
+        const user = JSON.parse(userJson);
+        userId = user.id || '2';
+      } catch (e) {
+        console.warn('Failed to parse user data:', e);
+      }
     }
     
     console.log('Using userId:', userId);
     
-    // Test call - most basic
-    try {
-      console.log('Attempting simple POST to:', `/exam-results/exams/${examId}/start`);
-      const response = await api.post(`/exam-results/exams/${examId}/start`);
-      console.log('SUCCESS - Simple POST worked!', response);
-      return response.data;
-    } catch (e) {
-      console.log('Simple POST failed:', e);
-    }
-    
-    // Test call - with query param
+    // Use the correct endpoint from API documentation
     try {
       const url = `/exam-results/exams/${examId}/start?userId=${userId}`;
-      console.log('Attempting POST with query param to:', url);
+      console.log('Making POST request to:', url);
       const response = await api.post(url);
-      console.log('SUCCESS - Query param POST worked!', response);
+      console.log('SUCCESS - Start exam:', response.data);
       return response.data;
-    } catch (e) {
-      console.log('Query param POST failed:', e);
+    } catch (error) {
+      console.error('Start exam failed:', error);
+      throw error;
     }
-    
-    // Test call - with body
-    try {
-      console.log('Attempting POST with body');
-      const response = await api.post(`/exam-results/exams/${examId}/start`, { userId });
-      console.log('SUCCESS - Body POST worked!', response);
-      return response.data;
-    } catch (e) {
-      console.log('Body POST failed:', e);
-    }
-    
-    throw new Error('All tests failed');
   }
 
   /**
@@ -133,17 +116,31 @@ export class ExamService {
   }
 
   /**
-   * DEBUG: Test multiple submit endpoints
+   * Nộp bài thi với endpoint chính xác từ API docs
    */
   static async debugSubmitExam(examId: string, answers: SubmitExamAnswer[]): Promise<SubmitExamResponse> {
-    console.log('🧪 DEBUG SUBMIT EXAM');
+    console.log('🧪 SUBMIT EXAM');
     console.log('ExamId:', examId);
     console.log('Original answers:', answers);
     
-    // Transform answers to server format - keep selectedOptionId (no 's')
+    // Get userId from localStorage
+    const userJson = localStorage.getItem('user');
+    let userId = '2'; // fallback default
+    
+    if (userJson) {
+      try {
+        const user = JSON.parse(userJson);
+        userId = user.id || '2';
+      } catch (e) {
+        console.warn('Failed to parse user data:', e);
+      }
+    }
+    
+    // Transform answers to server format
     const formattedAnswers = answers.map(answer => ({
       questionId: answer.questionId,
-      selectedOptionId: answer.selectedOptionId || "" // Server expects 'selectedOptionId' (no 's')
+      selectedOptionId: answer.selectedOptionId || null,
+      userAnswer: answer.userAnswer || null
     }));
     
     const requestBody = {
@@ -152,38 +149,19 @@ export class ExamService {
     };
     
     console.log('Formatted request body:', JSON.stringify(requestBody, null, 2));
+    console.log('Using userId:', userId);
     
-    // Test 1: /exam-results/submit
-    console.log('\n=== TEST 1: /exam-results/submit ===');
+    // Use the correct endpoint from API documentation
     try {
-      const response1 = await api.post('/exam-results/submit', requestBody);
-      console.log('✅ SUCCESS with /exam-results/submit:', response1.data);
-      return response1.data;
-    } catch (e) {
-      console.log('❌ FAILED /exam-results/submit:', e);
+      const url = `/exam-results/exams/${examId}/submit?userId=${userId}`;
+      console.log('Making POST request to:', url);
+      const response = await api.post(url, requestBody);
+      console.log('✅ SUCCESS:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Submit exam failed:', error);
+      throw error;
     }
-    
-    // Test 2: /exam-results/exams/{examId}/submit
-    console.log('\n=== TEST 2: /exam-results/exams/{examId}/submit ===');
-    try {
-      const response2 = await api.post(`/exam-results/exams/${examId}/submit`, requestBody);
-      console.log('✅ SUCCESS with /exam-results/exams/{examId}/submit:', response2.data);
-      return response2.data;
-    } catch (e) {
-      console.log('❌ FAILED /exam-results/exams/{examId}/submit:', e);
-    }
-    
-    // Test 3: /exam-results/{examId}/submit  
-    console.log('\n=== TEST 3: /exam-results/{examId}/submit ===');
-    try {
-      const response3 = await api.post(`/exam-results/${examId}/submit`, requestBody);
-      console.log('✅ SUCCESS with /exam-results/{examId}/submit:', response3.data);
-      return response3.data;
-    } catch (e) {
-      console.log('❌ FAILED /exam-results/{examId}/submit:', e);
-    }
-    
-    throw new Error('All submit tests failed');
   }
 
   /**
@@ -196,14 +174,42 @@ export class ExamService {
 
   /**
    * Lấy kết quả bài thi theo ID
+   * Thử các endpoint khác nhau để tìm endpoint đúng
    */
   static async getExamResult(resultId: string): Promise<SubmitExamResponse> {
+    console.log('🔍 Attempting to fetch exam result for ID:', resultId)
+    
+    // Thử endpoint 1: /exam-results/{resultId}
     try {
-      const response = await api.get(`/exam-results/${resultId}`);
-      return response.data;
+      console.log('Trying endpoint: /exam-results/' + resultId)
+      const response = await api.get(`/exam-results/${resultId}`)
+      console.log('✅ Success with /exam-results/{resultId}:', response.data)
+      return response.data
     } catch (error) {
-      console.error('Error fetching exam result:', error);
-      throw error;
+      console.log('❌ Failed with /exam-results/{resultId}:', error)
     }
+
+    // Thử endpoint 2: /exam-results/result/{resultId}
+    try {
+      console.log('Trying endpoint: /exam-results/result/' + resultId)
+      const response = await api.get(`/exam-results/result/${resultId}`)
+      console.log('✅ Success with /exam-results/result/{resultId}:', response.data)
+      return response.data
+    } catch (error) {
+      console.log('❌ Failed with /exam-results/result/{resultId}:', error)
+    }
+
+    // Thử endpoint 3: /exam-results/details/{resultId}
+    try {
+      console.log('Trying endpoint: /exam-results/details/' + resultId)
+      const response = await api.get(`/exam-results/details/${resultId}`)
+      console.log('✅ Success with /exam-results/details/{resultId}:', response.data)
+      return response.data
+    } catch (error) {
+      console.log('❌ Failed with /exam-results/details/{resultId}:', error)
+    }
+
+    // Nếu tất cả đều thất bại, ném lỗi
+    throw new Error(`Không thể tải kết quả bài kiểm tra với ID: ${resultId}. Vui lòng kiểm tra API endpoint.`)
   }
 }

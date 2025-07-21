@@ -294,6 +294,24 @@ export function ExamAnswerReview({ examResult, onBack }: ExamAnswerReviewProps) 
   console.log("ExamAnswerReview - examResult.answers:", examResult?.answers)
   console.log("ExamAnswerReview - examResult.answers.length:", examResult?.answers?.length)
   
+  // Validation: Ensure we have valid data
+  if (!examResult?.answers?.length) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <h2 className="text-xl font-semibold text-gray-900">Không có dữ liệu câu trả lời</h2>
+          <p className="text-gray-600">Vui lòng thử lại hoặc liên hệ hỗ trợ.</p>
+          <button
+            onClick={onBack}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Quay lại
+          </button>
+        </div>
+      </div>
+    )
+  }
+  
   if (examResult?.answers) {
     examResult.answers.forEach((answer, index) => {
       console.log(`Answer ${index + 1}:`, {
@@ -304,12 +322,19 @@ export function ExamAnswerReview({ examResult, onBack }: ExamAnswerReviewProps) 
         correctAnswer: answer.correctAnswer,
         isCorrect: answer.isCorrect,
         options: answer.options,
-        type: answer.type
+        type: answer.type,
+        explanation: answer.explanation
       })
     })
   }
   
-  const currentAnswer = examResult?.answers?.[currentQuestion] || {
+  // Ensure currentQuestion is within bounds
+  const validCurrentQuestion = Math.min(currentQuestion, examResult.answers.length - 1)
+  if (validCurrentQuestion !== currentQuestion) {
+    setCurrentQuestion(validCurrentQuestion)
+  }
+  
+  const currentAnswer = examResult.answers[validCurrentQuestion] || {
     id: "",
     questionContent: "Không thể tải nội dung câu hỏi",
     correctAnswer: "Không có dữ liệu",
@@ -318,7 +343,8 @@ export function ExamAnswerReview({ examResult, onBack }: ExamAnswerReviewProps) 
     userAnswer: null,
     questionId: "",
     options: [],
-    type: "MULTIPLE_CHOICE" as const
+    type: "MULTIPLE_CHOICE" as const,
+    explanation: null
   }
   
   const isCorrect = currentAnswer?.isCorrect || false
@@ -404,15 +430,29 @@ export function ExamAnswerReview({ examResult, onBack }: ExamAnswerReviewProps) 
             </div>
 
             {/* Explanation */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-              <div className="flex items-center space-x-2 mb-4">
-                <Lightbulb className="h-5 w-5 text-blue-600" />
-                <h3 className="text-lg font-semibold text-blue-900">Giải thích</h3>
+            {currentAnswer.explanation && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <div className="flex items-center space-x-2 mb-4">
+                  <Lightbulb className="h-5 w-5 text-blue-600" />
+                  <h3 className="text-lg font-semibold text-blue-900">Giải thích</h3>
+                </div>
+                <p className="text-blue-800 leading-relaxed">
+                  {currentAnswer.explanation}
+                </p>
               </div>
-              <p className="text-blue-800 leading-relaxed">
-                Giải thích chi tiết sẽ được cung cấp trong phiên bản tiếp theo.
-              </p>
-            </div>
+            )}
+            
+            {!currentAnswer.explanation && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <div className="flex items-center space-x-2 mb-4">
+                  <Lightbulb className="h-5 w-5 text-blue-600" />
+                  <h3 className="text-lg font-semibold text-blue-900">Giải thích</h3>
+                </div>
+                <p className="text-blue-800 leading-relaxed">
+                  Giải thích chi tiết sẽ được cung cấp trong phiên bản tiếp theo.
+                </p>
+              </div>
+            )}
 
             {/* Navigation */}
             <div className="flex justify-between items-center">
