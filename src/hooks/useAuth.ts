@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import * as authService from '../services/authService';
+import { authService } from '../services/authService';
 import type { LoginCredentials } from '../types/auth';
 
 interface User {
@@ -42,14 +42,31 @@ export const useAuth = () => {
   const login = async (credentials: LoginCredentials) => {
     const data = await authService.login(credentials);
     if (data.success && data.data) {
-      // Map the auth service user to local User interface
-      const localUser: User = {
-        id: data.data.user.id,
-        username: data.data.user.name || data.data.user.email,
-        avatar: null,
-        roles: []
-      };
-      setUser(localUser);
+      // Get user profile to fetch roles/authorities
+      try {
+        const profileData = await authService.getProfile();
+        if (profileData.success) {
+          const localUser: User = {
+            id: profileData.data.id,
+            username: profileData.data.username || profileData.data.name || profileData.data.email,
+            avatar: profileData.data.avatar || null,
+            roles: profileData.data.authorities || []
+          };
+          setUser(localUser);
+          localStorage.setItem('user', JSON.stringify(localUser));
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+        // Fallback to basic user data
+        const localUser: User = {
+          id: data.data.user.id,
+          username: data.data.user.name || data.data.user.email,
+          avatar: null,
+          roles: [] // Empty roles as fallback
+        };
+        setUser(localUser);
+        localStorage.setItem('user', JSON.stringify(localUser));
+      }
       window.dispatchEvent(new Event('authStateChanged'));
     }
     return data;
@@ -58,6 +75,7 @@ export const useAuth = () => {
   const logout = () => {
     authService.logout();
     setUser(null);
+    localStorage.removeItem('user');
     window.dispatchEvent(new Event('authStateChanged'));
   };
 
