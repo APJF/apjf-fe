@@ -9,10 +9,27 @@ instance.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token');
     console.log('Request interceptor - Token:', token ? `${token.substring(0, 20)}...` : 'No token');
+    
+    // Add Authorization header
     if (token) {
       config.headers['Authorization'] = 'Bearer ' + token;
       console.log('Authorization header set:', config.headers['Authorization'] ? 'Yes' : 'No');
     }
+    
+    // Add X-User-Id header
+    try {
+      const userString = localStorage.getItem('user');
+      if (userString) {
+        const user = JSON.parse(userString);
+        if (user?.id) {
+          config.headers['X-User-Id'] = user.id;
+          console.log('X-User-Id header set:', user.id);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to parse user for X-User-Id header:', error);
+    }
+    
     return config;
   },
   (error: unknown) => {
