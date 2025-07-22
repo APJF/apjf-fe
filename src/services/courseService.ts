@@ -1,4 +1,4 @@
-import type { CourseApiResponse, CourseFilters } from '../types/course';
+import type { CourseApiResponse, CourseFilters, TopCoursesApiResponse } from '../types/course';
 import api from '../api/axios';
 
 export class CourseService {
@@ -14,6 +14,11 @@ export class CourseService {
     };
 
     const response = await api.get('/courses', { params });
+    return response.data;
+  }
+
+  static async getTopCourses(): Promise<TopCoursesApiResponse> {
+    const response = await api.get('/courses/top-courses');
     return response.data;
   }
 

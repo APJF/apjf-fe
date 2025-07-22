@@ -14,6 +14,7 @@ export interface Course {
   status: string
   prerequisiteCourseId: string | null
   topics: Topic[]
+  averageRating?: number
 }
 
 export interface CourseApiResponse {
@@ -47,6 +48,13 @@ export interface CourseApiResponse {
     numberOfElements: number
     empty: boolean
   }
+  timestamp: number
+}
+
+export interface TopCoursesApiResponse {
+  success: boolean
+  message: string
+  data: Course[]
   timestamp: number
 }
 

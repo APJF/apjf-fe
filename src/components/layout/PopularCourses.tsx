@@ -1,5 +1,8 @@
+import { useState, useEffect } from "react"
 import { Clock, Users, Star } from "lucide-react"
 import { Link } from "react-router-dom"
+import { CourseService } from "../../services/courseService"
+import type { Course as APICourse } from "../../types/course"
 
 interface Course {
   id: string
@@ -14,45 +17,54 @@ interface Course {
   features: string[]
 }
 
+// Helper function to convert API courses to component courses
+const convertAPICourse = (course: APICourse): Course => {
+  return {
+    id: course.id,
+    title: course.title,
+    description: course.description,
+    level: course.level || "N5",  // Default to N5 if not specified
+    duration: `${course.duration} tiếng`, // Convert duration to readable format
+    students: Math.floor(Math.random() * 10000) + 1000, // Random number for demo
+    rating: course.averageRating || 4.0,  // Default to 4.0 if not specified
+    price: "Free", // Default to Free for demo
+    image: course.image || "/img/NhatBan.webp", // Default image
+    features: [
+      "JLPT Preparation",
+      "Interactive Exercises",
+      "Native Speakers",
+      "Practice Tests"
+    ]
+  }
+}
+
 export function PopularCourses() {
-  const courses: Course[] = [
-    {
-      id: "1",
-      title: "Hiragana & Katakana Mastery",
-      description: "Master the fundamental Japanese writing systems with interactive exercises and mnemonics.",
-      level: "Beginner",
-      duration: "4 weeks",
-      students: 15420,
-      rating: 4.9,
-      price: "Free",
-      image: "/img/hiragana-course.jpg",
-      features: ["46 Characters Each", "Writing Practice", "Audio Pronunciation", "Memory Games"],
-    },
-    {
-      id: "2",
-      title: "Essential Kanji for Daily Life",
-      description: "Learn the most important 1000 Kanji characters used in everyday Japanese communication.",
-      level: "Intermediate",
-      duration: "12 weeks",
-      students: 8930,
-      rating: 4.8,
-      price: "$29/month",
-      image: "/img/kanji-course.jpg",
-      features: ["1000+ Kanji", "Stroke Order", "Radical System", "Context Examples"],
-    },
-    {
-      id: "3",
-      title: "Japanese Grammar Complete",
-      description: "Comprehensive grammar course covering all JLPT levels from N5 to N1.",
-      level: "All Levels",
-      duration: "24 weeks",
-      students: 12650,
-      rating: 4.9,
-      price: "$49/month",
-      image: "/img/grammar-course.jpg",
-      features: ["JLPT N5-N1", "Grammar Patterns", "Example Sentences", "Practice Tests"],
-    },
-  ]
+  const [courses, setCourses] = useState<Course[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchTopCourses = async () => {
+      try {
+        setLoading(true)
+        const response = await CourseService.getTopCourses()
+        
+        if (response.success) {
+          const convertedCourses = response.data.map(convertAPICourse)
+          setCourses(convertedCourses)
+        } else {
+          setError(response.message)
+        }
+      } catch (err) {
+        console.error("Error fetching top courses:", err)
+        setError("Không thể tải danh sách khóa học phổ biến. Vui lòng thử lại sau.")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchTopCourses()
+  }, [])
 
   const getLevelBadgeColor = (level: string) => {
     switch (level) {
@@ -67,6 +79,39 @@ export function PopularCourses() {
     }
   }
 
+  if (loading) {
+    return (
+      <section className="py-20 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl lg:text-4xl font-bold mb-4">Khóa Học Phổ Biến</h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Đang tải khóa học phổ biến...
+            </p>
+          </div>
+          <div className="flex justify-center items-center min-h-[300px]">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  if (error) {
+    return (
+      <section className="py-20 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl lg:text-4xl font-bold mb-4">Khóa Học Phổ Biến</h2>
+            <p className="text-xl text-red-600 max-w-2xl mx-auto">
+              {error}
+            </p>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
   return (
     <section className="py-20 bg-gray-50">
       <div className="container mx-auto px-4">
@@ -78,8 +123,13 @@ export function PopularCourses() {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {courses.map((course) => (
-            <div key={course.id} className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300">
+          {courses.length === 0 ? (
+            <div className="col-span-3 text-center py-12">
+              <p className="text-gray-500 text-lg">Không tìm thấy khóa học phổ biến nào.</p>
+            </div>
+          ) : (
+            courses.map((course) => (
+              <div key={course.id} className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300">
               <div className="relative">
                 <img
                   src={course.image}
@@ -124,13 +174,17 @@ export function PopularCourses() {
 
                 <div className="flex items-center justify-between pt-4 border-t">
                   <div className="text-2xl font-bold text-red-600">{course.price}</div>
-                  <button className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors">
+                  <Link 
+                    to={`/courses/${course.id}`}
+                    className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+                  >
                     {course.price === "Free" ? "Bắt đầu miễn phí" : "Đăng ký ngay"}
-                  </button>
+                  </Link>
                 </div>
               </div>
             </div>
-          ))}
+            ))
+          )}
         </div>
 
         <div className="text-center mt-12">

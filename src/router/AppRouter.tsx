@@ -4,6 +4,7 @@ import Layout from "../components/layout/Layout";
 import HomePage from "../pages/HomePage";
 import CoursesPage from "../pages/CoursesPage";
 import CourseDetailPage from "../pages/CourseDetailPage";
+import ChapterDetailPage from "../pages/ChapterDetailPage";
 import LoginPage from "../pages/LoginPage";
 import RegisterPage from "../pages/RegisterPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
@@ -45,6 +46,14 @@ const router = createBrowserRouter([
     element: (
       <Layout>
         <CourseDetailPage />
+      </Layout>
+    ),
+  },
+  {
+    path: "/courses/:courseId/chapters/:chapterId",
+    element: (
+      <Layout>
+        <ChapterDetailPage />
       </Layout>
     ),
   },
