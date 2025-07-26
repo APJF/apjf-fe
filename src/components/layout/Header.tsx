@@ -11,6 +11,7 @@ export function Header() {
   const navItems = [
     { href: "/", label: "Trang chủ" },
     { href: "/courses", label: "Khóa Học" },
+    { href: "/roadmap", label: "Lộ trình học" },
     { href: "/about", label: "Giới thiệu" },
     { href: "/dictionary", label: "Cộng Đồng" },
     { href: "/chatbot", label: "Học với AI" },

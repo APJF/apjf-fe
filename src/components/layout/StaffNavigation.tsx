@@ -4,12 +4,12 @@ import {
   BarChart3,
   BookOpen,
   Plus,
-  MessageSquare,
   Users,
   Menu,
   X,
   Home,
-  ChevronRight
+  ChevronRight,
+  FileText
 } from 'lucide-react';
 
 interface StaffNavItemProps {
@@ -73,9 +73,9 @@ export const StaffNavigation: React.FC<StaffNavigationProps> = ({ children }) =>
       label: 'Create Course'
     },
     {
-      to: '/staff/manager-feedback',
-      icon: <MessageSquare className="h-5 w-5" />,
-      label: "Manager's Feedback"
+      to: '/staff/requests',
+      icon: <FileText className="h-5 w-5" />,
+      label: "My Requests"
     },
     {
       to: '/staff/student-feedback',

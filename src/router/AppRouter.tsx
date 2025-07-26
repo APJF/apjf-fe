@@ -6,6 +6,8 @@ import HomePage from "../pages/HomePage";
 import CoursesPage from "../pages/CoursesPage";
 import CourseDetailPage from "../pages/CourseDetailPage";
 import ChapterDetailPage from "../pages/ChapterDetailPage";
+import RoadmapPage from "../pages/RoadmapPage";
+import RoadmapDetailPage from "../pages/RoadmapDetailPage";
 import LoginPage from "../pages/LoginPage";
 import RegisterPage from "../pages/RegisterPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
@@ -23,8 +25,8 @@ import StaffUpdateChapterPage from "../pages/StaffUpdateChapterPage";
 import StaffCreateChapterPage from "../pages/StaffCreateChapterPage";
 import StaffCreateUnitPage from "../pages/StaffCreateUnitPage";
 import StaffUpdateUnitPage from "../pages/StaffUpdateUnitPage";
-import StaffManagerFeedbackPage from "../pages/StaffManagerFeedbackPage";
 import StaffStudentFeedbackPage from "../pages/StaffStudentFeedbackPage";
+import StaffRequestsPage from "../pages/StaffRequestsPage";
 import { ExamPreparationPage } from '../pages/ExamPreparationPage';
 import { ExamDoingPage } from '../pages/ExamDoingPage';
 import { ExamResultPage } from '../pages/ExamResultPage';
@@ -52,6 +54,22 @@ const router = createBrowserRouter([
     element: (
       <Layout>
         <CoursesPage />
+      </Layout>
+    ),
+  },
+  {
+    path: "/roadmap",
+    element: (
+      <Layout>
+        <RoadmapPage />
+      </Layout>
+    ),
+  },
+  {
+    path: "/roadmap-detail/:id",
+    element: (
+      <Layout>
+        <RoadmapDetailPage />
       </Layout>
     ),
   },
@@ -200,10 +218,10 @@ const router = createBrowserRouter([
     ),
   },
   {
-    path: "/staff/manager-feedback",
+    path: "/staff/requests",
     element: (
       <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
-        <StaffManagerFeedbackPage />
+        <StaffRequestsPage />
       </ProtectedRoute>
     ),
   },

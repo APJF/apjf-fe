@@ -65,7 +65,7 @@ export const CourseActions: React.FC<CourseActionsProps> = ({
               disabled={isLoading}
               className="flex items-center gap-2"
             >
-              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw className= {`border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
               Làm mới
             </Button>
 
