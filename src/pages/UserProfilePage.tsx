@@ -9,7 +9,8 @@ import {
   Wifi,
   Bell
 } from "lucide-react"
-import authService from "../services/authService"
+import authService from "../services/authService";
+
 
 interface UserProfile {
   id: string;

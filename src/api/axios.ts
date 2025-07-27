@@ -76,8 +76,7 @@ instance.interceptors.response.use(
     // Return more detailed error information
     const responseData = err.response?.data as { message?: string } | undefined;
     const errorMessage = responseData?.message || err.message || 'Response failed';
-    const statusInfo = err.response?.status ? ` (Status: ${err.response.status})` : '';
-    return Promise.reject(new Error(`${errorMessage}${statusInfo}`));
+    return Promise.reject(new Error(errorMessage));
   }
 );
 

@@ -44,8 +44,14 @@ export function LoginForm() {
     e.preventDefault()
     setIsLoading(true)
     setMessage("")
+
+    const payload = {
+    ...formData,
+    email: formData.email.toLowerCase(),
+
+  };
     try {
-      const data = await login(formData)
+      const data = await login(payload)
       if (data.success) {
         navigate("/")
       } else {
@@ -53,7 +59,11 @@ export function LoginForm() {
         setMessageType("error")
       }
     } catch (error) {
-      setMessage("Lỗi kết nối. Vui lòng thử lại.")
+      if (error instanceof Error) {
+      setMessage(error.message); // ✅ chính là `data.message` được truyền từ interceptor
+    } else {
+      setMessage("Đã xảy ra lỗi không xác định");
+    } // hoặc hiển thị message lên giao diện
       setMessageType("error")
       console.error("Login error:", error)
     } finally {

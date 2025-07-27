@@ -7,7 +7,7 @@ export function ForgotPasswordForm() {
   const [email, setEmail] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState("")
-  const [isSuccess, setIsSuccess] = useState(false)
+  const [messageType, setMessageType] = useState<"success" | "error">("error")
   const navigate = useNavigate()
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -15,7 +15,6 @@ export function ForgotPasswordForm() {
     // Clear message when user starts typing
     if (message) {
       setMessage("")
-      setIsSuccess(false)
     }
   }
 
@@ -25,27 +24,26 @@ export function ForgotPasswordForm() {
     setMessage("")
 
     try {
-      const response = await authService.forgotPassword(email)
+      const response = await authService.forgotPassword(email.toLowerCase())
 
       if (response.success) {
-        localStorage.setItem("email", email)
-        setIsSuccess(true)
+        localStorage.setItem("email", email.toLowerCase())
         setMessage(response.message || "Đã gửi email xác thực đặt lại mật khẩu.")
+        setMessageType("success")
         // Navigate after showing success message for 2 seconds
         setTimeout(() => {
           navigate("/reset-password")
-        }, 2000)
+        }, 1000)
       } else {
         setMessage(response.message || "Có lỗi xảy ra. Vui lòng thử lại.")
       }
     } catch (error: unknown) {
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: { message?: string } } }
-        setMessage(axiosError.response?.data?.message || "Có lỗi xảy ra. Vui lòng thử lại.")
+      if (error instanceof Error) {
+        setMessage(error.message); // ✅ chính là `data.message` được truyền từ interceptor
       } else {
-        setMessage("Lỗi kết nối. Vui lòng thử lại.")
-      }
-      console.error("Forgot password error:", error)
+        setMessage("Đã xảy ra lỗi không xác định");
+      } // hoặc hiển thị message lên giao diện
+      setMessageType("error")
     } finally {
       setIsLoading(false)
     }
@@ -101,7 +99,7 @@ export function ForgotPasswordForm() {
           {/* Decorative Japanese Characters */}
           <div className="absolute right-0 top-1/2 transform -translate-y-1/2 opacity-10">
             <div className="text-9xl font-bold">
-              復<br/>旧<br/>中
+              復<br />旧<br />中
             </div>
           </div>
         </div>
@@ -141,17 +139,14 @@ export function ForgotPasswordForm() {
 
             {/* Success/Error Message */}
             {message && (
-              <div className={`border rounded-lg p-3 flex items-center gap-2 mb-6 ${
-                isSuccess 
-                  ? "bg-green-50 border-green-200" 
-                  : "bg-red-50 border-red-200"
-              }`}>
-                <AlertCircle className={`h-4 w-4 flex-shrink-0 ${
-                  isSuccess ? "text-green-500" : "text-red-500"
-                }`} />
-                <span className={`text-sm ${
-                  isSuccess ? "text-green-600" : "text-red-600"
-                }`}>{message}</span>
+              <div className={`border rounded-lg p-3 flex items-center gap-2 mb-6 ${messageType === "success"
+                ? "bg-green-50 border-green-200"
+                : "bg-red-50 border-red-200"
+                }`}>
+                <AlertCircle className={`h-4 w-4 flex-shrink-0 ${messageType === "success" ? "text-green-500" : "text-red-500"
+                  }`} />
+                <span className={`text-sm ${messageType === "success" ? "text-green-600" : "text-red-600"
+                  }`}>{message}</span>
               </div>
             )}
 

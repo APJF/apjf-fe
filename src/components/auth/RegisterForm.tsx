@@ -26,6 +26,7 @@ export function RegisterForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<ValidationErrors>({})
   const [message, setMessage] = useState("")
+  const [messageType, setMessageType] = useState<"success" | "error">("error")
   const navigate = useNavigate()
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -40,7 +41,7 @@ export function RegisterForm() {
 
   const registerWithEmail = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (formData.password !== formData.confirmPassword) {
       setErrors({ general: "Mật khẩu xác nhận không khớp" })
       return
@@ -52,26 +53,22 @@ export function RegisterForm() {
 
     try {
       const response = await authService.register({
-        email: formData.email,
+        email: formData.email.toLowerCase(),
         password: formData.password,
       })
 
       if (response.success) {
-        navigate("/login", { 
+        navigate("/login", {
           state: { message: "Đăng ký thành công! Vui lòng đăng nhập." }
         })
       }
-    } catch (error: unknown) {
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: { message?: string } } }
-        if (axiosError.response?.data?.message) {
-          setErrors({ general: axiosError.response.data.message })
-        } else {
-          setErrors({ general: "Có lỗi xảy ra. Vui lòng thử lại." })
-        }
+    } catch (error) {
+      if (error instanceof Error) {
+        setMessage(error.message); // ✅ chính là `data.message` được truyền từ interceptor
       } else {
-        setErrors({ general: "Có lỗi xảy ra. Vui lòng thử lại." })
-      }
+        setMessage("Đã xảy ra lỗi không xác định");
+      } // hoặc hiển thị message lên giao diện
+      setMessageType("error")
     } finally {
       setIsLoading(false)
     }
@@ -141,7 +138,7 @@ export function RegisterForm() {
           {/* Decorative Japanese Characters */}
           <div className="absolute right-0 top-1/2 transform -translate-y-1/2 opacity-10">
             <div className="text-9xl font-bold">
-              新<br/>始<br/>め
+              新<br />始<br />め
             </div>
           </div>
         </div>
@@ -168,10 +165,15 @@ export function RegisterForm() {
             </div>
 
             {/* Success Message */}
-            {message && !errors.general && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2 mb-6">
-                <div className="w-4 h-4 bg-green-500 rounded-full flex-shrink-0"></div>
-                <span className="text-sm text-green-600">{message}</span>
+            {message && (
+              <div className={`border rounded-lg p-3 flex items-center gap-2 mb-6 ${messageType === "success"
+                  ? "bg-green-50 border-green-200"
+                  : "bg-red-50 border-red-200"
+                }`}>
+                <AlertCircle className={`h-4 w-4 flex-shrink-0 ${messageType === "success" ? "text-green-500" : "text-red-500"
+                  }`} />
+                <span className={`text-sm ${messageType === "success" ? "text-green-600" : "text-red-600"
+                  }`}>{message}</span>
               </div>
             )}
 
@@ -199,9 +201,8 @@ export function RegisterForm() {
                     placeholder="Nhập email của bạn"
                     value={formData.email}
                     onChange={handleInputChange}
-                    className={`w-full pl-11 pr-4 h-11 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors ${
-                      errors.email ? "border-red-500" : "border-gray-300"
-                    }`}
+                    className={`w-full pl-11 pr-4 h-11 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors ${errors.email ? "border-red-500" : "border-gray-300"
+                      }`}
                     disabled={isLoading}
                   />
                 </div>
@@ -224,12 +225,13 @@ export function RegisterForm() {
                     name="password"
                     type={showPassword ? "text" : "password"}
                     required
+                    minLength={6}
+                    maxLength={15}
                     placeholder="Nhập mật khẩu"
                     value={formData.password}
                     onChange={handleInputChange}
-                    className={`w-full pl-11 pr-11 h-11 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors ${
-                      errors.password ? "border-red-500" : "border-gray-300"
-                    }`}
+                    className={`w-full pl-11 pr-11 h-11 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors ${errors.password ? "border-red-500" : "border-gray-300"
+                      }`}
                     disabled={isLoading}
                   />
                   <button

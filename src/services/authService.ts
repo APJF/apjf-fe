@@ -10,18 +10,24 @@ export interface RegisterData {
   password: string
 }
 
+export interface ChangePassData{
+  email: string,
+  oldPass: string,
+  newPass: string
+}
+
 export interface AuthResponse {
   success: boolean
   message: string
   token?: string
   data?: {
-    user: {
+    userInfo: {
       id: string
       email: string
       name?: string
     }
-    access_token: string
-    refresh_token: string
+    accessToken: string
+    refreshToken: string
   }
 }
 
@@ -42,13 +48,13 @@ class AuthService {
    */
   async login(credentials: LoginData): Promise<AuthResponse> {
     const response = await api.post<AuthResponse>("/auth/login", credentials)
-    
+
     if (response.data.success && response.data.data) {
-      localStorage.setItem('user', JSON.stringify(response.data.data.user))
-      localStorage.setItem('access_token', response.data.data.access_token)
-      localStorage.setItem('refresh_token', response.data.data.refresh_token)
+      localStorage.setItem('user', JSON.stringify(response.data.data.userInfo))
+      localStorage.setItem('access_token', response.data.data.accessToken)
+      localStorage.setItem('refresh_token', response.data.data.refreshToken)
     }
-    
+
     return response.data
   }
 
@@ -64,9 +70,7 @@ class AuthService {
    * Gửi email quên mật khẩu
    */
   async forgotPassword(email: string): Promise<ForgotPasswordResponse> {
-    const response = await api.post<ForgotPasswordResponse>("/auth/forgot-password", {
-      email
-    })
+    const response = await api.post<ForgotPasswordResponse>(`/auth/forgot-password?email=${encodeURIComponent(email)}`)
     return response.data
   }
 
@@ -74,14 +78,31 @@ class AuthService {
    * Đặt lại mật khẩu với OTP
    */
   async resetPassword(data: ResetPasswordData): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>("/auth/reset-password", data)
-    return response.data
+    const params = new URLSearchParams({
+      email: data.email,
+      otp: data.otp,
+      newPassword: data.newPassword,
+    });
+
+    const response = await api.post<AuthResponse>(`/auth/reset-password?${params.toString()}`);
+    return response.data;
+  }
+
+  async changePassword(data: ChangePassData): Promise<AuthResponse>{
+    const params = new URLSearchParams({
+      email: data.email,
+      oldPassword: data.oldPass,
+      newPassword: data.newPass,
+    });
+
+    const response = await api.post<AuthResponse>(`/auth/change-password?${params.toString()}`);
+    return response.data;
   }
 
   /**
    * Lấy thông tin profile người dùng
    */
-  async getProfile(): Promise<{ 
+  async getProfile(): Promise<{
     success: boolean;
     data: {
       id: string;
@@ -106,15 +127,15 @@ class AuthService {
       throw new Error('No refresh token found')
     }
 
-    const response = await api.post<AuthResponse>("/auth/refresh-token", { 
-      refreshToken: refresh_token 
+    const response = await api.post<AuthResponse>("/auth/refresh-token", {
+      refreshToken: refresh_token
     })
-    
+
     if (response.data.success && response.data.data) {
-      localStorage.setItem('access_token', response.data.data.access_token)
-      localStorage.setItem('refresh_token', response.data.data.refresh_token)
+      localStorage.setItem('access_token', response.data.data.accessToken)
+      localStorage.setItem('refresh_token', response.data.data.refreshToken)
     }
-    
+
     return response.data
   }
 

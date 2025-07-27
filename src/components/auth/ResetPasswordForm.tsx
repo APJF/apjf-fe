@@ -21,6 +21,7 @@ export function ResetPasswordForm() {
   })
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState("")
+  const [messageType, setMessageType] = useState<"success" | "error">("error")
   const navigate = useNavigate()
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -42,19 +43,36 @@ export function ResetPasswordForm() {
     setShowPasswords((prev) => ({ ...prev, [field]: !prev[field] }))
   }
 
+  const validatePasswords = () => {
+  if (formData.newPassword.length < 6) {
+    setMessage("Mật khẩu phải có ít nhất 6 ký tự");
+    setIsLoading(false);
+    return false;
+  }
+  if (formData.newPassword !== formData.confirmPassword) {
+    setMessage("Mật khẩu xác nhận không khớp");
+    setIsLoading(false);
+    return false;
+  }
+  return true;
+};
+
+
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setMessage("")
-    
+
     const email = localStorage.getItem("email")
-    
+
     if (!email) {
       setMessage("Email không tìm thấy. Vui lòng thực hiện lại quá trình quên mật khẩu.")
       setIsLoading(false)
       return
     }
-    
+
+    if (!validatePasswords()) return;
+
     try {
       const response = await authService.resetPassword({
         email,
@@ -74,13 +92,12 @@ export function ResetPasswordForm() {
         setMessage(response.message || "Có lỗi xảy ra. Vui lòng thử lại.")
       }
     } catch (error: unknown) {
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: { message?: string } } }
-        setMessage(axiosError.response?.data?.message || "Có lỗi xảy ra. Vui lòng thử lại.")
+      if (error instanceof Error) {
+        setMessage(error.message); // ✅ chính là `data.message` được truyền từ interceptor
       } else {
-        setMessage("Lỗi kết nối. Vui lòng thử lại.")
-      }
-      console.error("Reset password error:", error)
+        setMessage("Đã xảy ra lỗi không xác định");
+      } // hoặc hiển thị message lên giao diện
+      setMessageType("error")
     } finally {
       setIsLoading(false)
     }
@@ -136,7 +153,7 @@ export function ResetPasswordForm() {
           {/* Decorative Japanese Characters */}
           <div className="absolute right-0 top-1/2 transform -translate-y-1/2 opacity-10">
             <div className="text-9xl font-bold">
-              新<br/>密<br/>码
+              新<br />密<br />码
             </div>
           </div>
         </div>
@@ -176,9 +193,14 @@ export function ResetPasswordForm() {
 
             {/* Error Message */}
             {message && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2 mb-6">
-                <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
-                <span className="text-sm text-red-600">{message}</span>
+              <div className={`border rounded-lg p-3 flex items-center gap-2 mb-6 ${messageType === "success"
+                ? "bg-green-50 border-green-200"
+                : "bg-red-50 border-red-200"
+                }`}>
+                <AlertCircle className={`h-4 w-4 flex-shrink-0 ${messageType === "success" ? "text-green-500" : "text-red-500"
+                  }`} />
+                <span className={`text-sm ${messageType === "success" ? "text-green-600" : "text-red-600"
+                  }`}>{message}</span>
               </div>
             )}
 

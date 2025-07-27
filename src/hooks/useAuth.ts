@@ -44,8 +44,8 @@ export const useAuth = () => {
     if (data.success && data.data) {
       // Map the auth service user to local User interface
       const localUser: User = {
-        id: data.data.user.id,
-        username: data.data.user.name || data.data.user.email,
+        id: data.data.userInfo.id,
+        username: data.data.userInfo.name || data.data.userInfo.email,
         avatar: null,
         roles: []
       };
