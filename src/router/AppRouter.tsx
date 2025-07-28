@@ -1,15 +1,30 @@
 import React from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import Layout from "../components/layout/Layout";
+import { ProtectedRoute } from "../components/auth/ProtectedRoute";
 import HomePage from "../pages/HomePage";
 import CoursesPage from "../pages/CoursesPage";
 import CourseDetailPage from "../pages/CourseDetailPage";
+import ChapterDetailPage from "../pages/ChapterDetailPage";
 import LoginPage from "../pages/LoginPage";
 import RegisterPage from "../pages/RegisterPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
 import ResetPasswordPage from "../pages/ResetPasswordPage";
 import ChatbotPage from "../pages/ChatbotPage";
 import UserProfilePage from "../pages/UserProfilePage";
+import StaffDashboardPage from "../pages/StaffDashboardPage";
+import StaffCoursesPage from "../pages/StaffCoursesPage";
+import StaffCourseDetailPage from "../pages/StaffCourseDetailPage";
+import StaffChapterDetailPage from "../pages/StaffChapterDetailPage";
+import StaffUnitDetailPage from "../pages/StaffUnitDetailPage";
+import StaffCreateCoursePage from "../pages/StaffCreateCoursePage";
+import StaffUpdateCoursePage from "../pages/StaffUpdateCoursePage";
+import StaffUpdateChapterPage from "../pages/StaffUpdateChapterPage";
+import StaffCreateChapterPage from "../pages/StaffCreateChapterPage";
+import StaffCreateUnitPage from "../pages/StaffCreateUnitPage";
+import StaffUpdateUnitPage from "../pages/StaffUpdateUnitPage";
+import StaffManagerFeedbackPage from "../pages/StaffManagerFeedbackPage";
+import StaffStudentFeedbackPage from "../pages/StaffStudentFeedbackPage";
 import { ExamPreparationPage } from '../pages/ExamPreparationPage';
 import { ExamDoingPage } from '../pages/ExamDoingPage';
 import { ExamResultPage } from '../pages/ExamResultPage';
@@ -45,6 +60,14 @@ const router = createBrowserRouter([
     element: (
       <Layout>
         <CourseDetailPage />
+      </Layout>
+    ),
+  },
+  {
+    path: "/courses/:courseId/chapters/:chapterId",
+    element: (
+      <Layout>
+        <ChapterDetailPage />
       </Layout>
     ),
   },
@@ -86,6 +109,110 @@ const router = createBrowserRouter([
       <Layout>
         <UserProfilePage />
       </Layout>
+    ),
+  },
+  {
+    path: "/staff/dashboard",
+    element: (
+      <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
+        <StaffDashboardPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/staff/courses",
+    element: (
+      <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
+        <StaffCoursesPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/staff/courses/:courseId",
+    element: (
+      <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
+        <StaffCourseDetailPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/staff/courses/:courseId/chapters/:chapterId",
+    element: (
+      <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
+        <StaffChapterDetailPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/staff/courses/:courseId/chapters/new",
+    element: (
+      <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
+        <StaffCreateChapterPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/staff/courses/:courseId/chapters/:chapterId/units/new",
+    element: (
+      <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
+        <StaffCreateUnitPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/staff/courses/:courseId/chapters/:chapterId/units/:unitId",
+    element: (
+      <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
+        <StaffUnitDetailPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/staff/create-course",
+    element: (
+      <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
+        <StaffCreateCoursePage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/staff/courses/:courseId/edit",
+    element: (
+      <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
+        <StaffUpdateCoursePage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/staff/chapters/:chapterId/edit",
+    element: (
+      <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
+        <StaffUpdateChapterPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/staff/courses/:courseId/chapters/:chapterId/units/:unitId/edit",
+    element: (
+      <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
+        <StaffUpdateUnitPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/staff/manager-feedback",
+    element: (
+      <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
+        <StaffManagerFeedbackPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/staff/student-feedback",
+    element: (
+      <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
+        <StaffStudentFeedbackPage />
+      </ProtectedRoute>
     ),
   },
   {

@@ -71,8 +71,8 @@ export default function CourseDetailPage() {
     }
   };
 
-  const handleUnitClick = (unitId: string) => {
-    navigate(`/courses/${courseId}/units/${unitId}`);
+  const handleChapterClick = (chapterId: string) => {
+    navigate(`/courses/${courseId}/chapters/${chapterId}`);
   };
 
   const handleExamClick = (examId: string) => {
@@ -129,7 +129,7 @@ export default function CourseDetailPage() {
               courseExams={course.exams || []}
               isEnrolled={isEnrolled}
               completedUnits={completedUnits}
-              onUnitClick={handleUnitClick}
+              onChapterClick={handleChapterClick}
               onExamClick={handleExamClick}
             />
           </div>

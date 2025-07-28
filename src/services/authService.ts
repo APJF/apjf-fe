@@ -153,6 +153,7 @@ export const authService = new AuthService()
 
 // Legacy exports for backward compatibility
 export const login = authService.login.bind(authService)
+export const getProfile = authService.getProfile.bind(authService)
 export const refreshToken = authService.refreshToken.bind(authService)
 export const logout = authService.logout.bind(authService)
 

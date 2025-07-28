@@ -12,14 +12,22 @@ export interface Exam {
   createdAt: string;
 }
 
+export interface Material {
+  id: string;
+  description: string;
+  fileUrl: string;
+  type: string;
+}
+
 export interface Unit {
   id: string;
   title: string;
   description: string;
   status: string;
-  chapterId: string;
+  chapterId?: string;
   prerequisiteUnitId: string | null;
-  exams: Exam[];
+  exams?: Exam[];
+  materials?: Material[];
 }
 
 export interface Chapter {
@@ -29,7 +37,7 @@ export interface Chapter {
   status: string;
   courseId: string;
   prerequisiteChapterId: string | null;
-  exams: Exam[];
+  exams?: Exam[];
   units: Unit[];
 }
 
@@ -54,5 +62,12 @@ export interface CourseDetailApiResponse {
   data: {
     course: Course;
   };
+  timestamp: number;
+}
+
+export interface ChapterDetailApiResponse {
+  success: boolean;
+  message: string;
+  data: Chapter;
   timestamp: number;
 }

@@ -3,6 +3,21 @@ export interface Topic {
   name: string
 }
 
+export interface Exam {
+  id: string
+  title: string
+  description: string
+  duration: number
+  examScopeType: string
+  createdAt: string
+}
+
+export interface Chapter {
+  id: string
+  title: string
+  description?: string
+}
+
 export interface Course {
   id: string
   title: string
@@ -14,6 +29,9 @@ export interface Course {
   status: string
   prerequisiteCourseId: string | null
   topics: Topic[]
+  averageRating?: number
+  exams: Exam[]
+  chapters: Chapter[]
 }
 
 export interface CourseApiResponse {
@@ -47,6 +65,13 @@ export interface CourseApiResponse {
     numberOfElements: number
     empty: boolean
   }
+  timestamp: number
+}
+
+export interface TopCoursesApiResponse {
+  success: boolean
+  message: string
+  data: Course[]
   timestamp: number
 }
 
