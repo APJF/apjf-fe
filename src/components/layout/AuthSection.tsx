@@ -27,6 +27,14 @@ export const AuthSection: React.FC = () => {
     return result;
   };
 
+  // Function để check Manager role
+  const hasManagerRole = () => {
+    if (!user?.roles) return false;
+    const result = user.roles.some(role => ['MANAGER', 'ADMIN'].includes(role.toUpperCase()));
+    console.log('Manager role check result:', result, 'Roles:', user.roles);
+    return result;
+  };
+
   // Temporary function to add mock roles for testing
   const addMockStaffRole = () => {
     if (user) {
@@ -34,6 +42,16 @@ export const AuthSection: React.FC = () => {
       localStorage.setItem('user', JSON.stringify(updatedUser));
       window.dispatchEvent(new Event('authStateChanged'));
       console.log('Added mock STAFF role');
+    }
+  };
+
+  // Function to add mock Manager role for testing
+  const addMockManagerRole = () => {
+    if (user) {
+      const updatedUser = { ...user, roles: ['MANAGER'] };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      window.dispatchEvent(new Event('authStateChanged'));
+      console.log('Added mock MANAGER role');
     }
   };
 
@@ -149,6 +167,18 @@ export const AuthSection: React.FC = () => {
                 </Link>
               )}
 
+              {/* Manager Dashboard Link - chỉ hiển thị cho MANAGER và ADMIN */}
+              {hasManagerRole() && (
+                <Link
+                  to="/manager/dashboard"
+                  className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+                  onClick={() => setIsDropdownOpen(false)}
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  Manager Dashboard
+                </Link>
+              )}
+
               <Link
                 to="/settings"
                 className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
@@ -168,6 +198,18 @@ export const AuthSection: React.FC = () => {
               >
                 <User className="w-4 h-4" />
                 [Debug] Add Staff Role
+              </button>
+
+              {/* Temporary debug button to test manager role */}
+              <button
+                onClick={() => {
+                  addMockManagerRole();
+                  setIsDropdownOpen(false);
+                }}
+                className="flex items-center gap-3 px-4 py-2 text-sm text-purple-600 hover:bg-purple-50 transition-colors w-full text-left"
+              >
+                <User className="w-4 h-4" />
+                [Debug] Add Manager Role
               </button>
             </div>
 

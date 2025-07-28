@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Link } from 'react-router-dom';
 import { Menu, X, BookOpen } from "lucide-react"
 import { AuthSection } from "./AuthSection";
+import { NotificationDropdown } from "../ui/NotificationDropdown";
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -38,13 +39,17 @@ export function Header() {
           ))}
         </nav>
         <div className="hidden md:flex items-center space-x-4">
+          <NotificationDropdown />
           <AuthSection />
         </div>
 
         {/* Mobile Menu Button */}
-        <button className="md:hidden" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-          {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </button>
+        <div className="md:hidden flex items-center space-x-2">
+          <NotificationDropdown />
+          <button onClick={() => setIsMenuOpen(!isMenuOpen)}>
+            {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Navigation */}

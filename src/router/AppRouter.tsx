@@ -15,6 +15,7 @@ import ResetPasswordPage from "../pages/ResetPasswordPage";
 import { VerifyOtpPage } from "../pages/VerifyOtpPage";
 import ChatbotPage from "../pages/ChatbotPage";
 import UserProfilePage from "../pages/UserProfilePage";
+import ManagerDashboardPage from "../pages/ManagerDashboardPage";
 import StaffDashboardPage from "../pages/StaffDashboardPage";
 import StaffCoursesPage from "../pages/StaffCoursesPage";
 import StaffCourseDetailPage from "../pages/StaffCourseDetailPage";
@@ -139,6 +140,14 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
         <StaffDashboardPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/manager/dashboard",
+    element: (
+      <ProtectedRoute requiredRoles={["MANAGER", "ADMIN"]}>
+        <ManagerDashboardPage />
       </ProtectedRoute>
     ),
   },

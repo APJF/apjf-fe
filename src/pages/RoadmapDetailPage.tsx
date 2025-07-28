@@ -420,18 +420,19 @@ function MiniRoadmapMap({ onStageClick }: Readonly<{ onStageClick: (stageId: num
 }
 
 // Stage Units View Component - Cập nhật với background đẹp và auto-scroll
+// StageUnitsView Component
 function StageUnitsView({ currentStage, setCurrentStage }: Readonly<{ 
   currentStage: number; 
   setCurrentStage: (stage: number) => void;
 }>) {
   const unitContainerRef = useRef<HTMLDivElement>(null);
 
-  // Generate 45 units across 6 stages
+  // Generate units logic
   const generateUnits = () => {
     const stages = [
       { id: 1, title: "Hiragana & Katakana", units: 8, status: "completed" },
       { id: 2, title: "Từ vựng N5", units: 7, status: "completed" },
-      { id: 3, title: "Ngữ pháp cơ bản", units: 15, status: "in_progress" }, // Increased for demo
+      { id: 3, title: "Ngữ pháp cơ bản", units: 15, status: "in_progress" },
       { id: 4, title: "Kanji N5", units: 8, status: "locked" },
       { id: 5, title: "Luyện nghe N5", units: 7, status: "locked" },
       { id: 6, title: "Đọc hiểu N5", units: 6, status: "locked" },
@@ -447,13 +448,12 @@ function StageUnitsView({ currentStage, setCurrentStage }: Readonly<{
   const allStages = generateUnits();
   const currentStageData = allStages.find((s) => s.id === currentStage);
 
-  // Auto-scroll to current unit when stage changes - Scroll tự động đến unit đang học
+  // Auto-scroll logic
   useEffect(() => {
     if (currentStageData?.status === "in_progress" && unitContainerRef.current) {
       const completedUnits = Math.floor(currentStageData.units * 0.65);
       const currentUnitNumber = currentStageData.unitNumbers[0] + completedUnits;
       
-      // Find the current unit element and scroll to it
       setTimeout(() => {
         const currentUnitElement = document.querySelector(`[data-unit="${currentUnitNumber}"]`);
         if (currentUnitElement && unitContainerRef.current) {
@@ -508,12 +508,10 @@ function StageUnitsView({ currentStage, setCurrentStage }: Readonly<{
     if (currentStageData.status === "completed") return "completed";
     if (currentStageData.status === "locked") return "locked";
 
-    // For in_progress stage, assume first 65% are completed (based on 65% progress)
     const completedUnits = Math.floor(currentStageData.units * 0.65);
     return unitNumber <= currentStageData.unitNumbers[0] + completedUnits - 1 ? "completed" : "locked";
   };
 
-  // Create path layout: 2 units, then 1 unit, then 2 units, etc.
   const createPathLayout = () => {
     const layout = [];
     const units = currentStageData.unitNumbers;
@@ -522,12 +520,10 @@ function StageUnitsView({ currentStage, setCurrentStage }: Readonly<{
     while (index < units.length) {
       const isEvenRow = Math.floor(layout.length) % 2 === 0;
       if (isEvenRow) {
-        // Even row: 2 units
         const rowUnits = units.slice(index, index + 2);
         layout.push(rowUnits);
         index += 2;
       } else {
-        // Odd row: 1 unit in center
         const rowUnits = units.slice(index, index + 1);
         layout.push(rowUnits);
         index += 1;
@@ -536,7 +532,74 @@ function StageUnitsView({ currentStage, setCurrentStage }: Readonly<{
     return layout;
   };
 
-  const pathLayout = createPathLayout();
+const pathLayout = createPathLayout();
+const rowHeight = 100; // Chiều cao mỗi hàng
+// Tính số hàng dựa trên mô hình xen kẽ 2-1-2-1
+const numUnits = currentStageData.units;
+const numCycles = Math.floor(numUnits / 3); // Mỗi chu kỳ 2 hàng (2+1 unit)
+const remainingUnits = numUnits % 3;
+const numRows = remainingUnits === 0 ? numCycles * 2 : numCycles * 2 + 1;
+const contentHeight = numRows * rowHeight; // Chiều cao nội dung thực tế
+const svgHeight = Math.max(contentHeight, 400); // Chiều cao SVG, tối thiểu 400px
+  
+// CSS Animation for Trees and Cherry Blossoms
+const treeAnimationStyle = `
+  .tree {
+    animation: sway 3s ease-in-out infinite;
+    transform-origin: bottom center;
+  }
+  
+  @keyframes sway {
+    0%, 100% { transform: rotate(0deg); }
+    50% { transform: rotate(-5deg); }
+  }
+  
+  .flower {
+    animation: bloom 2s ease-in-out infinite alternate;
+  }
+  
+  @keyframes bloom {
+    0% { transform: scale(1); }
+    100% { transform: scale(1.1); }
+  }
+  
+  .grass {
+    animation: wave 4s ease-in-out infinite;
+  }
+  
+  @keyframes wave {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(5px); }
+  }
+  
+  .falling-petals {
+    animation: fallAndDrift 7s linear infinite;
+  }
+  
+  @keyframes fallAndDrift {
+    0% {
+      transform: translateY(-10px) rotate(0deg);
+      opacity: 1;
+    }
+    50% {
+      transform: translateY(50vh) rotate(180deg);
+      opacity: 0.8;
+    }
+    100% {
+      transform: translateY(100vh) rotate(360deg);
+      opacity: 0;
+    }
+  }
+  
+  .cherry-blossom {
+    animation: gentleBloom 3s ease-in-out infinite alternate;
+  }
+  
+  @keyframes gentleBloom {
+    0% { transform: scale(1) rotate(0deg); }
+    100% { transform: scale(1.05) rotate(5deg); }
+  }
+`;
 
   return (
     <div className="space-y-4">
@@ -547,17 +610,15 @@ function StageUnitsView({ currentStage, setCurrentStage }: Readonly<{
           size="sm"
           onClick={() => setCurrentStage(currentStage - 1)}
           disabled={!canGoPrevious}
-          className="p-1"
+          className="p-2 hover:bg-gray-100"
         >
-          <svg className="w-6 h-6 text-orange-500" fill="currentColor" viewBox="0 0 24 24">
+          <svg className="w-8 h-8 text-orange-500" fill="currentColor" viewBox="0 0 24 24">
             <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
           </svg>
         </Button>
 
         <div className="flex-1 mx-2">
           <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-center py-2 px-4 rounded-lg shadow-md relative">
-            <div className="absolute -left-2 top-1/2 transform -translate-y-1/2 w-0 h-0 border-t-4 border-b-4 border-r-4 border-transparent border-r-yellow-400"></div>
-            <div className="absolute -right-2 top-1/2 transform -translate-y-1/2 w-0 h-0 border-t-4 border-b-4 border-l-4 border-transparent border-l-yellow-500"></div>
             <span className="font-bold text-gray-800">• Chặng {currentStage} •</span>
           </div>
           <p className="text-center text-sm text-gray-600 mt-1">{currentStageData.title}</p>
@@ -568,125 +629,234 @@ function StageUnitsView({ currentStage, setCurrentStage }: Readonly<{
           size="sm"
           onClick={() => setCurrentStage(currentStage + 1)}
           disabled={!canGoNext}
-          className="p-1"
+          className="p-2 hover:bg-gray-100"
         >
-          <svg className="w-6 h-6 text-orange-500" fill="currentColor" viewBox="0 0 24 24">
+          <svg className="w-8 h-8 text-orange-500" fill="currentColor" viewBox="0 0 24 24">
             <path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z" />
           </svg>
         </Button>
       </div>
 
-      {/* Units Path with Beautiful Curved Road Background - Background con đường uốn lượn với cỏ cây hoa lá */}
+      {/* Scrollable Units Path with Dynamic Background */}
       <div 
         ref={unitContainerRef}
-        className="relative bg-transparent rounded-lg p-4 h-96 overflow-y-auto"
+        className="relative bg-transparent rounded-lg p-2 max-h-96 overflow-y-auto"
         style={{ scrollBehavior: 'smooth' }}
       >
-        {/* Add CSS Animation Styles - Thêm CSS Animation */}
+        {/* Add CSS Animation Styles */}
         <style dangerouslySetInnerHTML={{ __html: treeAnimationStyle }} />
         
-        {/* SVG Background with Curved Road and Nature Elements - Background SVG với con đường cong và cảnh thiên nhiên */}
+        {/* SVG Background with Dynamic Height */}
         <div className="absolute inset-0 z-0">
-          <svg
-            className="w-full h-full"
-            viewBox="0 0 400 800"
-            preserveAspectRatio="xMidYMid meet"
-          >
-            {/* Sky Background - Nền trời xanh */}
-            <rect x="0" y="0" width="400" height="800" fill="#E0F7FA" />
+  <svg
+    className="w-full"
+    style={{ height: `${svgHeight}px` }}
+    viewBox={`0 0 400 ${svgHeight}`}
+    preserveAspectRatio="xMidYMin slice"
+  >
+    <defs>
+      <linearGradient id="grassGradient" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#66BB6A" />
+        <stop offset="100%" stopColor="#4CAF50" />
+      </linearGradient>
+    </defs>
 
-            {/* Curved Road - Con đường cong uốn lượn */}
-            <path
-              d="M50 50 Q100 150 200 200 Q300 250 350 350 Q300 450 200 500 Q100 550 50 650 Q100 750 200 780"
-              fill="none"
-              stroke="#8B4513"
-              strokeWidth="20"
-              strokeLinecap="round"
-            />
+    {/* Sky Background */}
+    <rect x="0" y="0" width="400" height={svgHeight} fill="#E0F7FA" />
 
-            {/* Grass on Both Sides - Cỏ hai bên đường */}
-            <path d="M0 50 L50 50 L50 780 L0 780 Z" fill="#4CAF50" />
-            <path d="M400 50 L350 50 L350 780 L400 780 Z" fill="#4CAF50" />
+    {/* Road Path - Đường đi qua từng unit theo pattern liên tục */}
+    <path
+      d={(() => {
+        const pathCommands = ['M130 0']; // Bắt đầu tại (130, 0)
+        const numRows = pathLayout.length; // Số lượng hàng
+        const rowHeight = 100; // Chiều cao mỗi hàng
+        const numPairs = Math.floor(numRows / 2); // Số cặp hàng
+        const hasExtraRow = numRows % 2 === 1; // Kiểm tra số hàng lẻ
+        let startY = 0; // Vị trí y trước đó
+        let lastX = 130; // Theo dõi tọa độ x cuối cùng
 
-            {/* Trees with Animation - Cây cối với hiệu ứng đung đưa */}
-            <g className="tree">
-              <path d="M30 120 L30 140 L20 140 L25 150 L30 140 L40 140 Z" fill="#228B22" />
-              <rect x="25" y="140" width="10" height="20" fill="#8B4513" />
-            </g>
-            <g className="tree">
-              <path d="M370 180 L370 200 L360 200 L365 210 L370 200 L380 200 Z" fill="#228B22" />
-              <rect x="365" y="200" width="10" height="20" fill="#8B4513" />
-            </g>
-            <g className="tree">
-              <path d="M30 300 L30 320 L20 320 L25 330 L30 320 L40 320 Z" fill="#228B22" />
-              <rect x="25" y="320" width="10" height="20" fill="#8B4513" />
-            </g>
-            <g className="tree">
-              <path d="M370 400 L370 420 L360 420 L365 430 L370 420 L380 420 Z" fill="#228B22" />
-              <rect x="365" y="420" width="10" height="20" fill="#8B4513" />
-            </g>
+        // Lặp qua từng cặp hàng
+        for (let k = 0; k < numPairs; k++) {
+          const y0 = 50 + 2 * k * rowHeight - 5 * k; // y của hàng đầu tiên trong cặp
+          const y1 = y0 + rowHeight; // y của hàng thứ hai trong cặp
+          
+          if (k === 0) {
+        // Cong xuống từ (130, 0) đến (130, 50) với độ cong lớn hơn
+        pathCommands.push(`Q122 ${y0 - 25} 130 ${y0}`);
+      } else {
+        // Cong xuống từ điểm trước đó đến hàng tiếp theo với độ cong lớn hơn
+        pathCommands.push(`Q100 ${(startY + y0) / 2 - 10} 130 ${y0}`);
+      }
+          pathCommands.push(`L270 ${y0}`); // Đi ngang qua phải của hàng đầu tiên
+          // Cong mềm xuống hàng thứ hai
+          pathCommands.push(`Q300 ${(y0 + y1) / 2} 270 ${y1}`); 
+          pathCommands.push(`L130 ${y1}`); // Đi ngang qua trái của hàng thứ hai
+          startY = y1; // Cập nhật vị trí y trước đó
+        }
 
-            {/* Flowers with Animation - Hoa với hiệu ứng */}
-            <g className="flower">
-              <circle cx="40" cy="200" r="5" fill="#FF69B4" />
-              <circle cx="45" cy="205" r="3" fill="#FFD700" />
-              <circle cx="35" cy="205" r="3" fill="#FFD700" />
-            </g>
-            <g className="flower">
-              <circle cx="360" cy="300" r="5" fill="#FF69B4" />
-              <circle cx="365" cy="305" r="3" fill="#FFD700" />
-              <circle cx="355" cy="305" r="3" fill="#FFD700" />
-            </g>
-            <g className="flower">
-              <circle cx="40" cy="450" r="5" fill="#FF1493" />
-              <circle cx="45" cy="455" r="3" fill="#FFD700" />
-              <circle cx="35" cy="455" r="3" fill="#FFD700" />
-            </g>
+        // Xử lý hàng lẻ nếu có
+        if (hasExtraRow) {
+          const yLast = 50 + (2 * numPairs) * rowHeight; // y của hàng cuối
+          pathCommands.push(`Q120 ${(startY + yLast) / 2} 130 ${yLast}`); // Cong xuống trái của hàng cuối - mềm mại hơn
+          pathCommands.push(`L270 ${yLast}`); // Đi ngang qua phải của hàng cuối
+          lastX = 270; // Cập nhật x cuối cùng là 270
+        }
 
-            {/* Grass Tufts - Bụi cỏ */}
-            <path d="M60 250 L65 240 L70 250 L65 245 Z" fill="#4CAF50" />
-            <path d="M330 320 L335 310 L340 320 L335 315 Z" fill="#4CAF50" />
-            <path d="M60 480 L65 470 L70 480 L65 475 Z" fill="#4CAF50" />
-            <path d="M330 580 L335 570 L340 580 L335 575 Z" fill="#4CAF50" />
+        // Kết thúc bằng đường cong dọc xuống thay vì đi thẳng về giữa
+        if (lastX === 270) {
+      // Nếu kết thúc ở bên phải, cong dọc xuống bên phải
+      pathCommands.push(`Q278 ${svgHeight - 25} 270 ${svgHeight}`);
+    } else {
+      // Nếu kết thúc ở bên trái, cong dọc xuống bên trái
+      pathCommands.push(`Q122 ${svgHeight - 25} 130 ${svgHeight}`);
+    }
 
-            {/* Additional Nature Elements - Thêm yếu tố thiên nhiên */}
-            <g className="flower">
-              <circle cx="40" cy="600" r="4" fill="#9C27B0" />
-              <circle cx="44" cy="604" r="2" fill="#FFC107" />
-              <circle cx="36" cy="604" r="2" fill="#FFC107" />
-            </g>
-            <g className="flower">
-              <circle cx="360" cy="650" r="4" fill="#E91E63" />
-              <circle cx="364" cy="654" r="2" fill="#FFEB3B" />
-              <circle cx="356" cy="654" r="2" fill="#FFEB3B" />
-            </g>
-          </svg>
-        </div>
 
-        {/* Path with Units - Con đường với các unit */}
-        <div className="relative space-y-6 py-4 z-10">
+        return pathCommands.join(' ');
+      })()}
+      fill="none"
+      stroke="#8B4513"
+      strokeWidth="15"
+      strokeLinecap="round"
+    />
+    {/* Grass on Left Side */}
+<path
+  className="grass"
+  d={`
+    M0 0 
+    L100 0 
+    ${Array.from({ length: Math.floor(svgHeight / 150) }, (_, i) => {
+      const y = 75 + (i + 1) * 150;
+      const offset = Math.sin(i * 0.3) * 8; // Offset bên trái
+      const x = 85 + offset; // Khi offset dương thì lồi ra ngoài
+      const controlX1 = 85 + Math.sin(i * 0.3 - 0.1) * 6;
+      const controlX2 = 85 + Math.sin(i * 0.3 + 0.1) * 6;
+      return `C${controlX1} ${y - 75}, ${controlX2} ${y - 25}, ${x} ${y}`;
+    }).join(' ')}
+    L0 ${svgHeight} 
+    Z
+  `}
+  fill="url(#grassGradient)"
+/>
+
+{/* Grass on Right Side */}
+<path
+  className="grass"
+  d={`
+    M400 0 
+    L300 0 
+    ${Array.from({ length: Math.floor(svgHeight / 150) }, (_, i) => {
+      const y = 75 + (i + 1) * 150;
+      const offset = -Math.sin(i * 0.3) * 8; // Đồng bộ hóa sóng sin đối lập
+      const x = 315 + offset; // Điều chỉnh cho sóng sin đối lập
+      const controlX1 = 315 - Math.sin(i * 0.3 - 0.1) * 6; // Điểm điều khiển
+      const controlX2 = 315 - Math.sin(i * 0.3 + 0.1) * 6; // Điểm điều khiển
+      return `C${controlX1} ${y - 75}, ${controlX2} ${y - 25}, ${x} ${y}`;
+    }).join(' ')}
+    L400 ${svgHeight} 
+    Z
+  `}
+  fill="url(#grassGradient)"
+/>
+
+    {/* Cherry Blossom Trees - Extended throughout the entire SVG height */}
+    {Array.from({ length: Math.ceil(svgHeight / 100) }, (_, index) => (
+      <g key={`cherry-tree-${currentStage}-${index}`} transform={`translate(0, ${index * 100})`}>
+        {/* Cherry Tree Left - repositioned to translate(50, 80) */}
+        <g className="tree" transform="translate(50, 80)">
+          {/* Tree trunk - increased height to 30 */}
+          <rect x="-6" y="10" width="12" height="30" fill="#8B4513" />
+          {/* Tree crown - larger radius 20 with semi-transparent green */}
+          <circle cx="0" cy="0" r="20" fill="#90EE90" fillOpacity="0.3" />
+          {/* Cherry blossoms - more abundant and varied */}
+          <g className="cherry-blossom">
+            <circle cx="0" cy="0" r="4" fill="#FFB6C1" />
+            <circle cx="10" cy="-8" r="3" fill="#FF69B4" />
+            <circle cx="-10" cy="-8" r="3" fill="#FF69B4" />
+            <circle cx="8" cy="10" r="2.5" fill="#FFC0CB" />
+            <circle cx="-8" cy="10" r="2.5" fill="#FFC0CB" />
+            <circle cx="0" cy="-12" r="3" fill="#FFB6C1" />
+            <circle cx="-12" cy="2" r="2.5" fill="#FF69B4" />
+            <circle cx="12" cy="2" r="2.5" fill="#FF69B4" />
+          </g>
+        </g>
+        
+        {/* Cherry Tree Right - repositioned to translate(350, 120) */}
+        <g className="tree" transform="translate(350, 120)">
+          {/* Tree trunk - increased height to 30 */}
+          <rect x="-6" y="10" width="12" height="30" fill="#8B4513" />
+          {/* Tree crown - larger radius 20 with semi-transparent green */}
+          <circle cx="0" cy="0" r="20" fill="#90EE90" fillOpacity="0.3" />
+          {/* Cherry blossoms - more abundant and varied */}
+          <g className="cherry-blossom">
+            <circle cx="0" cy="0" r="4" fill="#FFB6C1" />
+            <circle cx="10" cy="-8" r="3" fill="#FF69B4" />
+            <circle cx="-10" cy="-8" r="3" fill="#FF69B4" />
+            <circle cx="8" cy="10" r="2.5" fill="#FFC0CB" />
+            <circle cx="-8" cy="10" r="2.5" fill="#FFC0CB" />
+            <circle cx="0" cy="-12" r="3" fill="#FFB6C1" />
+            <circle cx="-12" cy="2" r="2.5" fill="#FF69B4" />
+            <circle cx="12" cy="2" r="2.5" fill="#FF69B4" />
+          </g>
+        </g>
+      </g>
+    ))}
+
+    {/* Flowers on Grass - Extended throughout the entire SVG height */}
+    {Array.from({ length: Math.ceil(svgHeight / 75) * 2 }, (_, index) => {
+      const x = index % 2 === 0 ? 60 : 340; // Alternate between left (60) and right (340)
+      const y = 80 + (Math.floor(index / 2) * 75); // Distributed vertically every 75px
+      
+      return (
+        <g key={`grass-flower-${currentStage}-${index}`} transform={`translate(${x}, ${y})`}>
+          <circle className="flower" cx="0" cy="0" r="5" fill="#FF69B4" />
+          <circle cx="5" cy="5" r="3" fill="#FFD700" />
+          <circle cx="-5" cy="5" r="3" fill="#FFD700" />
+        </g>
+      );
+    })}
+
+    {/* Falling Cherry Blossoms - Improved animation */}
+    {Array.from({ length: 20 }, (_, index) => {
+      const startX = Math.random() * 400;
+      const startY = Math.random() * (svgHeight * 0.7); // Không bay quá thấp
+      const driftX = (Math.random() - 0.5) * 150; // Random horizontal drift
+      const size = 2 + Math.random() * 2; // Variable petal sizes (2-4px)
+      const colors = ['#FFB6C1', '#FF69B4', '#FFC0CB', '#FFCCCB'];
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      
+      return (
+        <circle
+          key={`petal-${currentStage}-${index}`}
+          className="falling-petals"
+          cx={startX}
+          cy={startY}
+          r={size}
+          fill={color}
+          fillOpacity="0.8"
+          style={{
+            animationDelay: `${Math.random() * 8}s`,
+            animationDuration: `${6 + Math.random() * 4}s`,
+            transform: `translate(${driftX}px, 0)`,
+          }}
+        />
+      );
+    })}
+  </svg>
+</div>
+
+        {/* Path with Units */}
+        <div className="relative py-4 z-10" style={{ gap: '50px', display: 'flex', flexDirection: 'column' }}>
           {pathLayout.map((rowUnits, rowIndex) => (
             <div key={`row-${rowIndex}-${rowUnits[0] || rowIndex}`} className="relative">
-              {/* Path connection line - Đường nối giữa các hàng */}
-              {rowIndex > 0 && (
-                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 w-1 h-6 bg-yellow-300 rounded-full"></div>
-              )}
-
-              {/* Row units - Các unit trong hàng */}
               <div className="flex items-center justify-center space-x-8">
-                {rowUnits.map((unitNumber, unitIndex) => {
+                {rowUnits.map((unitNumber) => {
                   const status = getUnitStatus(unitNumber);
                   const isCurrentUnit = currentStageData.status === "in_progress" && 
                     unitNumber === currentStageData.unitNumbers[0] + Math.floor(currentStageData.units * 0.65);
 
                   return (
                     <div key={unitNumber} className="relative">
-                      {/* Connection line between units in same row - Đường nối giữa các unit cùng hàng */}
-                      {unitIndex > 0 && rowUnits.length > 1 && (
-                        <div className="absolute top-1/2 -left-4 transform -translate-y-1/2 w-8 h-1 bg-yellow-300 rounded-full"></div>
-                      )}
-
-                      {/* Unit circle - Vòng tròn unit */}
                       <div
                         data-unit={unitNumber}
                         className={`w-12 h-12 rounded-full border-4 flex items-center justify-center font-bold text-sm shadow-lg cursor-pointer hover:scale-110 transition-transform relative ${getUnitStatusClass(status)} ${
@@ -694,26 +864,17 @@ function StageUnitsView({ currentStage, setCurrentStage }: Readonly<{
                         }`}
                       >
                         {unitNumber}
-
-                        {/* Status indicator - Chỉ thị trạng thái */}
                         {status === "completed" && (
                           <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
                             <CheckCircle className="w-2 h-2 text-white" />
                           </div>
                         )}
-
-                        {/* Current unit indicator - Chỉ thị unit hiện tại */}
                         {isCurrentUnit && (
                           <div className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center animate-bounce">
                             <Play className="w-3 h-3 text-white" />
                           </div>
                         )}
                       </div>
-
-                      {/* Connection line to next row - Đường nối đến hàng tiếp theo */}
-                      {rowIndex < pathLayout.length - 1 && unitIndex === Math.floor(rowUnits.length / 2) && (
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-1 h-6 bg-yellow-300 rounded-full"></div>
-                      )}
                     </div>
                   );
                 })}
@@ -723,7 +884,7 @@ function StageUnitsView({ currentStage, setCurrentStage }: Readonly<{
         </div>
       </div>
 
-      {/* Stage Progress - Tiến độ chặng */}
+      {/* Stage Progress */}
       <div className="space-y-2">
         <div className="flex justify-between text-sm">
           <span>Tiến độ chặng {currentStage}</span>
@@ -739,35 +900,7 @@ function StageUnitsView({ currentStage, setCurrentStage }: Readonly<{
   );
 }
 
-// CSS Animation for Trees - CSS Animation cho cây cối
-const treeAnimationStyle = `
-  .tree {
-    animation: sway 3s ease-in-out infinite;
-    transform-origin: bottom center;
-  }
-  
-  @keyframes sway {
-    0%, 100% { 
-      transform: rotate(0deg); 
-    }
-    50% { 
-      transform: rotate(5deg); 
-    }
-  }
-  
-  .flower {
-    animation: bloom 2s ease-in-out infinite alternate;
-  }
-  
-  @keyframes bloom {
-    0% { 
-      transform: scale(1); 
-    }
-    100% { 
-      transform: scale(1.1); 
-    }
-  }
-`;
+// (Đã xoá biến treeAnimationStyle không sử dụng)
 
 export function RoadmapDetailPage() {
   const navigate = useNavigate();
