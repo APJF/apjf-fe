@@ -4,14 +4,12 @@ import { BookOpen, Lock, Eye, EyeOff, AlertCircle, Shield, ArrowLeft } from "luc
 import authService from "../../services/authService"
 
 interface ResetPasswordData {
-  otp: string
   newPassword: string
   confirmPassword: string
 }
 
 export function ResetPasswordForm() {
   const [formData, setFormData] = useState<ResetPasswordData>({
-    otp: "",
     newPassword: "",
     confirmPassword: "",
   })
@@ -25,14 +23,7 @@ export function ResetPasswordForm() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-
-    // Chỉ cho phép nhập số cho OTP
-    if (name === "otp") {
-      const numericValue = value.replace(/\D/g, "").slice(0, 6)
-      setFormData((prev) => ({ ...prev, [name]: numericValue }))
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }))
-    }
+    setFormData((prev) => ({ ...prev, [name]: value }))
 
     // Clear message when user starts typing
     if (message) setMessage("")
@@ -58,8 +49,8 @@ export function ResetPasswordForm() {
     try {
       const response = await authService.resetPassword({
         email,
-        otp: formData.otp,
-        newPassword: formData.newPassword
+        newPassword: formData.newPassword,
+        otp: ''
       })
 
       if (response.success) {
@@ -184,29 +175,6 @@ export function ResetPasswordForm() {
 
             {/* Reset Password Form */}
             <form onSubmit={handleResetPassword} className="space-y-5">
-              {/* OTP */}
-              <div className="space-y-2">
-                <label htmlFor="otp" className="text-sm font-medium text-gray-700">
-                  Mã OTP
-                </label>
-                <div className="relative">
-                  <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    id="otp"
-                    name="otp"
-                    type="text"
-                    inputMode="numeric"
-                    required
-                    placeholder="Nhập mã OTP 6 số"
-                    value={formData.otp}
-                    onChange={handleInputChange}
-                    className="w-full pl-11 pr-4 h-11 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
-                    disabled={isLoading}
-                  />
-                </div>
-                <p className="text-xs text-gray-500">Nhập mã OTP 6 số đã được gửi đến email của bạn</p>
-              </div>
-
               {/* New Password */}
               <div className="space-y-2">
                 <label htmlFor="newPassword" className="text-sm font-medium text-gray-700">

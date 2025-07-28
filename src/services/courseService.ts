@@ -2,6 +2,10 @@ import type { CourseApiResponse, CourseFilters, TopCoursesApiResponse } from '..
 import api from '../api/axios';
 
 export class CourseService {
+  static async getChaptersByCourseId(courseId: string) {
+    const response = await api.get(`/chapters/course/${courseId}`);
+    return response.data;
+  }
   static async getCourses(filters: CourseFilters = {}): Promise<CourseApiResponse> {
     const params = {
       page: filters.page || 0,
@@ -19,6 +23,11 @@ export class CourseService {
 
   static async getTopCourses(): Promise<TopCoursesApiResponse> {
     const response = await api.get('/courses/top-courses');
+    return response.data;
+  }
+
+  static async getTopRatedCourses(): Promise<TopCoursesApiResponse> {
+    const response = await api.get('/courses/top-rated');
     return response.data;
   }
 

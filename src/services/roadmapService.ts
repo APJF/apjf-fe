@@ -27,12 +27,9 @@ export interface RoadmapStats {
 
 class RoadmapService {
   private getHeaders() {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
     const token = localStorage.getItem('access_token');
-    
     return {
       'Authorization': `Bearer ${token}`,
-      'X-User-Id': user.id?.toString() || '',
       'Content-Type': 'application/json'
     };
   }

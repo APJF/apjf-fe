@@ -1,5 +1,5 @@
 import { FileText, CheckCircle, Lock } from "lucide-react";
-import type { Chapter } from '../../types/courseDetail';
+import type { Chapter } from '@/types/course';
 
 interface UnitListProps {
   readonly chapter: Chapter;

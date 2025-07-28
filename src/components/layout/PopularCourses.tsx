@@ -2,33 +2,21 @@ import { useState, useEffect } from "react"
 import { Clock, Users, Star } from "lucide-react"
 import { Link } from "react-router-dom"
 import { CourseService } from "../../services/courseService"
-import type { Course as APICourse } from "../../types/course"
 
-interface Course {
-  id: string
-  title: string
-  description: string
-  level: string
-  duration: string
-  students: number
-  rating: number
-  price: string
-  image: string
-  features: string[]
-}
+import type { Course as APICourse, PopularCourseUI } from "../../types/course"
 
 // Helper function to convert API courses to component courses
-const convertAPICourse = (course: APICourse): Course => {
+const convertAPICourse = (course: APICourse): PopularCourseUI => {
   return {
     id: course.id,
     title: course.title,
     description: course.description,
-    level: course.level || "N5",  // Default to N5 if not specified
-    duration: `${course.duration} tiếng`, // Convert duration to readable format
-    students: Math.floor(Math.random() * 10000) + 1000, // Random number for demo
-    rating: course.averageRating || 4.0,  // Default to 4.0 if not specified
-    price: "Free", // Default to Free for demo
-    image: course.image || "/img/NhatBan.webp", // Default image
+    level: course.level || "N5",
+    duration: `${course.duration} tiếng`,
+    students: Math.floor(Math.random() * 10000) + 1000,
+    rating: course.averageRating || 4.0,
+    price: "Free",
+    image: course.image || "/img/NhatBan.webp",
     features: [
       "JLPT Preparation",
       "Interactive Exercises",
@@ -39,15 +27,15 @@ const convertAPICourse = (course: APICourse): Course => {
 }
 
 export function PopularCourses() {
-  const [courses, setCourses] = useState<Course[]>([])
+  const [courses, setCourses] = useState<PopularCourseUI[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchTopCourses = async () => {
+    const fetchTopRatedCourses = async () => {
       try {
         setLoading(true)
-        const response = await CourseService.getTopCourses()
+        const response = await CourseService.getTopRatedCourses()
         
         if (response.success) {
           const convertedCourses = response.data.map(convertAPICourse)
@@ -56,14 +44,14 @@ export function PopularCourses() {
           setError(response.message)
         }
       } catch (err) {
-        console.error("Error fetching top courses:", err)
+        console.error("Error fetching top rated courses:", err)
         setError("Không thể tải danh sách khóa học phổ biến. Vui lòng thử lại sau.")
       } finally {
         setLoading(false)
       }
     }
 
-    fetchTopCourses()
+    fetchTopRatedCourses()
   }, [])
 
   const getLevelBadgeColor = (level: string) => {
@@ -174,12 +162,9 @@ export function PopularCourses() {
 
                 <div className="flex items-center justify-between pt-4 border-t">
                   <div className="text-2xl font-bold text-red-600">{course.price}</div>
-                  <Link 
-                    to={`/courses/${course.id}`}
-                    className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
-                  >
+                  <button className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors">
                     {course.price === "Free" ? "Bắt đầu miễn phí" : "Đăng ký ngay"}
-                  </Link>
+                  </button>
                 </div>
               </div>
             </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { Alert } from '../components/ui/Alert'
 import { AlertCircle, ArrowLeft, Upload, BookOpen, Info } from 'lucide-react'
@@ -10,6 +10,7 @@ import { Textarea } from '../components/ui/Textarea'
 import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
 import { StaffCourseService } from '../services/staffCourseService'
+import { useToast } from '../components/ui/toast/useToast'
 import type { StaffCourseDetail, UpdateCourseRequest } from '../types/staffCourse'
 
 interface LocationState {
@@ -38,6 +39,7 @@ const StaffUpdateCoursePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [dragActive, setDragActive] = useState(false)
+  const { toast } = useToast()
 
   const [formData, setFormData] = useState<UpdateCourseFormData>({
     id: '',
@@ -58,20 +60,20 @@ const StaffUpdateCoursePage: React.FC = () => {
     { value: "N1", label: "N1" },
   ]
 
-  useEffect(() => {
-    if (!courseId) {
-      setError("ID khóa học không hợp lệ")
-      return
-    }
+  const initializeFormData = useCallback((courseData: StaffCourseDetail) => {
+    setFormData({
+      id: courseData.id || '',
+      title: courseData.title || '',
+      description: courseData.description || '',
+      duration: courseData.duration?.toString() || '',
+      level: courseData.level || '',
+      image: courseData.image || '',
+      requirement: courseData.requirement || '',
+      prerequisiteCourseId: courseData.prerequisiteCourseId || ''
+    })
+  }, [])
 
-    if (!course) {
-      fetchCourseData()
-    } else {
-      initializeFormData(course)
-    }
-  }, [courseId, course])
-
-  const fetchCourseData = async () => {
+  const fetchCourseData = useCallback(async () => {
     if (!courseId) return
 
     setIsLoading(true)
@@ -85,42 +87,43 @@ const StaffUpdateCoursePage: React.FC = () => {
       } else {
         setError("Không tìm thấy thông tin khóa học")
       }
-    } catch (error) {
-      console.error('Error fetching course data:', error)
+    } catch (err) {
+      console.error('Error fetching course data:', err)
       setError("Không thể tải thông tin khóa học. Vui lòng thử lại.")
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [courseId, initializeFormData])
 
-  const initializeFormData = (courseData: StaffCourseDetail) => {
-    setFormData({
-      id: courseData.id || '',
-      title: courseData.title || '',
-      description: courseData.description || '',
-      duration: courseData.duration?.toString() || '',
-      level: courseData.level || '',
-      image: courseData.image || '',
-      requirement: courseData.requirement || '',
-      prerequisiteCourseId: courseData.prerequisiteCourseId || ''
-    })
-  }
+  useEffect(() => {
+    if (!courseId) {
+      setError("ID khóa học không hợp lệ")
+      return
+    }
 
-  const handleInputChange = (field: string, value: string) => {
+    if (!course) {
+      fetchCourseData()
+    } else {
+      initializeFormData(course)
+    }
+  }, [courseId, course, fetchCourseData, initializeFormData])
+
+
+  const handleInputChange = useCallback((field: keyof UpdateCourseFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
-  }
+  }, [])
 
-  const handleFileSelect = (file: File) => {
+  const handleFileSelect = useCallback((file: File) => {
     if (file && (file.type === "image/jpeg" || file.type === "image/png" || file.type === "image/gif")) {
       setSelectedFile(file)
       const imageUrl = URL.createObjectURL(file)
       setFormData(prev => ({ ...prev, image: imageUrl }))
     } else {
-      alert("Vui lòng chọn file ảnh (JPG, PNG, GIF)")
+      toast.error("Lỗi", "Vui lòng chọn file ảnh (JPG, PNG, GIF)")
     }
-  }
+  }, [toast])
 
-  const handleDrag = (e: React.DragEvent) => {
+  const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
     if (e.type === "dragenter" || e.type === "dragover") {
@@ -128,24 +131,26 @@ const StaffUpdateCoursePage: React.FC = () => {
     } else if (e.type === "dragleave") {
       setDragActive(false)
     }
-  }
+  }, [])
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
     setDragActive(false)
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileSelect(e.dataTransfer.files[0])
+    const firstFile = e.dataTransfer.files?.[0]
+    if (firstFile) {
+      handleFileSelect(firstFile)
     }
-  }
+  }, [handleFileSelect])
 
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      handleFileSelect(e.target.files[0])
+  const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const firstFile = e.target.files?.[0]
+    if (firstFile) {
+      handleFileSelect(firstFile)
     }
-  }
+  }, [handleFileSelect])
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (course) {
       navigate(`/staff/courses/${course.id}`, { 
         state: { course } 
@@ -153,7 +158,7 @@ const StaffUpdateCoursePage: React.FC = () => {
     } else {
       navigate('/staff/courses')
     }
-  }
+  }, [course, navigate])
 
   const getDragZoneClass = () => {
     if (dragActive) {
@@ -182,19 +187,20 @@ const StaffUpdateCoursePage: React.FC = () => {
     setError(null)
 
     try {
+      const topicIds = course?.topics.map(topic => topic.id) || [];
+      const examIds = course?.exams.map(exam => exam.id) || [];
+
       const updateData: UpdateCourseRequest = {
-        id: course?.id || formData.id.trim(), // Giữ nguyên ID gốc
+        id: course?.id || formData.id.trim(),
         title: formData.title.trim(),
         description: formData.description.trim(),
         duration: parseFloat(formData.duration),
         level: formData.level,
         image: formData.image || undefined,
         requirement: formData.requirement.trim() || undefined,
-        status: course?.status || "DRAFT",
-        prerequisiteCourseId: course?.prerequisiteCourseId || undefined, // Giữ nguyên prerequisite gốc
-        topics: course?.topics || [],
-        exams: course?.exams || [],
-        chapters: course?.chapters || []
+        prerequisiteCourseId: course?.prerequisiteCourseId || undefined,
+        topicIds: topicIds,
+        examIds: examIds,
       }
 
       const response = await StaffCourseService.updateCourse(courseId, updateData)
@@ -211,11 +217,22 @@ const StaffUpdateCoursePage: React.FC = () => {
           }
         })
       } else {
-        setError(response.message || 'Cập nhật khóa học thất bại')
+        const message = response.message || 'Cập nhật khóa học thất bại'
+        setError(message)
+        toast.error("Lỗi", message)
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating course:', error)
-      setError('Có lỗi xảy ra khi cập nhật khóa học. Vui lòng thử lại.')
+      let errorMessage = 'Có lỗi xảy ra khi cập nhật khóa học. Vui lòng thử lại.'
+      
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { message?: string } } }
+        if (axiosError.response?.data?.message) {
+          errorMessage = axiosError.response.data.message
+        }
+      }
+      setError(errorMessage)
+      toast.error("Lỗi", errorMessage)
     } finally {
       setIsLoading(false)
     }
@@ -430,7 +447,6 @@ const StaffUpdateCoursePage: React.FC = () => {
                           value={formData.id}
                           className="border-blue-300 bg-gray-100 text-gray-600 cursor-not-allowed text-base py-3"
                           readOnly
-                          pointer-events-none
                         />
                         <p className="text-amber-600 text-xs mt-1">
                           ⚠️ Mã khóa học không thể thay đổi sau khi tạo
@@ -601,7 +617,8 @@ const StaffUpdateCoursePage: React.FC = () => {
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setSelectedFile(null)
                               setFormData(prev => ({ ...prev, image: "" }))
                             }}

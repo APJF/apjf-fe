@@ -18,7 +18,7 @@ import { ScrollArea } from "../components/ui/ScrollArea"
 import { Alert, AlertDescription } from "../components/ui/Alert"
 import { chatbotService } from "../services/chatbotService"
 import type { Message, ChatSession } from "../types/chatbot"
-import { useAuth } from "../hooks/useAuth"
+// import { useAuth } from "../hooks/useAuth"
 import ChatMessage from "../components/chatbot/ChatMessage"
 import ChatSessionItem from "../components/chatbot/ChatSessionItem"
 
@@ -33,7 +33,7 @@ export default function ChatbotPage() {
   const [editingSessionId, setEditingSessionId] = useState<number | null>(null)
   const [editingSessionName, setEditingSessionName] = useState("")
   const [error, setError] = useState<string>("")
-  const { userId } = useAuth()
+  // Removed userId logic as backend no longer requires it
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -101,15 +101,10 @@ export default function ChatbotPage() {
   }, [loadChatMessages]);
 
   const loadChatSessions = useCallback(async () => {
-    if (!userId) {
-      setChatSessions([])
-      setCurrentChatId(null)
-      return
-    }
     setError("")
     setIsLoading(true)
     try {
-      const response = await chatbotService.getSessions(userId);
+      const response = await chatbotService.getSessions();
       handleLoadedSessions(response.sessions);
     } catch (error) {
       setError("Lỗi kết nối đến server")
@@ -117,22 +112,18 @@ export default function ChatbotPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [userId, handleLoadedSessions]);
+  }, [handleLoadedSessions]);
 
   // Load chat sessions on component mount
   useEffect(() => {
     loadChatSessions()
-  }, [loadChatSessions, userId])
+  }, [loadChatSessions])
 
   const createNewChat = async () => {
-    if (!userId) {
-      setError("Bạn cần đăng nhập để tạo cuộc trò chuyện mới.")
-      return
-    }
     setError("")
     setIsLoading(true)
     try {
-      const newSessionData = await chatbotService.createSession(userId, "Cuộc trò chuyện mới")
+      const newSessionData = await chatbotService.createSession("Cuộc trò chuyện mới")
       if (newSessionData.id) {
         const newSession: ChatSession = {
           ...newSessionData,
@@ -224,13 +215,8 @@ export default function ChatbotPage() {
 
     // If there's no active chat, create one first
     if (!finalChatId) {
-      if (!userId) {
-        setError("Vui lòng đăng nhập để bắt đầu trò chuyện.")
-        setIsLoading(false)
-        return
-      }
       try {
-        const newSessionResponse = await chatbotService.createSession(userId, content.trim().substring(0, 30))
+        const newSessionResponse = await chatbotService.createSession(content.trim().substring(0, 30))
         if (newSessionResponse.id) {
           finalChatId = newSessionResponse.id
           const newSession: ChatSession = {
@@ -312,7 +298,7 @@ export default function ChatbotPage() {
   };
 
   const handleEditAndResubmit = async (newContent: string) => {
-    if (!currentChatId || !newContent.trim() || !userId) return
+    if (!currentChatId || !newContent.trim()) return
 
     setIsLoading(true)
     setError("")
@@ -442,16 +428,7 @@ export default function ChatbotPage() {
     )
   })
 
-  if (!userId) {
-    return (
-      <div className="fixed top-16 left-0 right-0 bottom-0 bg-white flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-2">Vui lòng đăng nhập</h2>
-          <p className="text-gray-600">Bạn cần đăng nhập để sử dụng trợ lý AI.</p>
-        </div>
-      </div>
-    )
-  }
+  // userId check removed
 
   return (
     <div className="fixed top-16 left-0 right-0 bottom-0 bg-white flex overflow-hidden">

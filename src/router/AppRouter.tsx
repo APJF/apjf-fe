@@ -12,6 +12,7 @@ import LoginPage from "../pages/LoginPage";
 import RegisterPage from "../pages/RegisterPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
 import ResetPasswordPage from "../pages/ResetPasswordPage";
+import { VerifyOtpPage } from "../pages/VerifyOtpPage";
 import ChatbotPage from "../pages/ChatbotPage";
 import UserProfilePage from "../pages/UserProfilePage";
 import StaffDashboardPage from "../pages/StaffDashboardPage";
@@ -112,6 +113,10 @@ const router = createBrowserRouter([
   {
     path: "/reset-password",
     element: <ResetPasswordPage />, // Không có layout để giống như login/register hiện tại
+  },
+  {
+    path: "/verify-otp",
+    element: <VerifyOtpPage />,
   },
   {
     path: "/chatbot",

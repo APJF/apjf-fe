@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Alert } from '../components/ui/Alert'
 import { AlertCircle, BookOpen, Star, ChevronDown, ChevronRight, Eye, Edit, Plus, ArrowLeft, CheckCircle } from 'lucide-react'
@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
 import { StaffCourseService } from '../services/staffCourseService'
+import { CourseService } from '../services/courseService'
 import type { StaffCourseDetail, Chapter } from '../types/staffCourse'
 
 // Hàm sắp xếp chapters theo thứ tự prerequisite
@@ -89,6 +90,39 @@ export const StaffCourseDetailPage: React.FC = () => {
   const [imageLoading, setImageLoading] = useState(true)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
+  const fetchCourseData = useCallback(async () => {
+    if (!courseId) return
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      // Lấy thông tin cơ bản và chi tiết với chapters
+      const [courseRes, chaptersRes] = await Promise.all([
+        StaffCourseService.getCourseDetail(courseId),
+        CourseService.getChaptersByCourseId(courseId)
+      ]);
+
+      if (courseRes.success) {
+        setCourse(courseRes.data);
+      } else {
+        setError(courseRes.message || "Không thể tải thông tin khóa học");
+      }
+
+      if (chaptersRes.success) {
+        const sortedChapters = sortChaptersByPrerequisite(chaptersRes.data || [])
+        setChapters(sortedChapters);
+      } else {
+        console.error('Error fetching chapters:', chaptersRes.message);
+      }
+    } catch (error) {
+      console.error('Error fetching course data:', error)
+      setError("Không thể tải thông tin khóa học. Vui lòng thử lại.")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [courseId])
+
   useEffect(() => {
     if (!courseId) {
       setError("ID khóa học không hợp lệ")
@@ -97,7 +131,7 @@ export const StaffCourseDetailPage: React.FC = () => {
     }
 
     fetchCourseData()
-  }, [courseId])
+  }, [courseId, fetchCourseData])
 
   // Handle success message from navigation
   useEffect(() => {
@@ -115,33 +149,7 @@ export const StaffCourseDetailPage: React.FC = () => {
       // Clear the state to prevent showing message on back navigation
       navigate(location.pathname, { replace: true })
     }
-  }, [location.state, navigate, location.pathname])
-
-  const fetchCourseData = async () => {
-    if (!courseId) return
-
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      // Lấy thông tin cơ bản và chi tiết với chapters
-      const [courseData, courseDetailData] = await Promise.all([
-        StaffCourseService.getCourseDetail(courseId),
-        StaffCourseService.getCourseWithChapters(courseId)
-      ])
-
-      setCourse(courseData.data)
-      
-      // Sắp xếp chapters theo thứ tự prerequisite (chương không có tiên quyết hiển thị trước)
-      const sortedChapters = sortChaptersByPrerequisite(courseDetailData.data.course.chapters || [])
-      setChapters(sortedChapters)
-    } catch (error) {
-      console.error('Error fetching course data:', error)
-      setError("Không thể tải thông tin khóa học. Vui lòng thử lại.")
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  }, [location.state, navigate, location.pathname, fetchCourseData])
 
   const toggleChapterExpansion = (chapterId: string) => {
     setExpandedChapters(prev => {
@@ -164,16 +172,6 @@ export const StaffCourseDetailPage: React.FC = () => {
     }
   }
 
-  const handleViewUnit = (chapterId: string, unitId: string) => {
-    const chapter = chapters.find(c => c.id === chapterId)
-    const unit = chapter?.units.find(u => u.id === unitId)
-    
-    if (unit && chapter && course) {
-      navigate(`/staff/courses/${course.id}/chapters/${chapterId}/units/${unitId}`, {
-        state: { course, chapter, unit }
-      })
-    }
-  }
 
   const handleAddChapter = () => {
     if (courseId && course) {
@@ -332,16 +330,17 @@ export const StaffCourseDetailPage: React.FC = () => {
                       <div className="text-sm text-blue-500 font-medium">Chương</div>
                     </div>
                     
-                    <div className="text-center p-4 bg-green-50 rounded-lg">
-                      <div className="text-2xl font-bold text-green-600 mb-1">
-                        {chapters.reduce((total, chapter) => total + chapter.units.length, 0)}
-                      </div>
-                      <div className="text-sm text-green-500 font-medium">Bài học</div>
-                    </div>
                     
                     <div className="text-center p-4 bg-purple-50 rounded-lg">
                       <div className="text-2xl font-bold text-purple-600 mb-1 flex items-center justify-center gap-1">
-                        4.8 <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
+                        {course.rating ? (
+                          <>
+                            {course.rating.toFixed(1)}
+                            <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
+                          </>
+                        ) : (
+                          "0"
+                        )}
                       </div>
                       <div className="text-sm text-purple-500 font-medium">Đánh giá</div>
                     </div>
@@ -419,7 +418,7 @@ export const StaffCourseDetailPage: React.FC = () => {
                     onClick={() => navigate(`/staff/course/${course.id}/reviews`)}
                   >
                     <Star className="h-4 w-4 mr-2" />
-                    Xem đánh giá (4.8★)
+                    Xem đánh giá ({course.rating ? `${course.rating.toFixed(1)}★` : "0★"})
                   </Button>
                   <Button 
                     variant="outline" 
@@ -516,9 +515,6 @@ export const StaffCourseDetailPage: React.FC = () => {
                                   <p className="text-gray-600 text-sm mt-1">
                                     {chapter.description}
                                   </p>
-                                  <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                                    <span>📚 {chapter.units.length} bài học</span>
-                                  </div>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
@@ -537,45 +533,6 @@ export const StaffCourseDetailPage: React.FC = () => {
                             </div>
                           </button>
 
-                          {/* Units List */}
-                          {expandedChapters.has(chapter.id) && (
-                            <div className="p-4 space-y-3">
-                              {chapter.units.map((unit, unitIndex) => (
-                                <div
-                                  key={unit.id}
-                                  className="flex items-center justify-between p-3 bg-white rounded border border-gray-100 hover:border-blue-200 transition-colors"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-sm font-medium">
-                                      {unitIndex + 1}
-                                    </div>
-                                    <div>
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <h4 className="font-medium text-gray-900">
-                                          {unit.title}
-                                        </h4>
-                                        <Badge variant="outline" className={`text-xs ${getStatusColor(unit.status)}`}>
-                                          {getStatusText(unit.status)}
-                                        </Badge>
-                                      </div>
-                                      <p className="text-sm text-gray-500 mt-1">
-                                        {unit.description}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleViewUnit(chapter.id, unit.id)}
-                                    className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                                  >
-                                    <Eye className="h-4 w-4 mr-1" />
-                                    Xem
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
                         </div>
                       ))
                     ) : (

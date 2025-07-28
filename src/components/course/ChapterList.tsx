@@ -1,33 +1,25 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { FileText, Clock, ChevronDown, ChevronRight } from "lucide-react";
-import type { Chapter, Exam } from '../../types/courseDetail';
+import type { Chapter, Exam } from '../../types/course';
 
 interface ChapterListProps {
   chapters: Chapter[];
   courseExams: Exam[];
   isEnrolled?: boolean;
-  completedUnits?: string[];
-  onChapterClick: (chapterId: string) => void;
   onExamClick: (examId: string) => void;
+  courseId: string;
 }
 
 export const ChapterList: React.FC<ChapterListProps> = ({
   chapters,
   courseExams,
   isEnrolled = false,
-  completedUnits = [],
-  onChapterClick,
   onExamClick,
+  courseId,
 }) => {
+  const navigate = useNavigate();
   const [expandedExams, setExpandedExams] = useState<boolean>(false);
-
-  const getTotalUnits = (chapter: Chapter) => {
-    return chapter.units.length;
-  };
-
-  const getCompletedUnitsInChapter = (chapter: Chapter) => {
-    return chapter.units.filter((unit) => completedUnits.includes(unit.id)).length;
-  };
 
   const formatDuration = (duration: number) => {
     const hours = Math.floor(duration);
@@ -41,14 +33,11 @@ export const ChapterList: React.FC<ChapterListProps> = ({
     <div className="space-y-4">
       {/* Chapters */}
       {chapters.map((chapter, chapterIndex) => {
-        const totalUnits = getTotalUnits(chapter);
-        const completedUnitsCount = getCompletedUnitsInChapter(chapter);
-
         return (
           <div key={chapter.id} className="bg-white rounded-xl shadow-lg overflow-hidden">
             {/* Chapter Header */}
             <button
-              onClick={() => onChapterClick(chapter.id)}
+              onClick={() => navigate(`/courses/${courseId}/chapters/${chapter.id}`)}
               className="w-full p-6 text-left hover:bg-gray-50 transition-colors"
             >
               <div className="flex items-center justify-between">
@@ -64,17 +53,7 @@ export const ChapterList: React.FC<ChapterListProps> = ({
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm text-gray-500">
-                    {completedUnitsCount}/{totalUnits} bài học
-                  </div>
-                  {isEnrolled && (
-                    <div className="w-24 bg-gray-200 rounded-full h-2 mt-2">
-                      <div
-                        className="bg-red-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${(completedUnitsCount / totalUnits) * 100}%` }}
-                      />
-                    </div>
-                  )}
+ 
                 </div>
               </div>
             </button>

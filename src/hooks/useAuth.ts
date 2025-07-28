@@ -79,5 +79,6 @@ export const useAuth = () => {
     window.dispatchEvent(new Event('authStateChanged'));
   };
 
-  return { user, login, logout, userId: user?.id?.toString() };
+
+  return { user, login, logout };
 };

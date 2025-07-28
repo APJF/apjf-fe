@@ -2,6 +2,7 @@ import React, { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { BookOpen, Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react"
 import authService from "../../services/authService"
+import { useToast } from "../ui/toast"
 
 interface RegisterData {
   email: string
@@ -25,53 +26,50 @@ export function RegisterForm() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<ValidationErrors>({})
-  const [message, setMessage] = useState("")
+  const { toast } = useToast()
   const navigate = useNavigate()
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
     // Clear errors when user starts typing
-    if (errors[name as keyof ValidationErrors] || message) {
+    if (errors[name as keyof ValidationErrors]) {
       setErrors({})
-      setMessage("")
     }
   }
 
   const registerWithEmail = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (formData.password !== formData.confirmPassword) {
-      setErrors({ general: "Mật khẩu xác nhận không khớp" })
+      setErrors({ general: "Mật khẩu xác nhận không khớp." })
       return
     }
 
     setIsLoading(true)
     setErrors({})
-    setMessage("")
 
     try {
       const response = await authService.register({
         email: formData.email,
-        password: formData.password,
+        password: formData.password
       })
 
       if (response.success) {
-        navigate("/login", { 
-          state: { message: "Đăng ký thành công! Vui lòng đăng nhập." }
+        toast.success("Thành công", response.message)
+        navigate("/verify-otp", {
+          state: {
+            email: formData.email,
+            message: response.message,
+            from: "register"
+          }
         })
-      }
-    } catch (error: unknown) {
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: { message?: string } } }
-        if (axiosError.response?.data?.message) {
-          setErrors({ general: axiosError.response.data.message })
-        } else {
-          setErrors({ general: "Có lỗi xảy ra. Vui lòng thử lại." })
-        }
       } else {
-        setErrors({ general: "Có lỗi xảy ra. Vui lòng thử lại." })
+        setErrors({ general: response.message || "Có lỗi không xác định xảy ra." })
       }
+    } catch (error) {
+      console.error("Register error:", error)
+      setErrors({ general: "Không thể kết nối đến máy chủ. Vui lòng thử lại sau." })
     } finally {
       setIsLoading(false)
     }
@@ -79,13 +77,18 @@ export function RegisterForm() {
 
   const handleGoogleRegister = async () => {
     setIsLoading(true)
-    setMessage("")
 
     try {
       // Tích hợp Google OAuth nếu cần
-      setMessage("Tính năng đăng ký Google đang được phát triển")
+      toast.error(
+        "Chưa hỗ trợ",
+        "Tính năng đăng ký Google đang được phát triển"
+      )
     } catch {
-      setMessage("Đăng ký Google thất bại")
+      toast.error(
+        "Lỗi",
+        "Đăng ký Google thất bại"
+      )
     } finally {
       setIsLoading(false)
     }
@@ -167,19 +170,11 @@ export function RegisterForm() {
               <p className="text-gray-600">Đăng ký để bắt đầu hành trình học tiếng Nhật của bạn</p>
             </div>
 
-            {/* Success Message */}
-            {message && !errors.general && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2 mb-6">
-                <div className="w-4 h-4 bg-green-500 rounded-full flex-shrink-0"></div>
-                <span className="text-sm text-green-600">{message}</span>
-              </div>
-            )}
-
             {/* Error Messages */}
-            {(errors.general || message && errors.general) && (
+            {errors.general && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2 mb-6">
                 <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
-                <span className="text-sm text-red-600">{errors.general || message}</span>
+                <span className="text-sm text-red-600">{errors.general}</span>
               </div>
             )}
 

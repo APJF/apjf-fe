@@ -1,39 +1,84 @@
+import type { AxiosInstance, AxiosRequestConfig } from 'axios';
 import axios from 'axios';
-import { refreshToken } from '../services/authService';
+import authService, { refreshToken } from '../services/authService';
 
-const instance = axios.create({
-  baseURL: 'http://localhost:8080/api',
+interface CustomAxiosError {
+  config: AxiosRequestConfig & { _retry?: boolean };
+  response?: { status: number; data?: unknown; statusText?: string };
+  request?: unknown;
+  message?: string;
+}
+
+const instance: AxiosInstance = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
+
+const isAxiosError = (error: unknown): error is CustomAxiosError => {
+  return typeof error === 'object' && error !== null && 'config' in error;
+};
+
+const shouldHandleTokenRefresh = (
+  config?: AxiosRequestConfig & { _retry?: boolean },
+  response?: { status?: number }
+): boolean => {
+  return (
+    config?.url !== '/auth/login' &&
+    response?.status === 401 &&
+    !config?._retry
+  );
+};
+
+const handleTokenRefresh = async (config: AxiosRequestConfig & { _retry?: boolean }) => {
+  const updatedConfig = { ...config, _retry: true };
+  const refreshResponse = await refreshToken();
+  
+  if (!refreshResponse.success) {
+    throw new Error(refreshResponse.message || 'Token refresh failed');
+  }
+  
+  return instance(updatedConfig);
+};
+
+const handleAuthError = (error: unknown) => {
+  console.error('Authentication error:', error);
+  authService.logout();
+  window.location.href = '/login';
+};
 
 instance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token');
-    console.log('Request interceptor - Token:', token ? `${token.substring(0, 20)}...` : 'No token');
-    
-    // Add Authorization header
-    if (token) {
-      config.headers['Authorization'] = 'Bearer ' + token;
-      console.log('Authorization header set:', config.headers['Authorization'] ? 'Yes' : 'No');
-    }
-    
-    // Add X-User-Id header
-    try {
-      const userString = localStorage.getItem('user');
-      if (userString) {
-        const user = JSON.parse(userString);
-        if (user?.id) {
-          config.headers['X-User-Id'] = user.id;
-          console.log('X-User-Id header set:', user.id);
-        }
+    // Danh sách các endpoint không cần token
+    const publicEndpoints = [
+      '/auth/register',
+      '/auth/login',
+      '/auth/verify',
+      '/auth/resend-otp',
+      '/auth/forgot-password',
+      '/auth/reset-password'
+    ];
+
+    // Kiểm tra xem URL hiện tại có phải là public endpoint không
+    const isPublicEndpoint = publicEndpoints.some(endpoint => 
+      config.url?.includes(endpoint)
+    );
+
+    if (!isPublicEndpoint) {
+      const token = localStorage.getItem('access_token');
+      if (token) {
+        config.headers['Authorization'] = 'Bearer ' + token;
       }
-    } catch (error) {
-      console.error('Failed to parse user for X-User-Id header:', error);
     }
     
     return config;
   },
   (error: unknown) => {
-    return Promise.reject(new Error(error instanceof Error ? error.message : 'Request failed'));
+    if (error instanceof Error) {
+      return Promise.reject(error);
+    }
+    return Promise.reject(new Error('Request failed'));
   }
 );
 
@@ -42,59 +87,22 @@ instance.interceptors.response.use(
     return res;
   },
   async (err: unknown) => {
-    // Enhanced logging for debugging
-    console.log('🔍 Response interceptor - Full error:', err);
-    
-    // Type guard to check if err is an axios error
-    const isAxiosError = (error: unknown): error is { 
-      config: { url?: string; _retry?: boolean }; 
-      response?: { status: number; data?: unknown; statusText?: string }; 
-      request?: unknown;
-      message?: string;
-    } => {
-      return typeof error === 'object' && error !== null && 'config' in error;
-    };
-
     if (!isAxiosError(err)) {
-      console.log('❌ Not an axios error:', err);
       return Promise.reject(new Error('Unknown error occurred'));
     }
 
-    const originalConfig = err.config;
-    
-    // Enhanced error logging
-    console.log('🔍 Axios error details:', {
-      url: originalConfig?.url,
-      status: err.response?.status,
-      statusText: err.response?.statusText,
-      data: err.response?.data,
-      message: err.message,
-      hasResponse: !!err.response,
-      hasRequest: !!err.request
-    });
+    const { config: originalConfig, response } = err;
 
-    if (originalConfig?.url !== '/auth/login' && err.response) {
-      // Access Token was expired
-      if (err.response.status === 401 && !originalConfig._retry) {
-        console.log('🔄 Token expired, attempting refresh...');
-        originalConfig._retry = true;
-
-        try {
-          await refreshToken();
-          console.log('✅ Token refreshed successfully');
-          return instance(originalConfig);
-        } catch (_error: unknown) {
-          console.log('❌ Token refresh failed:', _error);
-          return Promise.reject(new Error(_error instanceof Error ? _error.message : 'Token refresh failed'));
-        }
-      }
+    if (!originalConfig || !shouldHandleTokenRefresh(originalConfig, response)) {
+      return Promise.reject(new Error(err.message || 'Request failed'));
     }
 
-    // Return more detailed error information
-    const responseData = err.response?.data as { message?: string } | undefined;
-    const errorMessage = responseData?.message || err.message || 'Response failed';
-    const statusInfo = err.response?.status ? ` (Status: ${err.response.status})` : '';
-    return Promise.reject(new Error(`${errorMessage}${statusInfo}`));
+    try {
+      return await handleTokenRefresh(originalConfig);
+    } catch (refreshError) {
+      handleAuthError(refreshError);
+      return Promise.reject(new Error(refreshError instanceof Error ? refreshError.message : 'Authentication failed'));
+    }
   }
 );
 

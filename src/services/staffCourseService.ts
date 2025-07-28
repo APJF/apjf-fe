@@ -1,7 +1,6 @@
 import axios from '../api/axios'
 import type { 
   StaffCourseDetail, 
-  CourseDetailResponse, 
   ChapterDetail, 
   UnitDetail,
   CreateCourseRequest,
@@ -27,17 +26,6 @@ export const StaffCourseService = {
     } catch (error) {
       console.error('Error fetching course detail:', error)
       throw new Error('Không thể tải thông tin khóa học')
-    }
-  },
-
-  // Lấy chi tiết khóa học với chương và bài học
-  getCourseWithChapters: async (courseId: string): Promise<ApiResponse<CourseDetailResponse>> => {
-    try {
-      const response = await axios.get(`/courses/${courseId}/detail`)
-      return response.data
-    } catch (error) {
-      console.error('Error fetching course with chapters:', error)
-      throw new Error('Không thể tải chi tiết khóa học')
     }
   },
 
@@ -82,7 +70,7 @@ export const StaffCourseService = {
       return response.data
     } catch (error) {
       console.error('Error updating course:', error)
-      throw new Error('Không thể cập nhật khóa học')
+      throw error
     }
   },
 
@@ -131,7 +119,7 @@ export const StaffCourseService = {
   },
 
   // Lấy danh sách approval requests của staff
-  getApprovalRequestsByStaff: async (staffId: number): Promise<ApiResponse<any[]>> => {
+  getApprovalRequestsByStaff: async (staffId: number): Promise<ApiResponse<unknown[]>> => {
     try {
       const response = await axios.get(`/approval-requests/by-staff/${staffId}`)
       return response.data

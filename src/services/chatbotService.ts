@@ -60,13 +60,13 @@ export const chatbotService = {
     return response.data;
   },
 
-  createSession: async (userId: string, sessionName: string) => {
-    const response = await aiInstance.post('/sessions/', { user_id: userId, session_name: sessionName });
+  createSession: async (sessionName: string) => {
+    const response = await aiInstance.post('/sessions/', { session_name: sessionName });
     return response.data;
   },
 
-  getSessions: async (userId: string) => {
-    const response = await aiInstance.get(`/sessions/user/${userId}`);
+  getSessions: async () => {
+    const response = await aiInstance.get(`/sessions/`);
     return response.data;
   },
 

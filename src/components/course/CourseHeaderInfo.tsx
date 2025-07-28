@@ -1,5 +1,5 @@
 import { Clock, BookOpen, Star, Flame } from "lucide-react";
-import type { Course } from "../../types/courseDetail";
+import type { Course } from "../../types/course";
 
 interface CourseHeaderInfoProps {
   course: Course;
@@ -45,7 +45,7 @@ export function CourseHeaderInfo({ course, chaptersCount }: Readonly<CourseHeade
         </span>
         <div className="flex items-center gap-1 px-3 py-1 bg-yellow-100 text-yellow-800 text-sm font-medium rounded-full">
           <Star className="w-3 h-3 fill-current" />
-          4.8
+          {course.averageRating ? course.averageRating.toFixed(1) : "0"}
         </div>
       </div>
 

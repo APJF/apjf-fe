@@ -33,7 +33,7 @@ export function ForgotPasswordForm() {
         setMessage(response.message || "Đã gửi email xác thực đặt lại mật khẩu.")
         // Navigate after showing success message for 2 seconds
         setTimeout(() => {
-          navigate("/reset-password")
+          navigate("/verify-otp", { state: { from: "forgot-password", email } })
         }, 2000)
       } else {
         setMessage(response.message || "Có lỗi xảy ra. Vui lòng thử lại.")

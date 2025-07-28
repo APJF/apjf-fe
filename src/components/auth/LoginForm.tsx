@@ -3,40 +3,28 @@ import { Link, useNavigate } from "react-router-dom"
 import { BookOpen, Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react"
 import { useAuth } from "../../hooks/useAuth"
 import type { LoginCredentials } from "../../types/auth"
+import { useToast } from "../ui/toast"
+import authService from "../../services/authService"
 
 export function LoginForm() {
   const [formData, setFormData] = useState<LoginCredentials>({
     email: "",
-    password: "",
+    password: ""
   })
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState("")
-  const [messageType, setMessageType] = useState<"success" | "error">("error")
+  const [isUnverified, setIsUnverified] = useState(false)
   const navigate = useNavigate()
   const { login } = useAuth()
-
-  // Check for success message from password reset
-  React.useEffect(() => {
-    const loginMessage = localStorage.getItem("loginMessage")
-    const loginMsgType = localStorage.getItem("loginMessageType")
-    
-    if (loginMessage) {
-      setMessage(loginMessage)
-      setMessageType(loginMsgType === "success" ? "success" : "error")
-      // Clear the message from localStorage
-      localStorage.removeItem("loginMessage")
-      localStorage.removeItem("loginMessageType")
-    }
-  }, [])
+  const { toast } = useToast()
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-    // Clear message when user starts typing
+    setFormData(prev => ({ ...prev, [name]: value }))
     if (message) {
       setMessage("")
-      setMessageType("error")
+      setIsUnverified(false)
     }
   }
 
@@ -44,18 +32,44 @@ export function LoginForm() {
     e.preventDefault()
     setIsLoading(true)
     setMessage("")
+    setIsUnverified(false)
     try {
       const data = await login(formData)
       if (data.success) {
+        toast.success("Thành công", data.message)
         navigate("/")
       } else {
-        setMessage(data.message || "Đăng nhập thất bại")
-        setMessageType("error")
+        setMessage(data.message || "Email hoặc mật khẩu không đúng.")
+        if (data.message === "Tài khoản chưa được xác thực.") {
+          setIsUnverified(true)
+        }
       }
     } catch (error) {
-      setMessage("Lỗi kết nối. Vui lòng thử lại.")
-      setMessageType("error")
+      setMessage("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.")
       console.error("Login error:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleSendVerification = async () => {
+    setIsLoading(true)
+    try {
+      const response = await authService.sendVerificationOtp(formData.email)
+      if (response.success) {
+        toast.success("Thành công", response.message)
+        navigate("/verify-otp", {
+          state: {
+            email: formData.email,
+            message: response.message
+          }
+        })
+      } else {
+        setMessage(response.message || "Gửi OTP thất bại.")
+      }
+    } catch (error) {
+      setMessage("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.")
+      console.error("Send verification OTP error:", error)
     } finally {
       setIsLoading(false)
     }
@@ -67,10 +81,8 @@ export function LoginForm() {
     try {
       // Tích hợp Google OAuth nếu cần
       setMessage("Tính năng đăng nhập Google đang được phát triển")
-      setMessageType("error")
     } catch {
       setMessage("Đăng nhập Google thất bại")
-      setMessageType("error")
     } finally {
       setIsLoading(false)
     }
@@ -152,19 +164,22 @@ export function LoginForm() {
               <p className="text-gray-600">Đăng nhập để tiếp tục hành trình học tiếng Nhật của bạn</p>
             </div>
 
-            {/* Success/Error Message */}
             {message && (
-              <div className={`border rounded-lg p-3 flex items-center gap-2 mb-6 ${
-                messageType === "success" 
-                  ? "bg-green-50 border-green-200" 
-                  : "bg-red-50 border-red-200"
-              }`}>
-                <AlertCircle className={`h-4 w-4 flex-shrink-0 ${
-                  messageType === "success" ? "text-green-500" : "text-red-500"
-                }`} />
-                <span className={`text-sm ${
-                  messageType === "success" ? "text-green-600" : "text-red-600"
-                }`}>{message}</span>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2 mb-6">
+                <AlertCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                <span className="text-sm text-red-600">
+                  {message}
+                  {isUnverified && (
+                    <button
+                      type="button"
+                      onClick={handleSendVerification}
+                      className="font-semibold text-red-700 hover:underline ml-2"
+                      disabled={isLoading}
+                    >
+                      Xác thực tài khoản
+                    </button>
+                  )}
+                </span>
               </div>
             )}
 

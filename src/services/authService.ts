@@ -10,19 +10,24 @@ export interface RegisterData {
   password: string
 }
 
+export interface UserInfo {
+  id: number
+  email: string
+  username: string
+  avatar: string
+  roles: string[]
+}
+
 export interface AuthResponse {
   success: boolean
   message: string
-  token?: string
   data?: {
-    user: {
-      id: string
-      email: string
-      name?: string
-    }
-    access_token: string
-    refresh_token: string
+    accessToken: string
+    refreshToken: string
+    tokenType: string
+    userInfo: UserInfo
   }
+  timestamp?: number
 }
 
 export interface ForgotPasswordResponse {
@@ -36,46 +41,137 @@ export interface ResetPasswordData {
   newPassword: string
 }
 
+export interface VerifyOtpData {
+  email: string
+  otp: string
+}
+
 class AuthService {
   /**
    * Đăng nhập người dùng
    */
   async login(credentials: LoginData): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>("/auth/login", credentials)
-    
-    if (response.data.success && response.data.data) {
-      localStorage.setItem('user', JSON.stringify(response.data.data.user))
-      localStorage.setItem('access_token', response.data.data.access_token)
-      localStorage.setItem('refresh_token', response.data.data.refresh_token)
+    try {
+      const response = await api.post<AuthResponse>("/auth/login", credentials)
+
+      if (response.data.success && response.data.data) {
+        localStorage.setItem("user", JSON.stringify(response.data.data.userInfo))
+        localStorage.setItem("access_token", response.data.data.accessToken)
+        localStorage.setItem("refresh_token", response.data.data.refreshToken)
+      }
+
+      return response.data
+    } catch (error) {
+      if (error && typeof error === "object" && "response" in error) {
+        const axiosError = error as { response?: { data?: AuthResponse } }
+        if (axiosError.response?.data) {
+          return axiosError.response.data
+        }
+      }
+      throw error
     }
-    
-    return response.data
   }
 
   /**
    * Đăng ký tài khoản mới
    */
   async register(data: RegisterData): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>("/auth/register", data)
-    return response.data
+    try {
+      const response = await api.post<AuthResponse>("/auth/register", data)
+      return response.data
+    } catch (error) {
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: AuthResponse } }
+        if (axiosError.response?.data) {
+          // Trả về response data từ backend ngay cả khi có lỗi
+          return axiosError.response.data
+        }
+      }
+      // Nếu không bắt được error response từ backend, throw lỗi
+      throw error
+    }
   }
 
   /**
    * Gửi email quên mật khẩu
    */
   async forgotPassword(email: string): Promise<ForgotPasswordResponse> {
-    const response = await api.post<ForgotPasswordResponse>("/auth/forgot-password", {
-      email
-    })
-    return response.data
+    try {
+      const response = await api.post<ForgotPasswordResponse>("/auth/forgot-password", {
+        email
+      })
+      return response.data
+    } catch (error) {
+      if (error && typeof error === "object" && "response" in error) {
+        const axiosError = error as { response?: { data?: ForgotPasswordResponse } }
+        if (axiosError.response?.data) {
+          return axiosError.response.data
+        }
+      }
+      throw error
+    }
   }
 
   /**
    * Đặt lại mật khẩu với OTP
    */
   async resetPassword(data: ResetPasswordData): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>("/auth/reset-password", data)
-    return response.data
+    try {
+      const response = await api.post<AuthResponse>("/auth/reset-password", data)
+      return response.data
+    } catch (error) {
+      if (error && typeof error === "object" && "response" in error) {
+        const axiosError = error as { response?: { data?: AuthResponse } }
+        if (axiosError.response?.data) {
+          return axiosError.response.data
+        }
+      }
+      throw error
+    }
+  }
+
+  /**
+   * Xác thực OTP
+   */
+  async verifyOtp(data: VerifyOtpData): Promise<AuthResponse> {
+    try {
+      const response = await api.post<AuthResponse>("/auth/verify", null, {
+        params: data
+      })
+      return response.data
+    } catch (error) {
+      if (error && typeof error === "object" && "response" in error) {
+        const axiosError = error as { response?: { data?: AuthResponse } }
+        if (axiosError.response?.data) {
+          return axiosError.response.data
+        }
+      }
+      throw error
+    }
+  }
+
+  /**
+   * Gửi lại mã OTP xác thực tài khoản
+   */
+  async sendVerificationOtp(email: string): Promise<AuthResponse> {
+    try {
+      const response = await api.post<AuthResponse>(
+        "/auth/send-verification-otp",
+        null,
+        {
+          params: { email }
+        }
+      )
+      return response.data
+    } catch (error) {
+      if (error && typeof error === "object" && "response" in error) {
+        const axiosError = error as { response?: { data?: AuthResponse } }
+        if (axiosError.response?.data) {
+          return axiosError.response.data
+        }
+      }
+      throw error
+    }
   }
 
   /**
@@ -101,20 +197,22 @@ class AuthService {
    * Refresh token
    */
   async refreshToken(): Promise<AuthResponse> {
-    const refresh_token = localStorage.getItem('refresh_token')
+    const refresh_token = localStorage.getItem("refresh_token")
     if (!refresh_token) {
-      throw new Error('No refresh token found')
+      throw new Error("No refresh token found")
     }
 
-    const response = await api.post<AuthResponse>("/auth/refresh-token", { 
-      refreshToken: refresh_token 
+    const response = await api.post<AuthResponse>("/auth/refresh-token", {
+      refreshToken: refresh_token
     })
-    
+
     if (response.data.success && response.data.data) {
-      localStorage.setItem('access_token', response.data.data.access_token)
-      localStorage.setItem('refresh_token', response.data.data.refresh_token)
+      localStorage.setItem("access_token", response.data.data.accessToken)
+      if (response.data.data.refreshToken) {
+        localStorage.setItem("refresh_token", response.data.data.refreshToken)
+      }
     }
-    
+
     return response.data
   }
 

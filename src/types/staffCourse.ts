@@ -101,11 +101,9 @@ export interface UpdateCourseRequest {
   level: string
   image?: string
   requirement?: string
-  status: CourseStatus
   prerequisiteCourseId?: string
-  topics?: Topic[]
-  exams?: Exam[]
-  chapters?: Chapter[]
+  topicIds?: number[]
+  examIds?: string[]
 }
 
 export interface CreateChapterRequest {

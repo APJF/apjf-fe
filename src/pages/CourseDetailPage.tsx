@@ -5,19 +5,18 @@ import { ChapterList } from "../components/course/ChapterList";
 import { CourseHeaderInfo } from "../components/course/CourseHeaderInfo";
 import { CourseDetailTabs } from "../components/course/CourseDetailTabs";
 import { LearningPathSidebar } from "../components/course/LearningPathSidebar";
-import { CourseDetailService } from "../services/courseDetailService.ts";
-import type { Course } from "../types/courseDetail";
+import { CourseService } from "../services/courseService";
+import type { Course, Chapter } from "../types/course";
 
 export default function CourseDetailPage() {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const [course, setCourse] = useState<Course | null>(null);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("content");
   const [isEnrolled, setIsEnrolled] = useState(false);
-  const [completedUnits, setCompletedUnits] = useState<string[]>([]);
-  const [completedChapters, setCompletedChapters] = useState<string[]>([]);
 
   useEffect(() => {
     if (courseId) {
@@ -34,45 +33,33 @@ export default function CourseDetailPage() {
   const fetchCourseDetail = async () => {
     setLoading(true);
     setError(null);
-
     try {
-      console.log('Fetching detail for courseId:', courseId);
-      const data = await CourseDetailService.getCourseDetail(courseId!);
-      console.log('Course detail response:', data);
-
-      if (data.success) {
-        const courseData = data.data?.course;
-        
-        if (courseData && typeof courseData === 'object') {
-          console.log('Setting course data:', courseData);
-          setCourse(courseData);
-        } else {
-          console.error('No course data found in response:', data);
-          setError("Không tìm thấy thông tin khóa học");
-        }
+      // Gọi song song 2 API mới
+      const [courseRes, chaptersRes] = await Promise.all([
+        CourseService.getCourseById(courseId!),
+        CourseService.getChaptersByCourseId(courseId!)
+      ]);
+      if (courseRes.success && chaptersRes.success) {
+        setCourse(courseRes.data);
+        setChapters(chaptersRes.data);
       } else {
-        console.error('API returned unsuccessful response:', data);
-        setError(data.message || "Không thể tải thông tin khóa học");
+        setError(courseRes.message || chaptersRes.message || "Không thể tải thông tin khóa học");
       }
     } catch (err) {
       setError("Lỗi kết nối. Vui lòng thử lại.");
-      console.error("Error fetching course detail:", err);
+      console.error("Error fetching course/chapter detail:", err);
     } finally {
       setLoading(false);
     }
   };
 
   const checkEnrollmentStatus = () => {
-    const token = localStorage.getItem("token");
+    // Giả lập kiểm tra đã đăng ký khóa học hay chưa
+    const token = localStorage.getItem("access_token");
     if (token) {
-      setIsEnrolled(true);
-      setCompletedUnits(["unit-01", "unit-02"]);
-      setCompletedChapters(["chapter-01"]);
+      // Trong thực tế, bạn sẽ cần gọi API để kiểm tra
+      setIsEnrolled(true); 
     }
-  };
-
-  const handleChapterClick = (chapterId: string) => {
-    navigate(`/courses/${courseId}/chapters/${chapterId}`);
   };
 
   const handleExamClick = (examId: string) => {
@@ -125,12 +112,11 @@ export default function CourseDetailPage() {
               </h2>
             </div>
             <ChapterList
-              chapters={course.chapters || []}
+              chapters={chapters}
               courseExams={course.exams || []}
               isEnrolled={isEnrolled}
-              completedUnits={completedUnits}
-              onChapterClick={handleChapterClick}
               onExamClick={handleExamClick}
+              courseId={courseId!}
             />
           </div>
         );
@@ -184,7 +170,7 @@ export default function CourseDetailPage() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Course Header */}
-            <CourseHeaderInfo course={course} chaptersCount={course.chapters?.length || 0} />
+            <CourseHeaderInfo course={course} chaptersCount={chapters.length} />
 
             {/* Tabs */}
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
@@ -197,9 +183,9 @@ export default function CourseDetailPage() {
           <div className="lg:col-span-1">
             <div className="sticky top-8">
               <LearningPathSidebar
-                chapters={course.chapters || []}
-                completedChapters={completedChapters}
-                currentChapter={course.chapters?.[0]?.id}
+                chapters={chapters}
+                completedChapters={[]} // Tạm thời để trống
+                currentChapter={chapters[0]?.id}
               />
             </div>
           </div>
