@@ -2,11 +2,16 @@ import axios from '../api/axios'
 import type { ApiResponse } from '../types/api'
 
 export interface Material {
-  id?: string
-  description: string
-  fileUrl: string
-  type: MaterialType
-  unitId: string
+  id: string;
+  title: string;
+  description?: string;
+  status: 'PUBLISHED' | 'DRAFT';
+  type: MaterialType;
+  url?: string;
+  content?: string;
+  unitId: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type MaterialType = 'KANJI' | 'GRAMMAR' | 'VOCAB' | 'LISTENING' | 'READING' | 'WRITING'

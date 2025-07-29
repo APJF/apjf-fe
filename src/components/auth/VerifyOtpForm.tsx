@@ -7,6 +7,7 @@ import { useToast } from "../ui/toast"
 export function VerifyOtpForm() {
   const [otp, setOtp] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isResending, setIsResending] = useState(false)
   const [message, setMessage] = useState("")
   const [email, setEmail] = useState("")
   const navigate = useNavigate()
@@ -44,14 +45,22 @@ export function VerifyOtpForm() {
       return
     }
 
+    if (otp.length !== 6) {
+      setMessage("Vui lòng nhập đầy đủ 6 chữ số của mã OTP.")
+      setIsLoading(false)
+      return
+    }
+
     try {
       const response = await authService.verifyOtp({ email, otp })
 
       if (response.success) {
         toast.success("Thành công", response.message)
+        localStorage.removeItem("email") // Clear stored email after successful verification
+        
         const from = location.state?.from;
         if (from === "forgot-password") {
-          navigate("/reset-password")
+          navigate("/reset-password", { state: { email } })
         } else {
           navigate("/login")
         }
@@ -63,6 +72,32 @@ export function VerifyOtpForm() {
       console.error("Verify OTP error:", error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleResendOtp = async () => {
+    if (!email) {
+      setMessage("Email không tìm thấy. Vui lòng thực hiện lại.")
+      return
+    }
+
+    setIsResending(true)
+    setMessage("")
+
+    try {
+      const response = await authService.sendVerificationOtp(email)
+      
+      if (response.success) {
+        toast.success("Thành công", "Mã OTP mới đã được gửi đến email của bạn.")
+        setOtp("") // Clear current OTP input
+      } else {
+        setMessage(response.message || "Không thể gửi lại mã OTP.")
+      }
+    } catch (error) {
+      setMessage("Lỗi kết nối. Vui lòng thử lại.")
+      console.error("Resend OTP error:", error)
+    } finally {
+      setIsResending(false)
     }
   }
 
@@ -149,6 +184,17 @@ export function VerifyOtpForm() {
               >
                 {isLoading ? "Đang xác thực..." : "Xác thực"}
               </button>
+              
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  className="text-sm text-red-600 hover:text-red-800 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isResending || isLoading}
+                >
+                  {isResending ? "Đang gửi..." : "Gửi lại mã OTP"}
+                </button>
+              </div>
             </form>
           </div>
         </div>

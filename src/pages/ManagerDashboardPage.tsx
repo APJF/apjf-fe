@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
+import ManagerApprovalRequestsPage from './ManagerApprovalRequestsPage';
 
 // Navigation Sidebar Component
 function ManagerSidebar({ activeTab, setActiveTab, isCollapsed, setIsCollapsed }: Readonly<{
@@ -34,7 +35,7 @@ function ManagerSidebar({ activeTab, setActiveTab, isCollapsed, setIsCollapsed }
   const menuItems = [
     { id: 'overview', label: 'Tổng quan', icon: TrendingUp },
     { id: 'users', label: 'Quản lý người dùng', icon: Users },
-    { id: 'courses', label: 'Quản lý khóa học', icon: BookOpen },
+    { id: 'approval-requests', label: 'Phê duyệt yêu cầu', icon: BookOpen },
     { id: 'revenue', label: 'Doanh thu', icon: DollarSign },
     { id: 'instructors', label: 'Giảng viên', icon: Award },
     { id: 'schedule', label: 'Lịch trình', icon: Calendar },
@@ -313,17 +314,8 @@ function UsersTab() {
 }
 
 // Placeholder components for other tabs
-function CoursesTab() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Quản lý khóa học</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-gray-600">Chức năng quản lý khóa học sẽ được phát triển ở đây.</p>
-      </CardContent>
-    </Card>
-  );
+function ApprovalRequestsTab() {
+  return <ManagerApprovalRequestsPage />;
 }
 
 function RevenueTab() {
@@ -400,7 +392,7 @@ export function ManagerDashboardPage() {
     switch (activeTab) {
       case 'overview': return <OverviewTab />;
       case 'users': return <UsersTab />;
-      case 'courses': return <CoursesTab />;
+      case 'approval-requests': return <ApprovalRequestsTab />;
       case 'revenue': return <RevenueTab />;
       case 'instructors': return <InstructorsTab />;
       case 'schedule': return <ScheduleTab />;

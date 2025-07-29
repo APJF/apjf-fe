@@ -42,31 +42,15 @@ export const useAuth = () => {
   const login = async (credentials: LoginCredentials) => {
     const data = await authService.login(credentials);
     if (data.success && data.data) {
-      // Get user profile to fetch roles/authorities
-      try {
-        const profileData = await authService.getProfile();
-        if (profileData.success) {
-          const localUser: User = {
-            id: profileData.data.id,
-            username: profileData.data.username || profileData.data.name || profileData.data.email,
-            avatar: profileData.data.avatar || null,
-            roles: profileData.data.authorities || []
-          };
-          setUser(localUser);
-          localStorage.setItem('user', JSON.stringify(localUser));
-        }
-      } catch (error) {
-        console.error('Error fetching user profile:', error);
-        // Fallback to basic user data
-        const localUser: User = {
-          id: data.data.user.id,
-          username: data.data.user.name || data.data.user.email,
-          avatar: null,
-          roles: [] // Empty roles as fallback
-        };
-        setUser(localUser);
-        localStorage.setItem('user', JSON.stringify(localUser));
-      }
+      // User info is already stored in localStorage by authService.login
+      // Just update the state with the userInfo from response
+      const localUser: User = {
+        id: data.data.userInfo.id.toString(),
+        username: data.data.userInfo.username,
+        avatar: data.data.userInfo.avatar || null,
+        roles: data.data.userInfo.roles || []
+      };
+      setUser(localUser);
       window.dispatchEvent(new Event('authStateChanged'));
     }
     return data;

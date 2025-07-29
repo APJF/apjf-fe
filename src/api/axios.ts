@@ -10,7 +10,7 @@ interface CustomAxiosError {
 }
 
 const instance: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -26,6 +26,7 @@ const shouldHandleTokenRefresh = (
 ): boolean => {
   return (
     config?.url !== '/auth/login' &&
+    config?.url !== '/auth/refresh-token' &&
     response?.status === 401 &&
     !config?._retry
   );
@@ -57,7 +58,8 @@ instance.interceptors.request.use(
       '/auth/verify',
       '/auth/resend-otp',
       '/auth/forgot-password',
-      '/auth/reset-password'
+      '/auth/reset-password',
+      '/auth/refresh-token'
     ];
 
     // Kiểm tra xem URL hiện tại có phải là public endpoint không
@@ -68,7 +70,7 @@ instance.interceptors.request.use(
     if (!isPublicEndpoint) {
       const token = localStorage.getItem('access_token');
       if (token) {
-        config.headers['Authorization'] = 'Bearer ' + token;
+        config.headers['Authorization'] = `Bearer ${token}`;
       }
     }
     
@@ -88,20 +90,25 @@ instance.interceptors.response.use(
   },
   async (err: unknown) => {
     if (!isAxiosError(err)) {
-      return Promise.reject(new Error('Unknown error occurred'));
+      return Promise.reject(err instanceof Error ? err : new Error('Unknown error occurred'));
     }
 
     const { config: originalConfig, response } = err;
 
+    // Nếu là lỗi từ auth endpoint, trả về lỗi nguyên gốc để component xử lý
+    if (originalConfig?.url?.includes('/auth/')) {
+      return Promise.reject(err instanceof Error ? err : new Error('Auth request failed'));
+    }
+
     if (!originalConfig || !shouldHandleTokenRefresh(originalConfig, response)) {
-      return Promise.reject(new Error(err.message || 'Request failed'));
+      return Promise.reject(err instanceof Error ? err : new Error('Request failed'));
     }
 
     try {
       return await handleTokenRefresh(originalConfig);
     } catch (refreshError) {
       handleAuthError(refreshError);
-      return Promise.reject(new Error(refreshError instanceof Error ? refreshError.message : 'Authentication failed'));
+      return Promise.reject(refreshError instanceof Error ? refreshError : new Error('Authentication failed'));
     }
   }
 );

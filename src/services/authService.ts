@@ -55,9 +55,17 @@ class AuthService {
       const response = await api.post<AuthResponse>("/auth/login", credentials)
 
       if (response.data.success && response.data.data) {
-        localStorage.setItem("user", JSON.stringify(response.data.data.userInfo))
-        localStorage.setItem("access_token", response.data.data.accessToken)
-        localStorage.setItem("refresh_token", response.data.data.refreshToken)
+        const { userInfo, accessToken, refreshToken } = response.data.data
+        
+        // Lưu thông tin user và tokens
+        localStorage.setItem("user", JSON.stringify(userInfo))
+        localStorage.setItem("access_token", accessToken)
+        localStorage.setItem("refresh_token", refreshToken)
+        
+        // Dispatch custom event để notify các component khác
+        window.dispatchEvent(new CustomEvent('authStateChanged', {
+          detail: { user: userInfo, isAuthenticated: true }
+        }))
       }
 
       return response.data
@@ -202,18 +210,32 @@ class AuthService {
       throw new Error("No refresh token found")
     }
 
-    const response = await api.post<AuthResponse>("/auth/refresh-token", {
-      refreshToken: refresh_token
-    })
+    try {
+      const response = await api.post<AuthResponse>("/auth/refresh-token", {
+        refreshToken: refresh_token
+      })
 
-    if (response.data.success && response.data.data) {
-      localStorage.setItem("access_token", response.data.data.accessToken)
-      if (response.data.data.refreshToken) {
-        localStorage.setItem("refresh_token", response.data.data.refreshToken)
+      if (response.data.success && response.data.data) {
+        const { userInfo, accessToken, refreshToken: newRefreshToken } = response.data.data
+        
+        // Cập nhật tokens
+        localStorage.setItem("access_token", accessToken)
+        if (newRefreshToken) {
+          localStorage.setItem("refresh_token", newRefreshToken)
+        }
+        
+        // Cập nhật user info nếu có
+        if (userInfo) {
+          localStorage.setItem("user", JSON.stringify(userInfo))
+        }
       }
-    }
 
-    return response.data
+      return response.data
+    } catch (error) {
+      // Nếu refresh token hết hạn hoặc không hợp lệ, đăng xuất user
+      this.logout()
+      throw error
+    }
   }
 
   /**
@@ -223,6 +245,11 @@ class AuthService {
     localStorage.removeItem('user')
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
+    
+    // Dispatch custom event để notify các component khác
+    window.dispatchEvent(new CustomEvent('authStateChanged', {
+      detail: { user: null, isAuthenticated: false }
+    }))
   }
 }
 
