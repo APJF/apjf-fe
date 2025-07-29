@@ -1,45 +1,25 @@
 import React, { useState } from "react";
-import { ChevronDown, ChevronRight, FileText, Clock } from "lucide-react";
-import type { Chapter, Exam } from '../../types/courseDetail';
-import { UnitList } from './UnitList';
+import { useNavigate } from "react-router-dom";
+import { FileText, Clock, ChevronDown, ChevronRight } from "lucide-react";
+import type { Chapter, Exam } from '../../types/course';
 
 interface ChapterListProps {
   chapters: Chapter[];
   courseExams: Exam[];
   isEnrolled?: boolean;
-  completedUnits?: string[];
-  onUnitClick: (unitId: string) => void;
   onExamClick: (examId: string) => void;
+  courseId: string;
 }
 
 export const ChapterList: React.FC<ChapterListProps> = ({
   chapters,
   courseExams,
   isEnrolled = false,
-  completedUnits = [],
-  onUnitClick,
   onExamClick,
+  courseId,
 }) => {
-  const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
+  const navigate = useNavigate();
   const [expandedExams, setExpandedExams] = useState<boolean>(false);
-
-  const toggleChapter = (chapterId: string) => {
-    const newExpanded = new Set(expandedChapters);
-    if (newExpanded.has(chapterId)) {
-      newExpanded.delete(chapterId);
-    } else {
-      newExpanded.add(chapterId);
-    }
-    setExpandedChapters(newExpanded);
-  };
-
-  const getTotalUnits = (chapter: Chapter) => {
-    return chapter.units.length;
-  };
-
-  const getCompletedUnitsInChapter = (chapter: Chapter) => {
-    return chapter.units.filter((unit) => completedUnits.includes(unit.id)).length;
-  };
 
   const formatDuration = (duration: number) => {
     const hours = Math.floor(duration);
@@ -53,25 +33,16 @@ export const ChapterList: React.FC<ChapterListProps> = ({
     <div className="space-y-4">
       {/* Chapters */}
       {chapters.map((chapter, chapterIndex) => {
-        const isExpanded = expandedChapters.has(chapter.id);
-        const totalUnits = getTotalUnits(chapter);
-        const completedUnitsCount = getCompletedUnitsInChapter(chapter);
-
         return (
           <div key={chapter.id} className="bg-white rounded-xl shadow-lg overflow-hidden">
             {/* Chapter Header */}
             <button
-              onClick={() => toggleChapter(chapter.id)}
+              onClick={() => navigate(`/courses/${courseId}/chapters/${chapter.id}`)}
               className="w-full p-6 text-left hover:bg-gray-50 transition-colors"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
-                    {isExpanded ? (
-                      <ChevronDown className="w-5 h-5 text-gray-400" />
-                    ) : (
-                      <ChevronRight className="w-5 h-5 text-gray-400" />
-                    )}
                     <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center text-red-600 font-semibold text-sm">
                       {chapterIndex + 1}
                     </div>
@@ -82,32 +53,10 @@ export const ChapterList: React.FC<ChapterListProps> = ({
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm text-gray-500">
-                    {completedUnitsCount}/{totalUnits} bài học
-                  </div>
-                  {isEnrolled && (
-                    <div className="w-24 bg-gray-200 rounded-full h-2 mt-2">
-                      <div
-                        className="bg-red-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${(completedUnitsCount / totalUnits) * 100}%` }}
-                      />
-                    </div>
-                  )}
+ 
                 </div>
               </div>
             </button>
-
-            {/* Chapter Content */}
-            {isExpanded && (
-              <div className="border-t border-gray-200">
-                <UnitList
-                  chapter={chapter}
-                  isEnrolled={isEnrolled}
-                  completedUnits={completedUnits}
-                  onUnitClick={onUnitClick}
-                />
-              </div>
-            )}
           </div>
         );
       })}

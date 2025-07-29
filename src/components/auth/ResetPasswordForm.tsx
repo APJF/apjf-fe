@@ -1,9 +1,10 @@
-import React, { useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import React, { useState, useEffect } from "react"
+import { Link, useNavigate, useLocation } from "react-router-dom"
 import { BookOpen, Lock, Eye, EyeOff, AlertCircle, Shield, ArrowLeft } from "lucide-react"
 import authService from "../../services/authService"
 
 interface ResetPasswordData {
+  email: string
   otp: string
   newPassword: string
   confirmPassword: string
@@ -11,6 +12,7 @@ interface ResetPasswordData {
 
 export function ResetPasswordForm() {
   const [formData, setFormData] = useState<ResetPasswordData>({
+    email: "",
     otp: "",
     newPassword: "",
     confirmPassword: "",
@@ -22,17 +24,21 @@ export function ResetPasswordForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState("")
   const navigate = useNavigate()
+  const location = useLocation()
+
+  useEffect(() => {
+    // Get email from location state or localStorage
+    const email = location.state?.email || localStorage.getItem("email")
+    if (email) {
+      setFormData(prev => ({ ...prev, email }))
+    } else {
+      setMessage("Không tìm thấy thông tin email. Vui lòng thực hiện lại quá trình quên mật khẩu.")
+    }
+  }, [location.state])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-
-    // Chỉ cho phép nhập số cho OTP
-    if (name === "otp") {
-      const numericValue = value.replace(/\D/g, "").slice(0, 6)
-      setFormData((prev) => ({ ...prev, [name]: numericValue }))
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }))
-    }
+    setFormData((prev) => ({ ...prev, [name]: value }))
 
     // Clear message when user starts typing
     if (message) setMessage("")
@@ -44,20 +50,28 @@ export function ResetPasswordForm() {
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (formData.newPassword !== formData.confirmPassword) {
+      setMessage("Mật khẩu xác nhận không khớp.")
+      return
+    }
+
+    if (!formData.email) {
+      setMessage("Email không tìm thấy. Vui lòng thực hiện lại quá trình quên mật khẩu.")
+      return
+    }
+
+    if (!formData.otp) {
+      setMessage("Vui lòng nhập mã OTP.")
+      return
+    }
+
     setIsLoading(true)
     setMessage("")
     
-    const email = localStorage.getItem("email")
-    
-    if (!email) {
-      setMessage("Email không tìm thấy. Vui lòng thực hiện lại quá trình quên mật khẩu.")
-      setIsLoading(false)
-      return
-    }
-    
     try {
       const response = await authService.resetPassword({
-        email,
+        email: formData.email,
         otp: formData.otp,
         newPassword: formData.newPassword
       })
@@ -184,7 +198,7 @@ export function ResetPasswordForm() {
 
             {/* Reset Password Form */}
             <form onSubmit={handleResetPassword} className="space-y-5">
-              {/* OTP */}
+              {/* OTP Field */}
               <div className="space-y-2">
                 <label htmlFor="otp" className="text-sm font-medium text-gray-700">
                   Mã OTP
@@ -197,14 +211,14 @@ export function ResetPasswordForm() {
                     type="text"
                     inputMode="numeric"
                     required
-                    placeholder="Nhập mã OTP 6 số"
+                    placeholder="Nhập mã OTP từ email"
                     value={formData.otp}
                     onChange={handleInputChange}
                     className="w-full pl-11 pr-4 h-11 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
                     disabled={isLoading}
+                    maxLength={6}
                   />
                 </div>
-                <p className="text-xs text-gray-500">Nhập mã OTP 6 số đã được gửi đến email của bạn</p>
               </div>
 
               {/* New Password */}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import * as authService from '../services/authService';
+import { authService } from '../services/authService';
 import type { LoginCredentials } from '../types/auth';
 
 interface User {
@@ -42,12 +42,13 @@ export const useAuth = () => {
   const login = async (credentials: LoginCredentials) => {
     const data = await authService.login(credentials);
     if (data.success && data.data) {
-      // Map the auth service user to local User interface
+      // User info is already stored in localStorage by authService.login
+      // Just update the state with the userInfo from response
       const localUser: User = {
-        id: data.data.user.id,
-        username: data.data.user.name || data.data.user.email,
-        avatar: null,
-        roles: []
+        id: data.data.userInfo.id.toString(),
+        username: data.data.userInfo.username,
+        avatar: data.data.userInfo.avatar || null,
+        roles: data.data.userInfo.roles || []
       };
       setUser(localUser);
       window.dispatchEvent(new Event('authStateChanged'));
@@ -58,8 +59,10 @@ export const useAuth = () => {
   const logout = () => {
     authService.logout();
     setUser(null);
+    localStorage.removeItem('user');
     window.dispatchEvent(new Event('authStateChanged'));
   };
 
-  return { user, login, logout, userId: user?.id?.toString() };
+
+  return { user, login, logout };
 };
