@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Alert } from '../components/ui/Alert'
-import { AlertCircle, BookOpen, Star, ChevronDown, ChevronRight, Eye, Edit, Plus, ArrowLeft, CheckCircle } from 'lucide-react'
+import { AlertCircle, BookOpen, Star, ChevronDown, ChevronRight, Eye, Edit, Plus, ArrowLeft, CheckCircle, FileText, Clock } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
 import { StaffCourseService } from '../services/staffCourseService'
-import { CourseService } from '../services/courseService'
-import type { StaffCourseDetail, Chapter } from '../types/staffCourse'
+import { StaffChapterService, type Chapter } from '../services/staffChapterService'
+import { StaffExamService } from '../services/staffExamService'
+import type { StaffCourseDetail } from '../types/staffCourse'
+import type { ExamSummary } from '../types/exam'
 
 // Hàm sắp xếp chapters theo thứ tự prerequisite
 const sortChaptersByPrerequisite = (chapters: Chapter[]): Chapter[] => {
@@ -51,11 +53,11 @@ const sortChaptersByPrerequisite = (chapters: Chapter[]): Chapter[] => {
 // Hàm lấy màu sắc theo status
 const getStatusColor = (status: string) => {
   switch (status) {
-    case 'DRAFT':
+    case 'INACTIVE':
       return 'bg-yellow-100 text-yellow-800 border-yellow-300'
     case 'REJECTED':
       return 'bg-red-100 text-red-800 border-red-300'
-    case 'PUBLISHED':
+    case 'ACTIVE':
       return 'bg-green-100 text-green-800 border-green-300'
     default:
       return 'bg-gray-100 text-gray-800 border-gray-300'
@@ -65,12 +67,12 @@ const getStatusColor = (status: string) => {
 // Hàm lấy text hiển thị cho status
 const getStatusText = (status: string) => {
   switch (status) {
-    case 'DRAFT':
-      return 'Nháp'
+    case 'INACTIVE':
+      return 'Chưa kích hoạt'
     case 'REJECTED':
       return 'Từ chối'
-    case 'PUBLISHED':
-      return 'Đã xuất bản'
+    case 'ACTIVE':
+      return 'Đã kích hoạt'
     default:
       return status
   }
@@ -83,6 +85,7 @@ export const StaffCourseDetailPage: React.FC = () => {
   
   const [course, setCourse] = useState<StaffCourseDetail | null>(null)
   const [chapters, setChapters] = useState<Chapter[]>([])
+  const [exams, setExams] = useState<ExamSummary[]>([])
   const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -100,11 +103,20 @@ export const StaffCourseDetailPage: React.FC = () => {
       // Lấy thông tin cơ bản và chi tiết với chapters
       const [courseRes, chaptersRes] = await Promise.all([
         StaffCourseService.getCourseDetail(courseId),
-        CourseService.getChaptersByCourseId(courseId)
+        StaffChapterService.getChaptersByCourse(courseId)
       ]);
 
       if (courseRes.success) {
-        setCourse(courseRes.data);
+        // Convert Course to StaffCourseDetail by adding chapters
+        const courseData: StaffCourseDetail = {
+          ...courseRes.data,
+          description: courseRes.data.description || '',
+          requirement: courseRes.data.requirement || '',
+          chapters: [],
+          enrollmentCount: 0,
+          rating: courseRes.data.averageRating || 0
+        };
+        setCourse(courseData);
       } else {
         setError(courseRes.message || "Không thể tải thông tin khóa học");
       }
@@ -114,6 +126,15 @@ export const StaffCourseDetailPage: React.FC = () => {
         setChapters(sortedChapters);
       } else {
         console.error('Error fetching chapters:', chaptersRes.message);
+      }
+
+      // Load exams for this course
+      try {
+        const examsData = await StaffExamService.getExamsByScope('course', courseId);
+        setExams(examsData);
+      } catch (examError) {
+        console.log('Exam service error:', examError);
+        setExams([]);
       }
     } catch (error) {
       console.error('Error fetching course data:', error)
@@ -420,13 +441,6 @@ export const StaffCourseDetailPage: React.FC = () => {
                     <Star className="h-4 w-4 mr-2" />
                     Xem đánh giá ({course.rating ? `${course.rating.toFixed(1)}★` : "0★"})
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    className="w-full text-purple-600 border-purple-300 hover:bg-purple-50"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Thêm bài kiểm tra
-                  </Button>
                 </CardContent>
               </Card>
             </div>
@@ -448,6 +462,97 @@ export const StaffCourseDetailPage: React.FC = () => {
                 </CardContent>
               </Card>
 
+              {/* Exams List */}
+              <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-xl flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-purple-600" />
+                      Bài kiểm tra ({exams.length})
+                    </CardTitle>
+                    <Button 
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                      onClick={() => navigate('/staff/create-exam', { 
+                        state: { 
+                          scope: 'course', 
+                          scopeId: course.id, 
+                          scopeName: course.title 
+                        } 
+                      })}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Tạo bài kiểm tra
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {exams.length > 0 ? (
+                      exams.map((exam) => (
+                        <div key={exam.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-gray-900 mb-1">{exam.title}</h4>
+                              <p className="text-sm text-gray-600 mb-2">{exam.description}</p>
+                              <div className="flex items-center space-x-4 text-sm text-gray-500">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {exam.duration} phút
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <BookOpen className="h-3 w-3" />
+                                  {exam.questionCount || 0} câu hỏi
+                                </span>
+                                <Badge className={exam.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                                  {exam.status === 'ACTIVE' ? 'Đã kích hoạt' : 'Chưa kích hoạt'}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => navigate(`/staff/exams/${exam.id}/edit`, {
+                                  state: {
+                                    scope: 'course',
+                                    scopeId: course.id,
+                                    scopeName: course.title
+                                  }
+                                })}
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Chỉnh sửa
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <FileText className="h-12 w-12 mx-auto text-purple-300 mb-3" />
+                        <p className="text-purple-600 font-medium mb-1">Chưa có bài kiểm tra nào</p>
+                        <p className="text-sm text-purple-500 mb-4">
+                          Tạo bài kiểm tra đầu tiên cho khóa học này
+                        </p>
+                        <Button 
+                          className="bg-purple-600 hover:bg-purple-700 text-white"
+                          onClick={() => navigate('/staff/create-exam', { 
+                            state: { 
+                              scope: 'course', 
+                              scopeId: course.id, 
+                              scopeName: course.title 
+                            } 
+                          })}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Tạo bài kiểm tra
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Chapters List */}
               <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
                 <CardHeader>
@@ -456,13 +561,15 @@ export const StaffCourseDetailPage: React.FC = () => {
                       <BookOpen className="h-5 w-5 text-green-600" />
                       Danh sách chương ({chapters.length})
                     </CardTitle>
-                    <Button 
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                      onClick={handleAddChapter}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Thêm chương
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                        onClick={handleAddChapter}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Thêm chương
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>

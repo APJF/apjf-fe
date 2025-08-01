@@ -1,4 +1,4 @@
-export type CourseStatus = "PUBLISHED" | "DRAFT" | "ARCHIVED"
+export type CourseStatus = "ACTIVE" | "INACTIVE" | "ARCHIVED"
 export type ExamScopeType = "COURSE" | "CHAPTER" | "UNIT"
 
 export interface StaffCourseDetail {
@@ -86,7 +86,7 @@ export interface CreateCourseRequest {
   level: string
   image?: string
   requirement?: string
-  status?: "DRAFT" | "PUBLISHED"
+  status?: "INACTIVE" | "ACTIVE"
   prerequisiteCourseId?: string
   topics?: Topic[]
   exams?: Exam[]
@@ -132,7 +132,7 @@ export interface CreateUnitRequest {
   id?: string
   title: string
   description: string
-  status?: "DRAFT" | "PUBLISHED"
+  status?: "INACTIVE" | "ACTIVE"
   chapterId: string
   prerequisiteUnitId?: string
   exams?: Exam[]
@@ -142,7 +142,7 @@ export interface UpdateUnitRequest {
   id: string
   title: string
   description: string
-  status: "DRAFT" | "PUBLISHED"
+  status: "INACTIVE" | "ACTIVE"
   chapterId: string
   prerequisiteUnitId?: string
   exams?: Exam[]

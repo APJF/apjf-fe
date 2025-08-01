@@ -47,6 +47,7 @@ export function StaffRequestsPage() {
         throw new Error('Không tìm thấy thông tin người dùng')
       }
 
+      // Sử dụng API mới với createdBy filter
       const response = await approvalRequestService.getStaffRequests(user.id.toString())
       setRequests(response.data)
     } catch (err) {

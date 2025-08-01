@@ -9,9 +9,9 @@ import { Label } from '../components/ui/Label'
 import { Textarea } from '../components/ui/Textarea'
 import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
-import { StaffCourseService } from '../services/staffCourseService'
+import { StaffCourseService, type UpdateCourseRequest } from '../services/staffCourseService'
 import { useToast } from '../components/ui/toast/useToast'
-import type { StaffCourseDetail, UpdateCourseRequest } from '../types/staffCourse'
+import type { StaffCourseDetail } from '../types/staffCourse'
 
 interface LocationState {
   course?: StaffCourseDetail
@@ -82,8 +82,17 @@ const StaffUpdateCoursePage: React.FC = () => {
     try {
       const response = await StaffCourseService.getCourseDetail(courseId)
       if (response.success && response.data) {
-        setCourse(response.data)
-        initializeFormData(response.data)
+        // Convert Course to StaffCourseDetail
+        const courseDetail: StaffCourseDetail = {
+          ...response.data,
+          description: response.data.description || '',
+          requirement: response.data.requirement || '',
+          chapters: [],
+          enrollmentCount: 0,
+          rating: response.data.averageRating || 0
+        }
+        setCourse(courseDetail)
+        initializeFormData(courseDetail)
       } else {
         setError("Không tìm thấy thông tin khóa học")
       }
@@ -196,11 +205,12 @@ const StaffUpdateCoursePage: React.FC = () => {
         description: formData.description.trim(),
         duration: parseFloat(formData.duration),
         level: formData.level,
-        image: formData.image || undefined,
-        requirement: formData.requirement.trim() || undefined,
-        prerequisiteCourseId: course?.prerequisiteCourseId || undefined,
-        topicIds: topicIds,
-        examIds: examIds,
+        image: formData.image || '',
+        requirement: formData.requirement.trim() || '',
+        status: course?.status === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE',
+        prerequisiteCourseId: course?.prerequisiteCourseId || '',
+        topicIds: topicIds.map(id => id.toString()),
+        examIds: examIds
       }
 
       const response = await StaffCourseService.updateCourse(courseId, updateData)
@@ -411,7 +421,7 @@ const StaffUpdateCoursePage: React.FC = () => {
                         <ul className="text-amber-700 text-xs leading-relaxed list-disc ml-4 space-y-1">
                           <li>Mã khóa học (ID) không thể thay đổi sau khi tạo</li>
                           <li>Không thể thay đổi khóa học tiên quyết để đảm bảo tính nhất quán</li>
-                          <li>Thay đổi sẽ được lưu với trạng thái DRAFT</li>
+                          <li>Thay đổi sẽ được lưu với trạng thái INACTIVE</li>
                           <li>Khóa học cần được phê duyệt lại sau khi chỉnh sửa</li>
                         </ul>
                       </div>

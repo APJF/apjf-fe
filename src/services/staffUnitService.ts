@@ -1,23 +1,87 @@
 import axios from '../api/axios'
-import type { ApiResponse } from '../types/api'
-import type { UnitDetail, CreateUnitRequest, UpdateUnitRequest } from '../types/staffCourse'
+
+// Helper function để lấy headers với token
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('access_token')
+  return token ? {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  } : {
+    'Content-Type': 'application/json'
+  }
+}
+
+export interface CreateUnitRequest {
+  title: string
+  description: string
+  status: 'INACTIVE' | 'ACTIVE'
+  chapterId: string
+  prerequisiteUnitId: string
+  examIds: string[]
+}
+
+export interface UpdateUnitRequest {
+  id: string
+  title: string
+  description: string
+  status: 'INACTIVE' | 'ACTIVE'
+  chapterId: string
+  prerequisiteUnitId: string
+  examIds: string[]
+}
+
+export interface Unit {
+  id: string
+  title: string
+  description: string | null
+  status: 'INACTIVE' | 'ACTIVE'
+  prerequisiteUnitId: string | null
+}
+
+export interface UnitDetail extends Unit {
+  chapterId?: string
+}
+
+interface ApiResponse<T> {
+  success: boolean
+  message: string
+  data: T
+  timestamp: number
+}
 
 export const StaffUnitService = {
+  // Lấy danh sách bài học theo chapterId
+  getUnitsByChapter: async (chapterId: string): Promise<ApiResponse<Unit[]>> => {
+    try {
+      const response = await axios.get(`/units/chapter/${chapterId}`, {
+        headers: getAuthHeaders()
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error fetching units by chapter:', error)
+      throw error
+    }
+  },
+
   // Lấy chi tiết bài học
   getUnitDetail: async (unitId: string): Promise<ApiResponse<UnitDetail>> => {
     try {
-      const response = await axios.get(`/units/${unitId}`)
+      const response = await axios.get(`/units/${unitId}`, {
+        headers: getAuthHeaders()
+      })
       return response.data
     } catch (error) {
       console.error('Error fetching unit detail:', error)
-      throw new Error('Không thể tải thông tin bài học')
+      throw error
     }
   },
 
   // Tạo bài học mới
   createUnit: async (unitData: CreateUnitRequest): Promise<ApiResponse<UnitDetail>> => {
     try {
-      const response = await axios.post('/units', unitData)
+      const response = await axios.post('/units', unitData, {
+        headers: getAuthHeaders()
+      })
       return response.data
     } catch (error) {
       console.error('Error creating unit:', error)
@@ -28,7 +92,9 @@ export const StaffUnitService = {
   // Cập nhật bài học
   updateUnit: async (unitId: string, unitData: UpdateUnitRequest): Promise<ApiResponse<UnitDetail>> => {
     try {
-      const response = await axios.put(`/units/${unitId}`, unitData)
+      const response = await axios.put(`/units/${unitId}`, unitData, {
+        headers: getAuthHeaders()
+      })
       return response.data
     } catch (error) {
       console.error('Error updating unit:', error)
@@ -37,9 +103,11 @@ export const StaffUnitService = {
   },
   
   // Xóa bài học
-  deleteUnit: async (unitId: string): Promise<ApiResponse<void>> => {
+  deleteUnit: async (unitId: string): Promise<ApiResponse<{ message: string }>> => {
     try {
-      const response = await axios.delete(`/units/${unitId}`)
+      const response = await axios.delete(`/units/${unitId}`, {
+        headers: getAuthHeaders()
+      })
       return response.data
     } catch (error) {
       console.error('Error deleting unit:', error)

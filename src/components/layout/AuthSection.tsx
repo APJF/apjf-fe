@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, LogOut, Settings, BookOpen, ChevronDown, BarChart3 } from 'lucide-react';
+import { User, LogOut, Settings, BookOpen, ChevronDown, BarChart3, History } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
 export const AuthSection: React.FC = () => {
@@ -14,7 +14,7 @@ export const AuthSection: React.FC = () => {
     console.log('Current user in AuthSection:', user);
     console.log('User roles:', user?.roles);
     if (user?.roles) {
-      const hasStaffRole = user.roles.some(role => ['STAFF', 'ADMIN'].includes(role.toUpperCase()));
+      const hasStaffRole = user.roles.some(role => role && ['STAFF', 'ADMIN'].includes(role.toUpperCase()));
       console.log('Has staff/admin role:', hasStaffRole);
     }
   }, [user]);
@@ -22,7 +22,7 @@ export const AuthSection: React.FC = () => {
   // Temporary function để test role checking
   const hasRequiredRole = () => {
     if (!user?.roles) return false;
-    const result = user.roles.some(role => ['STAFF', 'ADMIN'].includes(role.toUpperCase()));
+    const result = user.roles.some(role => role && ['STAFF', 'ADMIN'].includes(role.toUpperCase()));
     console.log('Role check result:', result, 'Roles:', user.roles);
     return result;
   };
@@ -30,7 +30,7 @@ export const AuthSection: React.FC = () => {
   // Function để check Manager role
   const hasManagerRole = () => {
     if (!user?.roles) return false;
-    const result = user.roles.some(role => ['MANAGER', 'ADMIN'].includes(role.toUpperCase()));
+    const result = user.roles.some(role => role && ['MANAGER', 'ADMIN'].includes(role.toUpperCase()));
     console.log('Manager role check result:', result, 'Roles:', user.roles);
     return result;
   };
@@ -153,6 +153,15 @@ export const AuthSection: React.FC = () => {
               >
                 <BookOpen className="w-4 h-4" />
                 Khóa học của tôi
+              </Link>
+
+              <Link
+                to="/exam-history"
+                className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+                onClick={() => setIsDropdownOpen(false)}
+              >
+                <History className="w-4 h-4" />
+                Lịch sử thi
               </Link>
 
               {/* Staff Dashboard Link - chỉ hiển thị cho STAFF và ADMIN */}

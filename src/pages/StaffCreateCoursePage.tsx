@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Alert } from '../components/ui/Alert'
 import { AlertCircle, ArrowLeft, Upload } from 'lucide-react'
@@ -8,11 +8,12 @@ import { Input } from '../components/ui/Input'
 import { Label } from '../components/ui/Label'
 import { Textarea } from '../components/ui/Textarea'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
-import { StaffCourseService } from '../services/staffCourseService'
-import type { CreateCourseRequest } from '../types/staffCourse'
+import { StaffCourseService, type CreateCourseRequest } from '../services/staffCourseService'
+import { useAuth } from '../hooks/useAuth'
 
 const StaffCreateCoursePage: React.FC = () => {
   const navigate = useNavigate()
+  const { user } = useAuth()
 
   const [formData, setFormData] = useState({
     id: '',
@@ -28,6 +29,29 @@ const StaffCreateCoursePage: React.FC = () => {
   const [dragActive, setDragActive] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Kiểm tra quyền tạo course
+  useEffect(() => {
+    if (!user) {
+      setError('Vui lòng đăng nhập để tiếp tục')
+      return
+    }
+    
+    const hasStaffRole = user.roles?.some(role => 
+      ['STAFF', 'ADMIN', 'staff', 'admin'].includes(role)
+    )
+    
+    console.log('🔐 User Permission Check:', {
+      userId: user.id,
+      username: user.username,
+      roles: user.roles,
+      hasStaffRole: hasStaffRole
+    })
+    
+    if (!hasStaffRole) {
+      setError('Bạn không có quyền tạo khóa học. Cần role STAFF hoặc ADMIN.')
+    }
+  }, [user])
 
   const levels = [
     { value: 'N5', label: 'N5' },
@@ -111,6 +135,22 @@ const StaffCreateCoursePage: React.FC = () => {
       return
     }
 
+    // Kiểm tra authentication trước khi gửi request
+    const token = localStorage.getItem('access_token')
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    
+    console.log('🔍 Debug Auth Info:', {
+      hasToken: !!token,
+      tokenPreview: token ? `${token.substring(0, 20)}...` : 'No token',
+      user: user,
+      userRoles: user?.roles || 'No roles'
+    })
+    
+    if (!token) {
+      setError('Vui lòng đăng nhập lại để tiếp tục')
+      return
+    }
+
     setIsLoading(true)
     setError(null)
 
@@ -122,9 +162,14 @@ const StaffCreateCoursePage: React.FC = () => {
         duration: parseInt(formData.duration) || 0,
         level: formData.level,
         image: formData.image || '',
-        requirement: formData.requirement.trim() || undefined,
-        prerequisiteCourseId: formData.prerequisiteCourseId || undefined
+        requirement: formData.requirement.trim() || '',
+        status: 'INACTIVE',
+        prerequisiteCourseId: formData.prerequisiteCourseId || '',
+        topicIds: [],
+        examIds: []
       }
+
+      console.log('📤 Sending course data:', courseData)
 
       await StaffCourseService.createCourse(courseData)
       
@@ -138,8 +183,35 @@ const StaffCreateCoursePage: React.FC = () => {
         }
       })
     } catch (error) {
-      console.error('Error creating course:', error)
-      setError('Có lỗi xảy ra khi tạo khóa học. Vui lòng thử lại.')
+      console.error('❌ Error creating course:', error)
+      
+      // Xử lý error chi tiết
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status: number, data?: any } }
+        
+        console.error('📥 Response error details:', {
+          status: axiosError.response?.status,
+          data: axiosError.response?.data
+        })
+        
+        switch (axiosError.response?.status) {
+          case 403:
+            setError('Bạn không có quyền tạo khóa học. Vui lòng kiểm tra lại quyền tài khoản.')
+            break
+          case 401:
+            setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
+            break
+          case 400: {
+            const errorMsg = axiosError.response?.data?.message || 'Dữ liệu không hợp lệ'
+            setError(`Lỗi dữ liệu: ${errorMsg}`)
+            break
+          }
+          default:
+            setError('Có lỗi xảy ra khi tạo khóa học. Vui lòng thử lại.')
+        }
+      } else {
+        setError('Có lỗi xảy ra khi tạo khóa học. Vui lòng thử lại.')
+      }
     } finally {
       setIsLoading(false)
     }

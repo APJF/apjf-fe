@@ -31,69 +31,6 @@ const getQuestionTypeName = (type: string) => {
   }
 }
 
-// Demo function to generate 60 questions for testing
-// @ts-ignore - Demo function for testing
-const generateDemoData = (examResult: ExamResult): ExamResult => {
-  const types = ["MULTIPLE_CHOICE", "TRUE_FALSE", "WRITING"]
-  const demoAnswers = []
-  
-  for (let i = 0; i < 60; i++) {
-    const type = types[i % 3] as "MULTIPLE_CHOICE" | "TRUE_FALSE" | "WRITING"
-    const isCorrect = Math.random() > 0.3 // 70% correct rate
-    const hasAnswer = Math.random() > 0.1 // 90% answer rate
-    
-    let selectedOptionId = null
-    let correctAnswer = null
-    let options = undefined
-    
-    if (hasAnswer) {
-      selectedOptionId = isCorrect ? "correct-option" : "wrong-option"
-    }
-    
-    if (type === "WRITING") {
-      correctAnswer = "Đáp án đúng"
-    } else if (type === "TRUE_FALSE") {
-      correctAnswer = "true"
-    } else {
-      correctAnswer = "Đáp án A"
-    }
-    
-    if (type === "MULTIPLE_CHOICE") {
-      options = [
-        { id: "opt1", content: "Đáp án A", isCorrect: true },
-        { id: "opt2", content: "Đáp án B", isCorrect: false },
-        { id: "opt3", content: "Đáp án C", isCorrect: false },
-        { id: "opt4", content: "Đáp án D", isCorrect: false },
-      ]
-    } else if (type === "TRUE_FALSE") {
-      options = [
-        { id: "true", content: "Đúng", isCorrect: true },
-        { id: "false", content: "Sai", isCorrect: false },
-      ]
-    }
-    
-    demoAnswers.push({
-      id: `demo-${i}`,
-      questionId: `q-${i}`,
-      questionContent: `Câu hỏi số ${i + 1}: Đây là một câu hỏi mẫu để test hiển thị với nhiều câu hỏi?`,
-      type,
-      isCorrect: hasAnswer ? isCorrect : false,
-      selectedOptionId,
-      userAnswer: type === "WRITING" && hasAnswer ? "Đáp án của học sinh" : null,
-      correctAnswer,
-      explanation: `Giải thích cho câu ${i + 1}: Đây là lý do tại sao đáp án này đúng.`,
-      options
-    })
-  }
-  
-  return {
-    ...examResult,
-    answers: demoAnswers,
-    correctAnswers: demoAnswers.filter(a => a.isCorrect).length,
-    score: Math.round((demoAnswers.filter(a => a.isCorrect).length / 60) * 100)
-  }
-}
-
 const getOptionStyles = (isSelected: boolean, isCorrectOption: boolean) => {
   if (isSelected && isCorrectOption) {
     return { borderClass: "border-green-500", bgClass: "bg-green-50" }
@@ -149,22 +86,24 @@ const AnswerStatusMessage = ({
 
 // Component for unanswered question warning
 const UnansweredWarning = ({ currentAnswer }: { currentAnswer: ExamResultAnswer }) => {
-  const hasAnswered = currentAnswer?.selectedOptionId !== null || currentAnswer?.userAnswer !== null
+  const hasAnswered = Boolean(currentAnswer?.selectedOptionId || currentAnswer?.userAnswer)
 
   if (hasAnswered) return null
 
-  const messageMap = {
+  const messageMap: Record<string, string> = {
     WRITING: "Bạn chưa trả lời câu hỏi này",
     MULTIPLE_CHOICE: "Bạn chưa chọn đáp án nào",
     TRUE_FALSE: "Bạn chưa chọn đáp án Đúng/Sai",
   }
+
+  const message = messageMap[currentAnswer?.type || 'MULTIPLE_CHOICE'] || messageMap.MULTIPLE_CHOICE
 
   return (
     <div className="p-3 rounded-lg border-2 border-amber-400 bg-amber-50 mb-4">
       <div className="flex items-center space-x-2">
         <AlertTriangle className="h-5 w-5 text-amber-600" />
         <span className="font-medium text-amber-800 text-sm">
-          {messageMap[currentAnswer.type as keyof typeof messageMap] || messageMap.MULTIPLE_CHOICE}
+          {message}
         </span>
       </div>
     </div>
@@ -334,14 +273,7 @@ const WritingCorrectAnswer = ({ currentAnswer }: { currentAnswer: ExamResultAnsw
 }
 
 export function ExamAnswerReview({ examResult, onBack }: ExamAnswerReviewProps) {
-  // ============ DEMO DATA FOR TESTING WITH 60 QUESTIONS ============
-  // To test with 60 questions, uncomment the next 2 lines and comment out the last line:
-  // const demoExamResult = generateDemoData(examResult)
-  // const displayExamResult = demoExamResult
-  
-  // For production, use real data:
   const displayExamResult = examResult
-  // ================================================================
   const [chatMessages, setChatMessages] = useState<Array<{id: string, type: 'user' | 'ai', content: string, timestamp: Date}>>([
     {
       id: "1",
@@ -357,7 +289,9 @@ export function ExamAnswerReview({ examResult, onBack }: ExamAnswerReviewProps) 
 
   // Initialize refs array
   useEffect(() => {
-    questionRefs.current = questionRefs.current.slice(0, displayExamResult?.answers?.length || 0)
+    if (displayExamResult?.answers?.length) {
+      questionRefs.current = questionRefs.current.slice(0, displayExamResult.answers.length)
+    }
   }, [displayExamResult?.answers?.length])
   
   // Validation: Ensure we have valid data
@@ -379,8 +313,9 @@ export function ExamAnswerReview({ examResult, onBack }: ExamAnswerReviewProps) 
   }
   
   const scrollToQuestion = (index: number) => {
-    if (questionRefs.current[index]) {
-      questionRefs.current[index]?.scrollIntoView({ 
+    const element = questionRefs.current[index]
+    if (element) {
+      element.scrollIntoView({ 
         behavior: 'smooth', 
         block: 'start',
         inline: 'nearest'
@@ -441,8 +376,8 @@ export function ExamAnswerReview({ examResult, onBack }: ExamAnswerReviewProps) 
             <div className="p-6">
               <div className="grid grid-cols-6 gap-2 max-h-60 overflow-y-auto">
                 {displayExamResult.answers.map((answer, index) => {
-                  const isCorrectAnswer = answer.isCorrect
-                  const hasAnswer = answer.selectedOptionId !== null || answer.userAnswer !== null
+                  const isCorrectAnswer = Boolean(answer.isCorrect)
+                  const hasAnswer = Boolean(answer.selectedOptionId || answer.userAnswer)
                   let buttonClass = ""
                   if (isCorrectAnswer) {
                     buttonClass = "border-green-500 bg-green-100 text-green-700 hover:bg-green-200 shadow-green-200"
@@ -484,7 +419,7 @@ export function ExamAnswerReview({ examResult, onBack }: ExamAnswerReviewProps) 
                     <span className="text-sm text-red-700 font-bold">Câu sai</span>
                     <span className="font-black text-red-800 text-2xl">
                       {displayExamResult.answers.filter(answer => 
-                        (answer.selectedOptionId !== null || answer.userAnswer !== null) && !answer.isCorrect
+                        (answer.selectedOptionId || answer.userAnswer) && !answer.isCorrect
                       ).length}
                     </span>
                   </div>
@@ -494,7 +429,7 @@ export function ExamAnswerReview({ examResult, onBack }: ExamAnswerReviewProps) 
                     <span className="text-sm text-amber-700 font-bold">Chưa trả lời</span>
                     <span className="font-black text-amber-800 text-2xl">
                       {displayExamResult.answers.filter(answer => 
-                        answer.selectedOptionId === null && answer.userAnswer === null
+                        !answer.selectedOptionId && !answer.userAnswer
                       ).length}
                     </span>
                   </div>
@@ -523,8 +458,8 @@ export function ExamAnswerReview({ examResult, onBack }: ExamAnswerReviewProps) 
             {/* Questions List */}
             <div className="space-y-6 pb-8">
               {displayExamResult.answers.map((currentAnswer, index) => {
-                const isCorrect = currentAnswer?.isCorrect || false
-                const hasAnswered = currentAnswer?.selectedOptionId !== null || currentAnswer?.userAnswer !== null
+                const isCorrect = Boolean(currentAnswer?.isCorrect)
+                const hasAnswered = Boolean(currentAnswer?.selectedOptionId || currentAnswer?.userAnswer)
 
                 return (
                   <div

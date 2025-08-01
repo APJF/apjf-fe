@@ -1,3 +1,12 @@
+// Type aliases
+export type QuestionType = "MULTIPLE_CHOICE" | "TRUE_FALSE" | "WRITING"
+export type DifficultyLevel = "Dễ" | "Trung bình" | "Khó"
+export type SkillType = "Ngữ pháp" | "Từ vựng" | "Kanji" | "Đọc hiểu" | "Nghe"
+export type JLPTLevel = "N5" | "N4" | "N3" | "N2" | "N1"
+export type ExamScope = "course" | "chapter" | "unit"
+export type ExamStatus = 'ACTIVE' | 'INACTIVE'
+export type MediaType = "image" | "audio" | "video"
+
 export interface QuestionOption {
   id: string
   content: string
@@ -8,7 +17,7 @@ export interface Question {
   id: string
   content: string
   correctAnswer: string
-  type: "MULTIPLE_CHOICE" | "TRUE_FALSE" | "WRITING"
+  type: QuestionType
   scope: string
   explanation: string
   fileUrl: string | null
@@ -30,6 +39,67 @@ export interface Exam {
   unitId: string | null
   questionIds: string[]
   questionCount: number
+}
+
+// Staff Exam Management Types
+export interface ExamQuestion {
+  id: string
+  type: QuestionType
+  question: string
+  options?: Array<{
+    id: string
+    content: string
+    isCorrect: boolean
+  }>
+  correctAnswer?: string
+  explanation?: string
+  points: number
+  difficulty: DifficultyLevel
+  skill: SkillType
+  media?: {
+    type: MediaType
+    url: string
+  }
+}
+
+export interface ExamData {
+  id?: string
+  title: string
+  description: string
+  courseId?: string
+  chapterId?: string
+  unitId?: string
+  scope: ExamScope
+  duration: number // minutes
+  totalPoints: number
+  passingScore: number
+  difficulty: DifficultyLevel
+  level: JLPTLevel
+  instructions: string
+  questions: ExamQuestion[]
+  settings: {
+    shuffleQuestions: boolean
+    shuffleOptions: boolean
+    showResults: boolean
+    allowRetake: boolean
+    timeLimit: boolean
+  }
+  status: ExamStatus
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface ExamSummary {
+  id: string
+  title: string
+  description: string
+  duration: number
+  totalPoints: number
+  questionCount: number
+  difficulty: string
+  level: string
+  status: ExamStatus
+  createdAt: string
 }
 
 export interface ExamApiResponse {

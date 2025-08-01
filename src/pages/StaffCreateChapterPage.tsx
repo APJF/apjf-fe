@@ -9,9 +9,9 @@ import { Label } from '../components/ui/Label'
 import { Textarea } from '../components/ui/Textarea'
 import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
-import { StaffChapterService } from '../services/staffChapterService'
+import { StaffChapterService, type CreateChapterRequest } from '../services/staffChapterService'
 import { StaffCourseService } from '../services/staffCourseService'
-import type { CreateChapterRequest, StaffCourseDetail } from '../types/staffCourse'
+import type { StaffCourseDetail } from '../types/staffCourse'
 
 interface LocationState {
   course?: StaffCourseDetail
@@ -61,8 +61,17 @@ const StaffCreateChapterPage: React.FC = () => {
       ])
 
       if (courseData.success && courseData.data) {
-        setCourse(courseData.data)
-        setChapterCount(courseDetailData.data?.course.chapters?.length || 0)
+        // Convert Course to StaffCourseDetail
+        const courseDetail: StaffCourseDetail = {
+          ...courseData.data,
+          description: courseData.data.description || '',
+          requirement: courseData.data.requirement || '',
+          chapters: courseDetailData.success ? courseDetailData.data.chapters : [],
+          enrollmentCount: 0,
+          rating: courseData.data.averageRating || 0
+        }
+        setCourse(courseDetail)
+        setChapterCount(courseDetailData.data?.chapters?.length || 0)
       } else {
         setError("Không tìm thấy khóa học")
       }
@@ -111,10 +120,10 @@ const StaffCreateChapterPage: React.FC = () => {
         id: formData.id.trim(),
         title: formData.title.trim(),
         description: formData.description.trim(),
-        status: "DRAFT",
+        status: "INACTIVE",
         courseId,
-        prerequisiteChapterId: formData.prerequisiteChapterId.trim() || null,
-        units: []
+        prerequisiteChapterId: formData.prerequisiteChapterId.trim() || '',
+        exams: []
       }
 
       await StaffChapterService.createChapter(chapterData)

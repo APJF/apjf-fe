@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
 import { StaffChapterService } from '../services/staffChapterService'
+import { StaffUnitService } from '../services/staffUnitService'
 import type { StaffCourseDetail, ChapterDetail, Unit } from '../types/staffCourse'
 
 // Hàm sắp xếp units theo thứ tự prerequisite
@@ -50,11 +51,11 @@ const sortUnitsByPrerequisite = (units: Unit[]): Unit[] => {
 // Hàm lấy màu sắc theo status
 const getStatusColor = (status: string) => {
   switch (status) {
-    case 'DRAFT':
+    case 'INACTIVE':
       return 'bg-yellow-100 text-yellow-800 border-yellow-300'
     case 'REJECTED':
       return 'bg-red-100 text-red-800 border-red-300'
-    case 'PUBLISHED':
+    case 'ACTIVE':
       return 'bg-green-100 text-green-800 border-green-300'
     default:
       return 'bg-gray-100 text-gray-800 border-gray-300'
@@ -64,12 +65,12 @@ const getStatusColor = (status: string) => {
 // Hàm lấy text hiển thị cho status
 const getStatusText = (status: string) => {
   switch (status) {
-    case 'DRAFT':
-      return 'Nháp'
+    case 'INACTIVE':
+      return 'Chưa kích hoạt'
     case 'REJECTED':
       return 'Từ chối'
-    case 'PUBLISHED':
-      return 'Đã xuất bản'
+    case 'ACTIVE':
+      return 'Đã kích hoạt'
     default:
       return status
   }
@@ -127,12 +128,23 @@ export const StaffChapterDetailPage: React.FC = () => {
     setError(null)
 
     try {
-      const response = await StaffChapterService.getChapterDetail(chapterId)
-      if (response.success && response.data) {
-        // Sắp xếp units theo thứ tự prerequisite
-        const chapterData = {
-          ...response.data,
-          units: sortUnitsByPrerequisite(response.data.units || [])
+      const [chapterResponse, unitsResponse] = await Promise.all([
+        StaffChapterService.getChapterDetail(chapterId),
+        StaffUnitService.getUnitsByChapter(chapterId)
+      ])
+      
+      if (chapterResponse.success && chapterResponse.data) {
+        // Create ChapterDetail with units
+        const chapterData: ChapterDetail = {
+          ...chapterResponse.data,
+          description: chapterResponse.data.description || '',
+          units: unitsResponse.success ? 
+            sortUnitsByPrerequisite(unitsResponse.data.map(unit => ({
+              ...unit,
+              description: unit.description || '',
+              chapterId: chapterResponse.data.id,
+              exams: []
+            })) || []) : []
         }
         setChapter(chapterData)
       } else {
@@ -354,9 +366,16 @@ export const StaffChapterDetailPage: React.FC = () => {
                   <Button 
                     variant="outline" 
                     className="w-full text-purple-600 border-purple-300 hover:bg-purple-50"
+                    onClick={() => navigate('/staff/create-exam', { 
+                      state: { 
+                        scope: 'chapter', 
+                        scopeId: chapter.id, 
+                        scopeName: chapter.title 
+                      } 
+                    })}
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Thêm bài kiểm tra
+                    Tạo Exam
                   </Button>
                 </CardContent>
               </Card>
@@ -409,13 +428,29 @@ export const StaffChapterDetailPage: React.FC = () => {
                       <BookOpen className="h-5 w-5 text-green-600" />
                       Danh sách bài học ({chapter.units?.length || 0})
                     </CardTitle>
-                    <Button 
-                      onClick={handleAddUnit}
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Thêm bài học
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline"
+                        className="text-purple-600 border-purple-300 hover:bg-purple-50"
+                        onClick={() => navigate('/staff/create-exam', { 
+                          state: { 
+                            scope: 'chapter', 
+                            scopeId: chapter.id, 
+                            scopeName: chapter.title 
+                          } 
+                        })}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Tạo Exam
+                      </Button>
+                      <Button 
+                        onClick={handleAddUnit}
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Thêm bài học
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>

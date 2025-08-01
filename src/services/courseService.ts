@@ -12,7 +12,7 @@ export class CourseService {
       size: filters.size || 12,
       sortBy: filters.sortBy || 'title',
       direction: filters.sortDirection || 'asc',
-      status: 'PUBLISHED',
+      status: 'ACTIVE',
       title: filters.searchTitle?.trim(),
       level: filters.level,
     };

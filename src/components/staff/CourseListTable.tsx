@@ -108,8 +108,8 @@ export const CourseListTable: React.FC<CourseListTableProps> = ({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "PUBLISHED": return "bg-green-500 text-white border-green-600"
-      case "DRAFT": return "bg-yellow-400 text-yellow-900 border-yellow-500"
+      case "ACTIVE": return "bg-green-500 text-white border-green-600"
+      case "INACTIVE": return "bg-yellow-400 text-yellow-900 border-yellow-500"
       case "ARCHIVED": return "bg-red-200 text-red-700 border-red-300"
       default: return "bg-gray-100 text-gray-800 border-gray-300"
     }
@@ -117,8 +117,8 @@ export const CourseListTable: React.FC<CourseListTableProps> = ({
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case "PUBLISHED": return "Đã xuất bản"
-      case "DRAFT": return "Nháp"
+      case "ACTIVE": return "Hoạt động"
+      case "INACTIVE": return "Không hoạt động"
       case "ARCHIVED": return "Đã lưu trữ"
       default: return status
     }

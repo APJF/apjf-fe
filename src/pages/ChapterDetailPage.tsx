@@ -457,7 +457,6 @@ export default function ChapterDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSkill, setSelectedSkill] = useState<string>('');
-  const [currentLanguage, setCurrentLanguage] = useState<'vi' | 'ja'>('vi');
   const [currentStage, setCurrentStage] = useState(3);
 
   useEffect(() => {
@@ -481,7 +480,7 @@ export default function ChapterDetailPage() {
             const unitsWithSkills = await Promise.all(
               unitsRes.data.map(async (unit, index) => {
                 try {
-                  const materialsRes = await MaterialService.getMaterialsByUnitId(unit.id);
+                  const materialsRes = await MaterialService.getMaterialsByUnit(unit.id);
                   const materials = materialsRes.success ? materialsRes.data : [];
                   
                   // Generate skills based on materials or default skills

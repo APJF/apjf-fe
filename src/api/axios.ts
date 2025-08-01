@@ -67,6 +67,13 @@ instance.interceptors.request.use(
       config.url?.includes(endpoint)
     );
 
+    // Debug logging
+    console.log('Request interceptor:', {
+      url: config.url,
+      isPublicEndpoint,
+      hasAuthHeader: !!config.headers['Authorization']
+    });
+
     if (!isPublicEndpoint) {
       const token = localStorage.getItem('access_token');
       if (token) {
@@ -90,26 +97,46 @@ instance.interceptors.response.use(
   },
   async (err: unknown) => {
     if (!isAxiosError(err)) {
+      console.error('Non-Axios error:', err);
       return Promise.reject(err instanceof Error ? err : new Error('Unknown error occurred'));
     }
 
     const { config: originalConfig, response } = err;
+    
+    // Debug logging
+    console.error('API Error:', {
+      url: originalConfig?.url,
+      status: response?.status,
+      data: response?.data,
+      headers: originalConfig?.headers
+    });
 
     // Nếu là lỗi từ auth endpoint, trả về lỗi nguyên gốc để component xử lý
     if (originalConfig?.url?.includes('/auth/')) {
       return Promise.reject(err instanceof Error ? err : new Error('Auth request failed'));
     }
 
-    if (!originalConfig || !shouldHandleTokenRefresh(originalConfig, response)) {
-      return Promise.reject(err instanceof Error ? err : new Error('Request failed'));
+    // Nếu lỗi 401 và không phải là retry
+    if (response?.status === 401 && !originalConfig?._retry) {
+      console.log('401 error detected, attempting token refresh...');
+      
+      if (!originalConfig || !shouldHandleTokenRefresh(originalConfig, response)) {
+        console.log('Cannot refresh token, redirecting to login...');
+        handleAuthError(err);
+        return Promise.reject(err instanceof Error ? err : new Error('Authentication failed'));
+      }
+
+      try {
+        console.log('Attempting to refresh token...');
+        return await handleTokenRefresh(originalConfig);
+      } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError);
+        handleAuthError(refreshError);
+        return Promise.reject(refreshError instanceof Error ? refreshError : new Error('Authentication failed'));
+      }
     }
 
-    try {
-      return await handleTokenRefresh(originalConfig);
-    } catch (refreshError) {
-      handleAuthError(refreshError);
-      return Promise.reject(refreshError instanceof Error ? refreshError : new Error('Authentication failed'));
-    }
+    return Promise.reject(err instanceof Error ? err : new Error('Request failed'));
   }
 );
 

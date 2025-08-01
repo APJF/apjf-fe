@@ -9,9 +9,9 @@ import { Label } from '../components/ui/Label'
 import { Textarea } from '../components/ui/Textarea'
 import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
-import { StaffUnitService } from '../services/staffUnitService'
+import { StaffUnitService, type CreateUnitRequest } from '../services/staffUnitService'
 import { MaterialService, type CreateMaterialRequest, type MaterialType } from '../services/materialService'
-import type { CreateUnitRequest, StaffCourseDetail, ChapterDetail } from '../types/staffCourse'
+import type { StaffCourseDetail, ChapterDetail } from '../types/staffCourse'
 
 interface LocationState {
   course?: StaffCourseDetail
@@ -38,7 +38,6 @@ const StaffCreateUnitPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
-    id: '',
     title: '',
     description: '',
     prerequisiteUnitId: ''
@@ -113,8 +112,7 @@ const StaffCreateUnitPage: React.FC = () => {
     }
   }
 
-  const isFormValid = formData.id.trim() && 
-                     formData.title.trim() && 
+  const isFormValid = formData.title.trim() && 
                      formData.description.trim() &&
                      materials.every(m => m.type && m.description.trim() && m.fileUrl.trim())
 
@@ -137,13 +135,12 @@ const StaffCreateUnitPage: React.FC = () => {
     try {
       // 1. Tạo unit trước
       const unitData: CreateUnitRequest = {
-        id: formData.id.trim(),
         title: formData.title.trim(),
         description: formData.description.trim(),
-        status: "DRAFT",
+        status: "INACTIVE",
         chapterId,
-        prerequisiteUnitId: formData.prerequisiteUnitId.trim() || undefined,
-        exams: []
+        prerequisiteUnitId: formData.prerequisiteUnitId.trim() || '',
+        examIds: []
       }
 
       const unitResponse = await StaffUnitService.createUnit(unitData)
@@ -152,10 +149,10 @@ const StaffCreateUnitPage: React.FC = () => {
         // 2. Tạo materials cho unit vừa tạo
         const materialPromises = materials.map(material => {
           const materialData: CreateMaterialRequest = {
+            id: material.id.toString(),
             description: material.description.trim(),
             fileUrl: material.fileUrl.trim(),
-            type: material.type as MaterialType,
-            unitId: unitResponse.data.id
+            type: material.type as MaterialType
           }
           return MaterialService.createMaterial(materialData)
         })
@@ -350,25 +347,7 @@ const StaffCreateUnitPage: React.FC = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-8">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* Unit ID */}
-                      <div className="space-y-3">
-                        <Label htmlFor="unitId" className="text-blue-800 font-semibold text-base flex items-center gap-2">
-                          Mã bài học <span className="text-red-500">*</span>
-                          <div className="bg-blue-100 p-1 rounded-full">
-                            <Hash className="h-3 w-3 text-blue-600" />
-                          </div>
-                        </Label>
-                        <Input
-                          id="unitId"
-                          value={formData.id}
-                          onChange={(e) => handleInputChange("id", e.target.value)}
-                          placeholder="Ví dụ: UNIT01"
-                          className="border-blue-300 focus:border-blue-500 focus:ring-blue-500 text-base py-3 bg-white/80 backdrop-blur-sm"
-                          required
-                        />
-                      </div>
-
+                    <div className="grid grid-cols-1 gap-6">
                       {/* Unit Title */}
                       <div className="space-y-3">
                         <Label htmlFor="title" className="text-blue-800 font-semibold text-base flex items-center gap-2">

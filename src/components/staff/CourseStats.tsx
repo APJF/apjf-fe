@@ -11,8 +11,8 @@ import { CourseService } from "../../services/courseService"
 
 interface CourseStatsData {
   totalCourses: number
-  publishedCourses: number
-  draftCourses: number
+  activeCourses: number
+  inactiveCourses: number
 }
 
 interface CourseStatsProps {
@@ -22,8 +22,8 @@ interface CourseStatsProps {
 export const CourseStats: React.FC<CourseStatsProps> = ({ refreshTrigger = 0 }) => {
   const [stats, setStats] = useState<CourseStatsData>({
     totalCourses: 0,
-    publishedCourses: 0,
-    draftCourses: 0
+    activeCourses: 0,
+    inactiveCourses: 0
   })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -44,13 +44,13 @@ export const CourseStats: React.FC<CourseStatsProps> = ({ refreshTrigger = 0 }) 
         const courses = coursesResponse.data.content
         
         const totalCourses = courses.length
-        const publishedCourses = courses.filter(course => course.status === "PUBLISHED").length
-        const draftCourses = courses.filter(course => course.status === "DRAFT").length
+        const activeCourses = courses.filter(course => course.status === "ACTIVE").length
+        const inactiveCourses = courses.filter(course => course.status === "INACTIVE").length
 
         setStats({
           totalCourses,
-          publishedCourses,
-          draftCourses
+          activeCourses,
+          inactiveCourses
         })
       } else {
         throw new Error("Không thể tải thống kê khóa học")
@@ -77,16 +77,16 @@ export const CourseStats: React.FC<CourseStatsProps> = ({ refreshTrigger = 0 }) 
       textColor: "text-blue-600"
     },
     {
-      title: "Đã xuất bản",
-      value: stats.publishedCourses,
+      title: "Hoạt động",
+      value: stats.activeCourses,
       icon: GraduationCap,
       color: "bg-green-500",
       bgColor: "bg-green-50",
       textColor: "text-green-600"
     },
     {
-      title: "Khóa học nháp",
-      value: stats.draftCourses,
+      title: "Không hoạt động",
+      value: stats.inactiveCourses,
       icon: FileText,
       color: "bg-yellow-500",
       bgColor: "bg-yellow-50",
