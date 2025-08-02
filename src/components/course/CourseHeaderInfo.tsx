@@ -8,17 +8,18 @@ interface CourseHeaderInfoProps {
 
 export function CourseHeaderInfo({ course, chaptersCount }: Readonly<CourseHeaderInfoProps>) {
   const getLevelColor = (level: string) => {
+    // Using unified red theme for all levels  
     switch (level) {
       case "N5":
-        return "bg-green-500 text-white";
+        return "bg-red-50 text-red-900";
       case "N4":
-        return "bg-blue-500 text-white";
+        return "bg-red-100 text-red-800";
       case "N3":
-        return "bg-yellow-500 text-white";
+        return "bg-red-200 text-red-700";
       case "N2":
-        return "bg-orange-500 text-white";
+        return "bg-red-300 text-red-600";
       case "N1":
-        return "bg-red-500 text-white";
+        return "bg-red-400 text-red-900";
       default:
         return "bg-gray-500 text-white";
     }

@@ -34,14 +34,13 @@ export const CourseStats: React.FC<CourseStatsProps> = ({ refreshTrigger = 0 }) 
     try {
       // Fetch course statistics
       const coursesResponse = await CourseService.getAllCoursesForStaff({
-        page: 0,
-        size: 1000, // Get all courses for statistics
+        size: 1000, // Get all courses for stats
         sortBy: "title",
         sortDirection: "asc"
       })
 
-      if (coursesResponse.success && coursesResponse.data?.content) {
-        const courses = coursesResponse.data.content
+      if (coursesResponse.success && coursesResponse.data) {
+        const courses = coursesResponse.data
         
         const totalCourses = courses.length
         const activeCourses = courses.filter(course => course.status === "ACTIVE").length

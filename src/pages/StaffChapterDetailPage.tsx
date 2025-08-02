@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Alert } from '../components/ui/Alert'
 import { AlertCircle, BookOpen, ArrowLeft, Plus, Edit, Eye } from 'lucide-react'
@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
 import { StaffChapterService } from '../services/staffChapterService'
-import { StaffUnitService } from '../services/staffUnitService'
+import { CourseService } from '../services/courseService'
 import type { StaffCourseDetail, ChapterDetail, Unit } from '../types/staffCourse'
 
 // Hàm sắp xếp units theo thứ tự prerequisite
@@ -96,6 +96,49 @@ export const StaffChapterDetailPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(locationState.message || null)
 
+  const fetchChapterData = useCallback(async () => {
+    if (!chapterId) return
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const [chapterResponse, unitsResponse] = await Promise.all([
+        StaffChapterService.getChapterDetail(chapterId),
+        CourseService.getUnitsByChapterId(chapterId)
+      ])
+      
+      console.log('🔍 Chapter response:', chapterResponse)
+      console.log('🔍 Units response:', unitsResponse)
+      
+      if (chapterResponse.success && chapterResponse.data) {
+        // Create ChapterDetail with units
+        const chapterData: ChapterDetail = {
+          ...chapterResponse.data,
+          description: chapterResponse.data.description || '',
+          units: unitsResponse.success ? 
+            sortUnitsByPrerequisite(unitsResponse.data.map((unit: { id: string; title: string; description: string; status: string; prerequisiteUnitId: string | null }) => ({
+              ...unit,
+              description: unit.description || '',
+              status: (unit.status === 'REJECTED' ? 'INACTIVE' : unit.status) as 'INACTIVE' | 'ACTIVE' | 'ARCHIVED',
+              chapterId: chapterResponse.data.id,
+              exams: []
+            })) || []) : []
+        }
+        
+        console.log('📦 Final chapter data with units:', chapterData)
+        setChapter(chapterData)
+      } else {
+        setError("Không tìm thấy thông tin chương")
+      }
+    } catch (error) {
+      console.error('Error fetching chapter data:', error)
+      setError("Không thể tải thông tin chương. Vui lòng thử lại.")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [chapterId])
+
   useEffect(() => {
     if (!chapterId) {
       setError("ID chương không hợp lệ")
@@ -109,7 +152,7 @@ export const StaffChapterDetailPage: React.FC = () => {
     }
 
     fetchChapterData()
-  }, [chapterId, locationState.chapter, locationState.refreshData])
+  }, [chapterId, locationState.chapter, locationState.refreshData, fetchChapterData])
 
   // Handle success message cleanup
   useEffect(() => {
@@ -120,43 +163,6 @@ export const StaffChapterDetailPage: React.FC = () => {
       return () => clearTimeout(timer)
     }
   }, [successMessage])
-
-  const fetchChapterData = async () => {
-    if (!chapterId) return
-
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const [chapterResponse, unitsResponse] = await Promise.all([
-        StaffChapterService.getChapterDetail(chapterId),
-        StaffUnitService.getUnitsByChapter(chapterId)
-      ])
-      
-      if (chapterResponse.success && chapterResponse.data) {
-        // Create ChapterDetail with units
-        const chapterData: ChapterDetail = {
-          ...chapterResponse.data,
-          description: chapterResponse.data.description || '',
-          units: unitsResponse.success ? 
-            sortUnitsByPrerequisite(unitsResponse.data.map(unit => ({
-              ...unit,
-              description: unit.description || '',
-              chapterId: chapterResponse.data.id,
-              exams: []
-            })) || []) : []
-        }
-        setChapter(chapterData)
-      } else {
-        setError("Không tìm thấy thông tin chương")
-      }
-    } catch (error) {
-      console.error('Error fetching chapter data:', error)
-      setError("Không thể tải thông tin chương. Vui lòng thử lại.")
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   const handleViewUnit = (unitId: string) => {
     const unit = chapter?.units.find(u => u.id === unitId)

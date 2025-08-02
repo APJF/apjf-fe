@@ -2,6 +2,7 @@ import React from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import Layout from "../components/layout/Layout";
 import { ProtectedRoute } from "../components/auth/ProtectedRoute";
+import OAuthCallback from "../components/auth/OAuthCallback";
 import HomePage from "../pages/HomePage";
 import CoursesPage from "../pages/CoursesPage";
 import CourseDetailPage from "../pages/CourseDetailPage";
@@ -121,6 +122,10 @@ const router = createBrowserRouter([
   {
     path: "/verify-otp",
     element: <VerifyOtpPage />,
+  },
+  {
+    path: "/oauth2/redirect",
+    element: <OAuthCallback />,
   },
   {
     path: "/chatbot",

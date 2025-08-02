@@ -1,14 +1,48 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/ui/Button'
 import { Card } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import type { ExamHistory, ExamHistoryFilter } from '../types/examHistory'
 
+// Mock data - chỉ bài đã hoàn thành
+const mockExamHistory: ExamHistory[] = [
+  {
+    examId: '1',
+    examTitle: 'Thi N5 - Từ vựng cơ bản',
+    courseId: 'course-1',
+    courseTitle: 'Tiếng Nhật N5',
+    level: 'N5',
+    attemptId: 'attempt-1',
+    attemptedAt: '2024-01-15T10:30:00Z',
+    completedAt: '2024-01-15T11:15:00Z',
+    status: 'COMPLETED',
+    score: 85,
+    correctAnswers: 17,
+    totalQuestions: 20,
+    timeSpent: 2700 // 45 minutes
+  },
+  {
+    examId: '2',
+    examTitle: 'Thi N4 - Ngữ pháp trung cấp',
+    courseId: 'course-2',
+    courseTitle: 'Tiếng Nhật N4',
+    level: 'N4',
+    attemptId: 'attempt-2',
+    attemptedAt: '2024-01-20T14:00:00Z',
+    completedAt: '2024-01-20T15:30:00Z',
+    status: 'COMPLETED',
+    score: 92,
+    correctAnswers: 23,
+    totalQuestions: 25,
+    timeSpent: 5400 // 90 minutes
+  }
+]
+
 const ExamHistoryPage: React.FC = () => {
   const navigate = useNavigate()
   const [examHistory, setExamHistory] = useState<ExamHistory[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<ExamHistoryFilter>({
     level: 'ALL',
@@ -16,105 +50,7 @@ const ExamHistoryPage: React.FC = () => {
     sortDirection: 'DESC'
   })
 
-  // Mock data - chỉ bài đã hoàn thành
-  const mockExamHistory: ExamHistory[] = [
-    {
-      examId: '1',
-      examTitle: 'Thi N5 - Từ vựng cơ bản',
-      courseId: 'course-1',
-      courseTitle: 'Tiếng Nhật N5',
-      level: 'N5',
-      attemptId: 'attempt-1',
-      attemptedAt: '2024-01-15T10:00:00Z',
-      completedAt: '2024-01-15T10:45:00Z',
-      status: 'COMPLETED',
-      score: 95.5,
-      correctAnswers: 38,
-      totalQuestions: 40,
-      timeSpent: 2700
-    },
-    {
-      examId: '2',
-      examTitle: 'Thi N5 - Ngữ pháp',
-      courseId: 'course-1',
-      courseTitle: 'Tiếng Nhật N5',
-      level: 'N5',
-      attemptId: 'attempt-2',
-      attemptedAt: '2024-01-10T14:30:00Z',
-      completedAt: '2024-01-10T15:15:00Z',
-      status: 'COMPLETED',
-      score: 85.0,
-      correctAnswers: 42,
-      totalQuestions: 50,
-      timeSpent: 2700
-    },
-    {
-      examId: '3',
-      examTitle: 'Thi N4 - Đọc hiểu',
-      courseId: 'course-2',
-      courseTitle: 'Tiếng Nhật N4',
-      level: 'N4',
-      attemptId: 'attempt-3',
-      attemptedAt: '2024-01-20T09:00:00Z',
-      completedAt: '2024-01-20T09:50:00Z',
-      status: 'COMPLETED',
-      score: 72.0,
-      correctAnswers: 36,
-      totalQuestions: 50,
-      timeSpent: 3000
-    },
-    {
-      examId: '4',
-      examTitle: 'Thi N4 - Nghe hiểu',
-      courseId: 'course-2',
-      courseTitle: 'Tiếng Nhật N4',
-      level: 'N4',
-      attemptId: 'attempt-4',
-      attemptedAt: '2024-01-18T16:00:00Z',
-      completedAt: '2024-01-18T16:40:00Z',
-      status: 'COMPLETED',
-      score: 58.5,
-      correctAnswers: 23,
-      totalQuestions: 40,
-      timeSpent: 2400
-    },
-    {
-      examId: '5',
-      examTitle: 'Thi N3 - Tổng hợp',
-      courseId: 'course-3',
-      courseTitle: 'Tiếng Nhật N3',
-      level: 'N3',
-      attemptId: 'attempt-5',
-      attemptedAt: '2024-01-12T13:00:00Z',
-      completedAt: '2024-01-12T14:30:00Z',
-      status: 'COMPLETED',
-      score: 67.5,
-      correctAnswers: 27,
-      totalQuestions: 40,
-      timeSpent: 5400
-    },
-    {
-      examId: '6',
-      examTitle: 'Thi N2 - Kanji nâng cao',
-      courseId: 'course-4',
-      courseTitle: 'Tiếng Nhật N2',
-      level: 'N2',
-      attemptId: 'attempt-6',
-      attemptedAt: '2024-01-08T11:00:00Z',
-      completedAt: '2024-01-08T12:45:00Z',
-      status: 'COMPLETED',
-      score: 45.0,
-      correctAnswers: 18,
-      totalQuestions: 40,
-      timeSpent: 6300
-    }
-  ]
-
-  useEffect(() => {
-    fetchExamHistory()
-  }, [filter])
-
-  const fetchExamHistory = async () => {
+  const fetchExamHistory = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -129,18 +65,23 @@ const ExamHistoryPage: React.FC = () => {
 
       // Sort data
       filteredData.sort((a, b) => {
-        const aValue = filter.sortBy === 'attemptedAt' ? new Date(a.attemptedAt).getTime() : a.score
-        const bValue = filter.sortBy === 'attemptedAt' ? new Date(b.attemptedAt).getTime() : b.score
-        
+        let aValue: string | number
+        let bValue: string | number
+
+        if (filter.sortBy === 'attemptedAt') {
+          aValue = new Date(a.attemptedAt).getTime()
+          bValue = new Date(b.attemptedAt).getTime()
+        } else {
+          aValue = a.score
+          bValue = b.score
+        }
+
         if (filter.sortDirection === 'ASC') {
           return aValue > bValue ? 1 : -1
         } else {
           return aValue < bValue ? 1 : -1
         }
       })
-
-      // Simulate loading delay
-      await new Promise(resolve => setTimeout(resolve, 500))
       
       setExamHistory(filteredData)
     } catch (err) {
@@ -148,113 +89,87 @@ const ExamHistoryPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filter])
+
+  useEffect(() => {
+    fetchExamHistory()
+  }, [fetchExamHistory])
 
   const handleRetakeExam = (examId: string) => {
     navigate(`/exam/${examId}/preparation`)
   }
 
-  const handleViewDetails = (examId: string, attemptId: string) => {
+  const handleViewResult = (examId: string, attemptId: string) => {
     navigate(`/exam/${examId}/result/${attemptId}`)
   }
 
-  const getScoreColor = (score: number) => {
-    if (score >= 90) return 'text-green-600'
-    if (score >= 80) return 'text-blue-600'
-    if (score >= 70) return 'text-yellow-600'
-    if (score >= 60) return 'text-orange-600'
-    return 'text-red-600'
-  }
-
-  const getScoreBackgroundColor = (score: number) => {
-    if (score >= 90) return 'bg-green-50 border-green-200'
-    if (score >= 80) return 'bg-blue-50 border-blue-200'
-    if (score >= 70) return 'bg-yellow-50 border-yellow-200'
-    if (score >= 60) return 'bg-orange-50 border-orange-200'
-    return 'bg-red-50 border-red-200'
-  }
-
-  const getScoreBadgeColor = (score: number) => {
-    if (score >= 90) return 'bg-green-100 text-green-800 border-green-300'
-    if (score >= 80) return 'bg-blue-100 text-blue-800 border-blue-300'
-    if (score >= 70) return 'bg-yellow-100 text-yellow-800 border-yellow-300'
-    if (score >= 60) return 'bg-orange-100 text-orange-800 border-orange-300'
-    return 'bg-red-100 text-red-800 border-red-300'
-  }
-
-  const formatDuration = (seconds: number) => {
+  const formatTime = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600)
     const minutes = Math.floor((seconds % 3600) / 60)
     const remainingSeconds = seconds % 60
 
     if (hours > 0) {
       return `${hours}h ${minutes}m ${remainingSeconds}s`
-    }
-    if (minutes > 0) {
+    } else if (minutes > 0) {
       return `${minutes}m ${remainingSeconds}s`
+    } else {
+      return `${remainingSeconds}s`
     }
-    return `${remainingSeconds}s`
+  }
+
+  const formatDate = (isoString: string): string => {
+    return new Date(isoString).toLocaleDateString('vi-VN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const getScoreColor = (score: number): string => {
+    if (score >= 90) return 'bg-green-100 text-green-800'
+    if (score >= 70) return 'bg-blue-100 text-blue-800'
+    if (score >= 50) return 'bg-yellow-100 text-yellow-800'
+    return 'bg-red-100 text-red-800'
+  }
+
+  const getLevelColor = (level: string): string => {
+    switch (level) {
+      case 'N5': return 'bg-green-100 text-green-800'
+      case 'N4': return 'bg-blue-100 text-blue-800'
+      case 'N3': return 'bg-yellow-100 text-yellow-800'
+      case 'N2': return 'bg-orange-100 text-orange-800'
+      case 'N1': return 'bg-red-100 text-red-800'
+      default: return 'bg-gray-100 text-gray-800'
+    }
   }
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-lg">Đang tải...</div>
-        </div>
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Lịch sử thi của tôi</h1>
+    <div className="max-w-6xl mx-auto p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold text-gray-900">Lịch sử thi</h1>
       </div>
 
-      {/* Statistics Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <Card className="p-4 bg-blue-50 border-blue-200">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">{examHistory.length}</div>
-            <div className="text-sm text-blue-600">Tổng số bài thi</div>
-          </div>
-        </Card>
-        <Card className="p-4 bg-green-50 border-green-200">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">
-              {examHistory.length}
-            </div>
-            <div className="text-sm text-green-600">Đã hoàn thành</div>
-          </div>
-        </Card>
-        <Card className="p-4 bg-blue-50 border-blue-200">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">
-              {examHistory.length > 0 
-                ? Math.max(...examHistory.map(h => h.score)).toFixed(1)
-                : '0'}
-            </div>
-            <div className="text-sm text-blue-600">Điểm cao nhất</div>
-          </div>
-        </Card>
-        <Card className="p-4 bg-purple-50 border-purple-200">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600">
-              {examHistory.length > 0 
-                ? (examHistory.reduce((sum, h) => sum + h.score, 0) / examHistory.length).toFixed(1)
-                : '0'}
-            </div>
-            <div className="text-sm text-purple-600">Điểm trung bình</div>
-          </div>
-        </Card>
-      </div>
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="mb-6 flex flex-wrap gap-4">
         <select
           value={filter.level}
-          onChange={(e) => setFilter((prev: ExamHistoryFilter) => ({ ...prev, level: e.target.value as any }))}
+          onChange={(e) => setFilter((prev: ExamHistoryFilter) => ({ ...prev, level: e.target.value as ExamHistoryFilter['level'] }))}
           className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="ALL">Tất cả trình độ</option>
@@ -269,7 +184,11 @@ const ExamHistoryPage: React.FC = () => {
           value={`${filter.sortBy}-${filter.sortDirection}`}
           onChange={(e) => {
             const [sortBy, sortDirection] = e.target.value.split('-')
-            setFilter((prev: ExamHistoryFilter) => ({ ...prev, sortBy: sortBy as any, sortDirection: sortDirection as any }))
+            setFilter((prev: ExamHistoryFilter) => ({ 
+              ...prev, 
+              sortBy: sortBy as ExamHistoryFilter['sortBy'], 
+              sortDirection: sortDirection as ExamHistoryFilter['sortDirection'] 
+            }))
           }}
           className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
@@ -280,100 +199,82 @@ const ExamHistoryPage: React.FC = () => {
         </select>
       </div>
 
-      {error && (
-        <Card className="mb-6 p-4 border-red-200 bg-red-50">
-          <p className="text-red-600">{error}</p>
-        </Card>
-      )}
-
-      {examHistory.length === 0 ? (
-        <Card className="p-8 text-center">
-          <p className="text-gray-500 mb-4">Bạn chưa có lịch sử thi nào</p>
-          <Button onClick={() => navigate('/courses')}>
-            Khám phá khóa học
-          </Button>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {examHistory.map((history) => (
-            <Card 
-              key={`${history.examId}-${history.attemptId}`} 
-              className={`p-6 transition-all hover:shadow-lg ${
-                history.status === 'COMPLETED' ? getScoreBackgroundColor(history.score) : 'bg-gray-50 border-gray-200'
-              }`}
-            >
-              <div className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900 truncate" title={history.examTitle}>
-                      {history.examTitle}
-                    </h3>
-                    <Badge variant="default" className="bg-blue-100 text-blue-800">
-                      {history.level}
-                    </Badge>
+      {/* Exam History List */}
+      <div className="space-y-4">
+        {examHistory.length === 0 ? (
+          <Card className="p-8 text-center">
+            <div className="text-gray-500">
+              <p className="text-lg font-medium">Chưa có lịch sử thi nào</p>
+              <p className="mt-2">Hãy thực hiện bài thi đầu tiên của bạn!</p>
+            </div>
+          </Card>
+        ) : (
+          examHistory.map((exam) => (
+            <Card key={exam.attemptId} className="p-6 hover:shadow-lg transition-shadow">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                        {exam.examTitle}
+                      </h3>
+                      <p className="text-sm text-gray-600 mb-2">
+                        Khóa học: {exam.courseTitle}
+                      </p>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        <Badge className={getLevelColor(exam.level)}>
+                          {exam.level}
+                        </Badge>
+                        <Badge className={getScoreColor(exam.score)}>
+                          {exam.score} điểm
+                        </Badge>
+                      </div>
+                    </div>
                   </div>
-                  
-                  <p className="text-sm text-gray-600 mb-1">{history.courseTitle}</p>
-                  <p className="text-xs text-gray-500">
-                    Hoàn thành: {new Date(history.completedAt).toLocaleString('vi-VN')}
-                  </p>
+
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600">
+                    <div>
+                      <span className="font-medium">Thời gian thi:</span>
+                      <p>{formatDate(exam.attemptedAt)}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium">Kết quả:</span>
+                      <p>{exam.correctAnswers}/{exam.totalQuestions} câu đúng</p>
+                    </div>
+                    <div>
+                      <span className="font-medium">Thời gian làm bài:</span>
+                      <p>{formatTime(exam.timeSpent)}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium">Trạng thái:</span>
+                      <p className="text-green-600 font-medium">Hoàn thành</p>
+                    </div>
+                  </div>
                 </div>
 
-                {history.status === 'COMPLETED' && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-center">
-                      <div className={`text-center px-4 py-2 rounded-lg border ${getScoreBadgeColor(history.score)}`}>
-                        <div className={`text-2xl font-bold ${getScoreColor(history.score)}`}>
-                          {history.score.toFixed(1)}
-                        </div>
-                        <div className="text-xs">điểm</div>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="text-center">
-                        <div className="font-medium text-gray-900">
-                          {history.correctAnswers}/{history.totalQuestions}
-                        </div>
-                        <div className="text-xs text-gray-500">Đúng/Tổng</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="font-medium text-gray-900">
-                          {((history.correctAnswers / history.totalQuestions) * 100).toFixed(1)}%
-                        </div>
-                        <div className="text-xs text-gray-500">Tỷ lệ</div>
-                      </div>
-                    </div>
-                    
-                    <div className="text-center text-sm text-gray-600">
-                      Thời gian: {formatDuration(history.timeSpent)}
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col sm:flex-row gap-2 lg:flex-col lg:w-32">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleViewDetails(history.examId, history.attemptId)}
+                    onClick={() => handleViewResult(exam.examId, exam.attemptId)}
                     className="w-full"
                   >
-                    Chi tiết kết quả
+                    Xem kết quả
                   </Button>
-
                   <Button
+                    variant="default"
                     size="sm"
-                    onClick={() => handleRetakeExam(history.examId)}
+                    onClick={() => handleRetakeExam(exam.examId)}
                     className="w-full"
                   >
-                    Làm lại
+                    Thi lại
                   </Button>
                 </div>
               </div>
             </Card>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
     </div>
   )
 }

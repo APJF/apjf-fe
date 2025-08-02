@@ -6,49 +6,10 @@ import { Button } from '../components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
-import { StaffCourseService } from '../services/staffCourseService'
-import { StaffChapterService, type Chapter } from '../services/staffChapterService'
+import { CourseService } from '../services/courseService' // Sử dụng CourseService thay vì StaffCourseService
 import { StaffExamService } from '../services/staffExamService'
-import type { StaffCourseDetail } from '../types/staffCourse'
+import type { Course, Chapter } from '../types/course' // Sử dụng Course và Chapter types
 import type { ExamSummary } from '../types/exam'
-
-// Hàm sắp xếp chapters theo thứ tự prerequisite
-const sortChaptersByPrerequisite = (chapters: Chapter[]): Chapter[] => {
-  const sorted: Chapter[] = []
-  const remaining = [...chapters]
-  
-  // Thêm các chapters không có prerequisite trước
-  const chaptersWithoutPrereq = remaining.filter(chapter => !chapter.prerequisiteChapterId)
-  sorted.push(...chaptersWithoutPrereq)
-  
-  // Loại bỏ các chapters đã thêm khỏi danh sách còn lại
-  chaptersWithoutPrereq.forEach(chapter => {
-    const index = remaining.findIndex(c => c.id === chapter.id)
-    if (index > -1) remaining.splice(index, 1)
-  })
-  
-  // Thêm các chapters có prerequisite theo thứ tự
-  while (remaining.length > 0) {
-    const nextChapters = remaining.filter(chapter => 
-      chapter.prerequisiteChapterId && 
-      sorted.some(sortedChapter => sortedChapter.id === chapter.prerequisiteChapterId)
-    )
-    
-    if (nextChapters.length === 0) {
-      // Nếu không tìm thấy prerequisite, thêm tất cả chapters còn lại
-      sorted.push(...remaining)
-      break
-    }
-    
-    sorted.push(...nextChapters)
-    nextChapters.forEach(chapter => {
-      const index = remaining.findIndex(c => c.id === chapter.id)
-      if (index > -1) remaining.splice(index, 1)
-    })
-  }
-  
-  return sorted
-}
 
 // Hàm lấy màu sắc theo status
 const getStatusColor = (status: string) => {
@@ -83,7 +44,7 @@ export const StaffCourseDetailPage: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   
-  const [course, setCourse] = useState<StaffCourseDetail | null>(null)
+  const [course, setCourse] = useState<Course | null>(null)
   const [chapters, setChapters] = useState<Chapter[]>([])
   const [exams, setExams] = useState<ExamSummary[]>([])
   const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set())
@@ -100,32 +61,32 @@ export const StaffCourseDetailPage: React.FC = () => {
     setError(null)
 
     try {
-      // Lấy thông tin cơ bản và chi tiết với chapters
+      console.log('🔍 Fetching course data for ID:', courseId);
+      
+      // Sử dụng API giống như CourseDetailPage
       const [courseRes, chaptersRes] = await Promise.all([
-        StaffCourseService.getCourseDetail(courseId),
-        StaffChapterService.getChaptersByCourse(courseId)
+        CourseService.getCourseDetail(courseId), // API mới: GET /api/course/{courseId}
+        CourseService.getChaptersByCourseId(courseId) // API mới: GET /api/chapters/course/{courseId}
       ]);
 
+      console.log('📊 Course Response:', courseRes);
+      console.log('📊 Chapters Response:', chaptersRes);
+
       if (courseRes.success) {
-        // Convert Course to StaffCourseDetail by adding chapters
-        const courseData: StaffCourseDetail = {
-          ...courseRes.data,
-          description: courseRes.data.description || '',
-          requirement: courseRes.data.requirement || '',
-          chapters: [],
-          enrollmentCount: 0,
-          rating: courseRes.data.averageRating || 0
-        };
-        setCourse(courseData);
+        setCourse(courseRes.data);
+        console.log('✅ Course data set:', courseRes.data);
       } else {
+        console.error('❌ Course fetch failed:', courseRes.message);
         setError(courseRes.message || "Không thể tải thông tin khóa học");
       }
 
       if (chaptersRes.success) {
-        const sortedChapters = sortChaptersByPrerequisite(chaptersRes.data || [])
-        setChapters(sortedChapters);
+        // Chuyển đổi từ Chapter[] sang Chapter[] (có thể cần format khác)
+        setChapters(chaptersRes.data || []);
+        console.log('✅ Chapters data set:', chaptersRes.data);
       } else {
-        console.error('Error fetching chapters:', chaptersRes.message);
+        console.error('❌ Chapters fetch failed:', chaptersRes.message);
+        setChapters([]);
       }
 
       // Load exams for this course
@@ -354,9 +315,9 @@ export const StaffCourseDetailPage: React.FC = () => {
                     
                     <div className="text-center p-4 bg-purple-50 rounded-lg">
                       <div className="text-2xl font-bold text-purple-600 mb-1 flex items-center justify-center gap-1">
-                        {course.rating ? (
+                        {course.averageRating ? (
                           <>
-                            {course.rating.toFixed(1)}
+                            {course.averageRating.toFixed(1)}
                             <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
                           </>
                         ) : (
@@ -433,13 +394,13 @@ export const StaffCourseDetailPage: React.FC = () => {
                     <Users className="h-4 w-4 mr-2" />
                     Xem học viên {course.enrollmentCount ? `(${course.enrollmentCount})` : '(0)'}
                   </Button> */}
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full"
                     onClick={() => navigate(`/staff/course/${course.id}/reviews`)}
                   >
                     <Star className="h-4 w-4 mr-2" />
-                    Xem đánh giá ({course.rating ? `${course.rating.toFixed(1)}★` : "0★"})
+                    Xem đánh giá ({course.averageRating ? `${course.averageRating.toFixed(1)}★` : "0★"})
                   </Button>
                 </CardContent>
               </Card>

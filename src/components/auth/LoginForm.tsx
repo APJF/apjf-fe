@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom"
 import { BookOpen, Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react"
 import { useAuth } from "../../hooks/useAuth"
 import type { LoginCredentials } from "../../types/auth"
-import { useToast } from "../ui/toast"
+import { useToast } from "../../hooks/useToast"
 import authService from "../../services/authService"
 
 export function LoginForm() {
@@ -17,7 +17,7 @@ export function LoginForm() {
   const [isUnverified, setIsUnverified] = useState(false)
   const navigate = useNavigate()
   const { login } = useAuth()
-  const { toast } = useToast()
+  const { showToast } = useToast()
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -36,7 +36,7 @@ export function LoginForm() {
     try {
       const data = await login(formData)
       if (data.success) {
-        toast.success("Thành công", data.message)
+        showToast("success", data.message)
         navigate("/")
       } else {
         setMessage(data.message || "Email hoặc mật khẩu không đúng.")
@@ -57,7 +57,7 @@ export function LoginForm() {
     try {
       const response = await authService.sendVerificationOtp(formData.email)
       if (response.success) {
-        toast.success("Thành công", response.message)
+        showToast("success", response.message)
         navigate("/verify-otp", {
           state: {
             email: formData.email,
@@ -75,15 +75,15 @@ export function LoginForm() {
     }
   }
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleLogin = () => {
     setIsLoading(true)
     setMessage("")
     try {
-      // Tích hợp Google OAuth nếu cần
-      setMessage("Tính năng đăng nhập Google đang được phát triển")
-    } catch {
-      setMessage("Đăng nhập Google thất bại")
-    } finally {
+      // Chuyển hướng đến Google OAuth
+      authService.initiateGoogleLogin()
+    } catch (error) {
+      setMessage("Không thể kết nối đến Google OAuth")
+      console.error("Google login error:", error)
       setIsLoading(false)
     }
   }

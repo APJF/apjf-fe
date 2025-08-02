@@ -34,20 +34,49 @@ export default function CourseDetailPage() {
     setLoading(true);
     setError(null);
     try {
+      console.log('Fetching course detail for ID:', courseId);
+      
       // Gọi song song 2 API mới
       const [courseRes, chaptersRes] = await Promise.all([
-        CourseService.getCourseById(courseId!),
-        CourseService.getChaptersByCourseId(courseId!)
+        CourseService.getCourseDetail(courseId!), // Sử dụng API mới GET /api/course/{courseId}
+        CourseService.getChaptersByCourseId(courseId!) // Sử dụng API GET /api/chapters/course/{courseId}
       ]);
-      if (courseRes.success && chaptersRes.success) {
+      
+      console.log('Course response:', courseRes);
+      console.log('Chapters response:', chaptersRes);
+      
+      if (courseRes.success) {
         setCourse(courseRes.data);
+      } else {
+        setError(courseRes.message || "Không thể tải thông tin khóa học");
+        return;
+      }
+      
+      if (chaptersRes.success) {
         setChapters(chaptersRes.data);
       } else {
-        setError(courseRes.message || chaptersRes.message || "Không thể tải thông tin khóa học");
+        // Chapters không thành công không phải lỗi critical, chỉ log warning
+        console.warn('Failed to load chapters:', chaptersRes.message);
+        setChapters([]);
       }
-    } catch (err) {
-      setError("Lỗi kết nối. Vui lòng thử lại.");
+      
+    } catch (err: unknown) {
       console.error("Error fetching course/chapter detail:", err);
+      
+      // Parse error message
+      let errorMessage = "Lỗi kết nối. Vui lòng thử lại.";
+      if (err && typeof err === 'object' && 'response' in err) {
+        const axiosError = err as { response?: { status?: number }; message?: string };
+        if (axiosError.response?.status === 404) {
+          errorMessage = "Không tìm thấy khóa học này.";
+        } else if (axiosError.response?.status === 500) {
+          errorMessage = "Lỗi server. Vui lòng thử lại sau.";
+        } else if (axiosError.message) {
+          errorMessage = axiosError.message;
+        }
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -55,7 +84,7 @@ export default function CourseDetailPage() {
 
   const checkEnrollmentStatus = () => {
     // Giả lập kiểm tra đã đăng ký khóa học hay chưa
-    const token = localStorage.getItem("access_token");
+    const token = localStorage.getItem("accessToken");
     if (token) {
       // Trong thực tế, bạn sẽ cần gọi API để kiểm tra
       setIsEnrolled(true); 

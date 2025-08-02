@@ -8,7 +8,8 @@ import { Input } from '../components/ui/Input'
 import { Label } from '../components/ui/Label'
 import { Textarea } from '../components/ui/Textarea'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
-import { StaffCourseService, type CreateCourseRequest } from '../services/staffCourseService'
+import { CourseService } from '../services/courseService'
+import type { CreateCourseRequest } from '../types/course'
 import { useAuth } from '../hooks/useAuth'
 
 const StaffCreateCoursePage: React.FC = () => {
@@ -38,7 +39,7 @@ const StaffCreateCoursePage: React.FC = () => {
     }
     
     const hasStaffRole = user.roles?.some(role => 
-      ['STAFF', 'ADMIN', 'staff', 'admin'].includes(role)
+      ['ROLE_STAFF', 'ROLE_ADMIN', 'ROLE_MANAGER'].includes(role)
     )
     
     console.log('🔐 User Permission Check:', {
@@ -136,8 +137,8 @@ const StaffCreateCoursePage: React.FC = () => {
     }
 
     // Kiểm tra authentication trước khi gửi request
-    const token = localStorage.getItem('access_token')
-    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    const token = localStorage.getItem('accessToken')
+    const user = JSON.parse(localStorage.getItem('userInfo') || localStorage.getItem('user') || '{}')
     
     console.log('🔍 Debug Auth Info:', {
       hasToken: !!token,
@@ -171,7 +172,7 @@ const StaffCreateCoursePage: React.FC = () => {
 
       console.log('📤 Sending course data:', courseData)
 
-      await StaffCourseService.createCourse(courseData)
+      await CourseService.createCourse(courseData)
       
       // Navigate with force refresh to update course list
       navigate('/staff/courses', { 
@@ -187,7 +188,7 @@ const StaffCreateCoursePage: React.FC = () => {
       
       // Xử lý error chi tiết
       if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { status: number, data?: any } }
+        const axiosError = error as { response?: { status: number, data?: unknown } }
         
         console.error('📥 Response error details:', {
           status: axiosError.response?.status,
@@ -202,7 +203,8 @@ const StaffCreateCoursePage: React.FC = () => {
             setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
             break
           case 400: {
-            const errorMsg = axiosError.response?.data?.message || 'Dữ liệu không hợp lệ'
+            const errorData = axiosError.response?.data as { message?: string }
+            const errorMsg = errorData?.message || 'Dữ liệu không hợp lệ'
             setError(`Lỗi dữ liệu: ${errorMsg}`)
             break
           }

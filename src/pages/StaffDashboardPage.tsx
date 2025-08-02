@@ -52,7 +52,7 @@ interface QuickAction {
   id: number
   title: string
   description: string
-  icon: any
+  icon: React.ComponentType<{ className?: string }>
   color: string
   action: string
 }
@@ -65,8 +65,8 @@ const getDashboardStats = async (): Promise<{
   // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 1000))
   
-  // Lấy access_token từ localStorage (tương tự như axios interceptor)
-  const token = localStorage.getItem('access_token')
+  // Lấy accessToken từ localStorage (tương tự như axios interceptor)
+  const token = localStorage.getItem('accessToken')
   
   if (!token) {
     throw new Error('Unauthorized - No access token')

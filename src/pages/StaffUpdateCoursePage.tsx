@@ -10,7 +10,7 @@ import { Textarea } from '../components/ui/Textarea'
 import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
 import { StaffCourseService, type UpdateCourseRequest } from '../services/staffCourseService'
-import { useToast } from '../components/ui/toast/useToast'
+import { useToast } from '../hooks/useToast'
 import type { StaffCourseDetail } from '../types/staffCourse'
 
 interface LocationState {
@@ -39,7 +39,7 @@ const StaffUpdateCoursePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [dragActive, setDragActive] = useState(false)
-  const { toast } = useToast()
+  const { showToast } = useToast()
 
   const [formData, setFormData] = useState<UpdateCourseFormData>({
     id: '',
@@ -128,9 +128,9 @@ const StaffUpdateCoursePage: React.FC = () => {
       const imageUrl = URL.createObjectURL(file)
       setFormData(prev => ({ ...prev, image: imageUrl }))
     } else {
-      toast.error("Lỗi", "Vui lòng chọn file ảnh (JPG, PNG, GIF)")
+      showToast("error", "Vui lòng chọn file ảnh (JPG, PNG, GIF)")
     }
-  }, [toast])
+  }, [showToast])
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -229,7 +229,7 @@ const StaffUpdateCoursePage: React.FC = () => {
       } else {
         const message = response.message || 'Cập nhật khóa học thất bại'
         setError(message)
-        toast.error("Lỗi", message)
+        showToast("error", message)
       }
     } catch (error: unknown) {
       console.error('Error updating course:', error)
@@ -242,7 +242,7 @@ const StaffUpdateCoursePage: React.FC = () => {
         }
       }
       setError(errorMessage)
-      toast.error("Lỗi", errorMessage)
+      showToast("error", errorMessage)
     } finally {
       setIsLoading(false)
     }

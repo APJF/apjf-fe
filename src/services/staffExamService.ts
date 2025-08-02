@@ -18,13 +18,27 @@ export class StaffExamService {
 
   // Lấy danh sách exam theo scope
   static async getExamsByScope(scope: 'course' | 'chapter' | 'unit', scopeId: string): Promise<ExamSummary[]> {
-    const token = localStorage.getItem('token')
+    // const token = localStorage.getItem('token')
     
     // Mock data for development - replace with real API call later
+    // Note: scopeId will be used when implementing real API integration
+    console.log(`Fetching exams for ${scope} with ID: ${scopeId}`)
+    
+    const getScopeTitle = (scope: string) => {
+      switch (scope) {
+        case 'course': return 'N5'
+        case 'chapter': return 'Chương'
+        case 'unit': return 'Bài'
+        default: return 'Bài'
+      }
+    }
+
+    const scopeTitle = getScopeTitle(scope)
+    
     const mockExamSummaries: ExamSummary[] = [
       {
         id: 'exam-1',
-        title: `Kiểm tra giữa kỳ ${scope === 'course' ? 'N5' : scope === 'chapter' ? 'Chương' : 'Bài'}`,
+        title: `Kiểm tra giữa kỳ ${scopeTitle}`,
         description: `Bài kiểm tra đánh giá kiến thức cơ bản cho ${scope}`,
         duration: 45,
         totalPoints: 100,
@@ -36,7 +50,7 @@ export class StaffExamService {
       },
       {
         id: 'exam-2',
-        title: `Kiểm tra cuối kỳ ${scope === 'course' ? 'N5' : scope === 'chapter' ? 'Chương' : 'Bài'}`,
+        title: `Kiểm tra cuối kỳ ${scopeTitle}`,
         description: `Bài kiểm tra tổng hợp toàn bộ ${scope}`,
         duration: 60,
         totalPoints: 150,
@@ -61,7 +75,7 @@ export class StaffExamService {
 
   // Lấy chi tiết exam
   static async getExamById(examId: string): Promise<ExamData> {
-    const token = localStorage.getItem('token')
+    // const token = localStorage.getItem('token')
     
     // Mock data for development - replace with real API call later
     const mockExamData: ExamData = {

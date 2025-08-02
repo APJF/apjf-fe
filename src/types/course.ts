@@ -7,12 +7,9 @@ export interface Exam {
   id: string;
   title: string;
   description: string;
-  duration: number; // Hợp nhất từ courseDetail.ts
-  durationInMinutes?: number; // Giữ lại từ course.ts, có thể dùng ở đâu đó
-  numberOfQuestions?: number; // Giữ lại từ course.ts
-  status: string | null;
-  examScopeType?: string; // Hợp nhất từ courseDetail.ts
-  createdAt?: string; // Hợp nhất từ courseDetail.ts
+  durationInMinutes: number;
+  numberOfQuestions: number;
+  status: "ACTIVE" | "INACTIVE";
 }
 
 export interface Material {
@@ -37,11 +34,11 @@ export interface Chapter {
   id: string;
   title: string;
   description: string;
-  status: string;
+  status: "ACTIVE" | "INACTIVE";
   courseId: string;
   prerequisiteChapterId: string | null;
   exams: Exam[];
-  units: Unit[]; // Sử dụng Unit[] thay vì any[]
+  units?: Unit[];
 }
 
 export interface Course {
@@ -49,17 +46,47 @@ export interface Course {
   title: string;
   description: string;
   duration: number;
-  level: string;
+  level: "N5" | "N4" | "N3" | "N2" | "N1";
   image: string | null;
   requirement: string | null;
-  status: string;
+  status: "ACTIVE" | "INACTIVE";
   prerequisiteCourseId: string | null;
   topics: Topic[];
   averageRating?: number;
   exams: Exam[];
-  chapters?: Chapter[]; // Thêm từ courseDetail.ts
+  chapters?: Chapter[];
 }
 
+// API Response for Course Detail
+export interface CourseDetailApiResponse {
+  success: boolean;
+  message: string;
+  data: {
+    id: string;
+    title: string;
+    description: string;
+    duration: number;
+    level: "N5" | "N4" | "N3" | "N2" | "N1";
+    image: string;
+    requirement: string;
+    status: "ACTIVE" | "INACTIVE";
+    prerequisiteCourseId: string;
+    topics: Topic[];
+    exams: Exam[];
+    averageRating: number;
+  };
+  timestamp: number;
+}
+
+// API Response for Chapters
+export interface ChaptersApiResponse {
+  success: boolean;
+  message: string;
+  data: Chapter[];
+  timestamp: number;
+}
+
+// Existing API responses
 export interface CourseApiResponse {
   success: boolean;
   message: string;
@@ -101,6 +128,14 @@ export interface TopCoursesApiResponse {
   timestamp: number;
 }
 
+// API response cho /api/courses (trả về tất cả courses không pagination)
+export interface AllCoursesApiResponse {
+  success: boolean;
+  message: string;
+  data: Course[];
+  timestamp: number;
+}
+
 export interface CourseFilters {
   searchTitle?: string;
   level?: string | null;
@@ -124,16 +159,48 @@ export interface PopularCourseUI {
   features: string[];
 }
 
-// Thêm các kiểu response từ courseDetail.ts
-export interface CourseDetailApiResponse {
+// Create Course Request for staff
+export interface CreateCourseRequest {
+  id: string;
+  title: string;
+  description: string;
+  duration: number;
+  level: string;
+  image: string;
+  requirement: string;
+  status: 'INACTIVE' | 'ACTIVE';
+  prerequisiteCourseId: string;
+  topicIds: string[];
+  examIds: string[];
+}
+
+// Create Chapter Request for staff
+export interface CreateChapterRequest {
+  id: string;
+  title: string;
+  description: string;
+  status: 'ACTIVE' | 'INACTIVE';
+  courseId: string;
+  prerequisiteChapterId: string | null;
+}
+
+// Create Course API Response
+export interface CreateCourseApiResponse {
   success: boolean;
   message: string;
-  data: {
-    course: Course;
-  };
+  data: Course;
   timestamp: number;
 }
 
+// Create Chapter API Response
+export interface CreateChapterApiResponse {
+  success: boolean;
+  message: string;
+  data: Chapter;
+  timestamp: number;
+}
+
+// Chapter Detail API Response (for /api/chapters/{chapterId})
 export interface ChapterDetailApiResponse {
   success: boolean;
   message: string;
@@ -141,9 +208,28 @@ export interface ChapterDetailApiResponse {
   timestamp: number;
 }
 
-export interface UnitListApiResponse {
+// Units API Response (for /api/units/chapter/{chapterId})
+export interface UnitsApiResponse {
   success: boolean;
   message: string;
   data: Unit[];
+  timestamp: number;
+}
+
+// Create Unit Request for staff
+export interface CreateUnitRequest {
+  id: string;
+  title: string;
+  description: string;
+  status: 'ACTIVE' | 'INACTIVE';
+  chapterId: string;
+  prerequisiteUnitId: string | null;
+}
+
+// Create Unit API Response
+export interface CreateUnitApiResponse {
+  success: boolean;
+  message: string;
+  data: Unit;
   timestamp: number;
 }

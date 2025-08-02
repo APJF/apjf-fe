@@ -1,6 +1,6 @@
 import React from 'react';
 import AppRouter from './router/AppRouter';
-import { ToastProvider } from './components/ui/toast';
+import { ToastProvider } from './components/ui/ToastProvider';
 
 /**
  * App Component - Root component của ứng dụng

@@ -1,5 +1,5 @@
 import api from '@/api/axios';
-import type { ChapterDetailApiResponse, UnitListApiResponse } from '@/types/course';
+import type { ChapterDetailApiResponse, UnitsApiResponse } from '@/types/course';
 
 export const getChapterById = async (id: string) => {
   const response = await api.get<ChapterDetailApiResponse>(`/chapters/${id}`);
@@ -7,6 +7,6 @@ export const getChapterById = async (id: string) => {
 };
 
 export const getUnitsByChapterId = async (chapterId: string) => {
-  const response = await api.get<UnitListApiResponse>(`/units/chapter/${chapterId}`);
+  const response = await api.get<UnitsApiResponse>(`/units/chapter/${chapterId}`);
   return response.data;
 };

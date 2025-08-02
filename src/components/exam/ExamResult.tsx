@@ -72,12 +72,11 @@ export function ExamResult({ examResult, onRestart, onShowAnswers }: Readonly<Ex
   }, [examResult.startedAt, examResult.submittedAt])
 
   // Helper function để lấy màu progress bar
-  const getProgressBarColor = (percent: number): string => {
-    if (percent < 30) return "bg-red-500"
-    if (percent < 50) return "bg-orange-500" 
-    if (percent < 70) return "bg-yellow-500"
-    if (percent < 90) return "bg-green-500"
-    return "bg-green-600"
+  const getProgressBarColor = (percent: number) => {
+    if (percent < 50) return "bg-red-300" 
+    if (percent < 70) return "bg-red-400"
+    if (percent < 90) return "bg-red-500"
+    return "bg-red-600"
   }
 
   // Helper function để lấy status display
@@ -118,42 +117,42 @@ export function ExamResult({ examResult, onRestart, onShowAnswers }: Readonly<Ex
         level: "Cần cải thiện",
         message: "Bạn đã có tiến bộ nhưng vẫn cần ôn luyện thêm để đạt kết quả tốt hơn.",
         icon: AlertTriangle,
-        color: "text-orange-600",
-        bgColor: "bg-orange-50",
-        borderColor: "border-orange-200",
-        scoreColor: "text-orange-600",
-        scoreBg: "bg-orange-50",
+        color: "text-red-600",
+        bgColor: "bg-red-50",
+        borderColor: "border-red-200",
+        scoreColor: "text-red-600",
+        scoreBg: "bg-red-100",
       }
     } else if (percent < 70) {
       return {
         level: "Trung bình",
         message: "Kết quả ổn nhưng bạn có thể làm tốt hơn. Hãy ôn luyện thêm một chút.",
         icon: Target,
-        color: "text-yellow-600",
-        bgColor: "bg-yellow-50",
-        borderColor: "border-yellow-200",
-        scoreColor: "text-yellow-600",
-        scoreBg: "bg-yellow-50",
+        color: "text-red-700",
+        bgColor: "bg-red-100",
+        borderColor: "border-red-300",
+        scoreColor: "text-red-700",
+        scoreBg: "bg-red-200",
       }
     } else if (percent < 90) {
       return {
         level: "Đạt",
         message: "Chúc mừng! Bạn đã đạt kết quả tốt. Tiếp tục duy trì phong độ này.",
         icon: CheckCircle,
-        color: "text-green-600",
-        bgColor: "bg-green-50",
-        borderColor: "border-green-200",
-        scoreColor: "text-green-600",
-        scoreBg: "bg-green-50",
+        color: "text-red-800",
+        bgColor: "bg-red-200",
+        borderColor: "border-red-400",
+        scoreColor: "text-red-800",
+        scoreBg: "bg-red-300",
       }
     } else if (percent < 100) {
       return {
         level: "Giỏi",
         message: "Xuất sắc! Bạn đã thể hiện rất tốt. Chỉ cần một chút nữa là hoàn hảo.",
         icon: Star,
-        color: "text-green-700",
-        bgColor: "bg-green-100",
-        borderColor: "border-green-300",
+        color: "text-red-900",
+        bgColor: "bg-red-300",
+        borderColor: "border-red-500",
         scoreColor: "text-green-700",
         scoreBg: "bg-green-100",
       }

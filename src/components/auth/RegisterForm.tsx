@@ -2,7 +2,7 @@ import React, { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { BookOpen, Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react"
 import authService from "../../services/authService"
-import { useToast } from "../ui/toast"
+import { useToast } from "../../hooks/useToast"
 
 interface RegisterData {
   email: string
@@ -26,7 +26,7 @@ export function RegisterForm() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<ValidationErrors>({})
-  const { toast } = useToast()
+  const { showToast } = useToast()
   const navigate = useNavigate()
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,7 +56,7 @@ export function RegisterForm() {
       })
 
       if (response.success) {
-        toast.success("Thành công", response.message)
+        showToast("success", response.message)
         navigate("/verify-otp", {
           state: {
             email: formData.email,
@@ -80,13 +80,11 @@ export function RegisterForm() {
 
     try {
       // Tích hợp Google OAuth nếu cần
-      toast.error(
-        "Chưa hỗ trợ",
+      showToast("error", 
         "Tính năng đăng ký Google đang được phát triển"
       )
     } catch {
-      toast.error(
-        "Lỗi",
+      showToast("error", 
         "Đăng ký Google thất bại"
       )
     } finally {

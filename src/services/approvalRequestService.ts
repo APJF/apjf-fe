@@ -1,45 +1,27 @@
 import axiosInstance from '../api/axios';
 import type { ApprovalRequest, ApprovalDecision, ApprovalRequestResponse, ApprovalRequestFilters } from '../types/approvalRequest';
 
-// Helper function để lấy headers với token
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('access_token')
-  return token ? {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-  } : {
-    'Content-Type': 'application/json'
-  }
-}
-
 export class ApprovalRequestService {
   private static readonly BASE_URL = '/approval-requests';
-  private static readonly VALID_DECISIONS = ['APPROVED', 'REJECTED'] as const;
   private static readonly VALID_TARGET_TYPES = ['COURSE', 'CHAPTER', 'UNIT'] as const;
+  private static readonly VALID_DECISIONS = ['APPROVED', 'REJECTED'] as const;
   
   private static readonly ERROR_MESSAGES = {
-    INVALID_ID: 'Invalid request ID provided',
-    INVALID_DECISION: 'Invalid decision type',
-    INVALID_TARGET_TYPE: 'Invalid target type',
+    INVALID_ID: 'Invalid ID: must be a positive integer',
     DECISION_REQUIRED: 'Decision is required',
-    FEEDBACK_REQUIRED: 'Feedback is required when rejecting a request',
-    AUTH_TOKEN_MISSING: 'Authentication token not found',
+    INVALID_DECISION: 'Invalid decision',
+    FEEDBACK_REQUIRED: 'Feedback is required for rejection',
+    INVALID_TARGET_TYPE: 'Invalid target type',
     CREATOR_ID_REQUIRED: 'Creator ID is required',
     REVIEWER_ID_REQUIRED: 'Reviewer ID is required',
     STAFF_ID_REQUIRED: 'Staff ID is required'
-  } as const;
+  };
 
-  // Helper function to get headers with authentication
   private static getHeaders() {
-    const token = localStorage.getItem('access_token');
-    
-    if (!token) {
-      throw new Error(this.ERROR_MESSAGES.AUTH_TOKEN_MISSING);
-    }
-    
+    const token = localStorage.getItem('token');
     return {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
     };
   }
 
@@ -124,7 +106,7 @@ export class ApprovalRequestService {
       throw new Error(this.ERROR_MESSAGES.DECISION_REQUIRED);
     }
 
-    if (!this.VALID_DECISIONS.includes(decision.decision as any)) {
+    if (!this.VALID_DECISIONS.includes(decision.decision)) {
       throw new Error(`${this.ERROR_MESSAGES.INVALID_DECISION}. Must be one of: ${this.VALID_DECISIONS.join(', ')}`);
     }
 
@@ -183,7 +165,7 @@ export class ApprovalRequestService {
    * Lấy danh sách requests theo loại target
    */
   static async getRequestsByType(targetType: 'COURSE' | 'CHAPTER' | 'UNIT'): Promise<ApprovalRequest[]> {
-    if (!this.VALID_TARGET_TYPES.includes(targetType as any)) {
+    if (!this.VALID_TARGET_TYPES.includes(targetType)) {
       throw new Error(`${this.ERROR_MESSAGES.INVALID_TARGET_TYPE}. Must be one of: ${this.VALID_TARGET_TYPES.join(', ')}`);
     }
     
