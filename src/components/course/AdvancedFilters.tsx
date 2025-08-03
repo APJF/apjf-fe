@@ -4,7 +4,7 @@ import { Search, Filter, X, ChevronDown } from "lucide-react"
 import { Button } from "../ui/Button"
 import { Input } from "../ui/Input"
 import { Label } from "../ui/Label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@radix-ui/react-select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/Select"
 import { Badge } from "../ui/Badge"
 
 interface AdvancedFiltersProps {

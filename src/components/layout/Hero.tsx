@@ -1,4 +1,5 @@
 import { ClipboardList, Eye } from "lucide-react";
+import { Link } from "react-router-dom";
 import NhatBanImg from "../../assets/NhatBan.webp";
 
 export function Hero() {
@@ -43,10 +44,13 @@ export function Hero() {
                 <ClipboardList className="mr-2 h-5 w-5" />
                 Tư vấn lộ trình
               </button>
-              <button className="inline-flex items-center justify-center px-8 py-3 text-lg font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors">
+              <Link
+                to="/courses" 
+                className="inline-flex items-center justify-center px-8 py-3 text-lg font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+              >
                 <Eye className="mr-2 h-5 w-5" />
                 Xem các khoá học
-              </button>
+              </Link>
             </div>
 
           </div>

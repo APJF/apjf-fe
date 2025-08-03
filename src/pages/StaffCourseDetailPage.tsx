@@ -1,61 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Alert } from '../components/ui/Alert'
-import { AlertCircle, BookOpen, Star, ChevronDown, ChevronRight, Eye, Edit, Plus, ArrowLeft, CheckCircle } from 'lucide-react'
+import { AlertCircle, BookOpen, Star, ChevronDown, ChevronRight, Eye, Edit, Plus, ArrowLeft, CheckCircle, FileText, Clock } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
-import { StaffCourseService } from '../services/staffCourseService'
-import { CourseService } from '../services/courseService'
-import type { StaffCourseDetail, Chapter } from '../types/staffCourse'
-
-// Hàm sắp xếp chapters theo thứ tự prerequisite
-const sortChaptersByPrerequisite = (chapters: Chapter[]): Chapter[] => {
-  const sorted: Chapter[] = []
-  const remaining = [...chapters]
-  
-  // Thêm các chapters không có prerequisite trước
-  const chaptersWithoutPrereq = remaining.filter(chapter => !chapter.prerequisiteChapterId)
-  sorted.push(...chaptersWithoutPrereq)
-  
-  // Loại bỏ các chapters đã thêm khỏi danh sách còn lại
-  chaptersWithoutPrereq.forEach(chapter => {
-    const index = remaining.findIndex(c => c.id === chapter.id)
-    if (index > -1) remaining.splice(index, 1)
-  })
-  
-  // Thêm các chapters có prerequisite theo thứ tự
-  while (remaining.length > 0) {
-    const nextChapters = remaining.filter(chapter => 
-      chapter.prerequisiteChapterId && 
-      sorted.some(sortedChapter => sortedChapter.id === chapter.prerequisiteChapterId)
-    )
-    
-    if (nextChapters.length === 0) {
-      // Nếu không tìm thấy prerequisite, thêm tất cả chapters còn lại
-      sorted.push(...remaining)
-      break
-    }
-    
-    sorted.push(...nextChapters)
-    nextChapters.forEach(chapter => {
-      const index = remaining.findIndex(c => c.id === chapter.id)
-      if (index > -1) remaining.splice(index, 1)
-    })
-  }
-  
-  return sorted
-}
+import { CourseService } from '../services/courseService' // Sử dụng CourseService thay vì StaffCourseService
+import { StaffExamService } from '../services/staffExamService'
+import type { Course, Chapter } from '../types/course' // Sử dụng Course và Chapter types
+import type { ExamSummary } from '../types/exam'
 
 // Hàm lấy màu sắc theo status
 const getStatusColor = (status: string) => {
   switch (status) {
-    case 'DRAFT':
+    case 'INACTIVE':
       return 'bg-yellow-100 text-yellow-800 border-yellow-300'
     case 'REJECTED':
       return 'bg-red-100 text-red-800 border-red-300'
-    case 'PUBLISHED':
+    case 'ACTIVE':
       return 'bg-green-100 text-green-800 border-green-300'
     default:
       return 'bg-gray-100 text-gray-800 border-gray-300'
@@ -65,12 +28,12 @@ const getStatusColor = (status: string) => {
 // Hàm lấy text hiển thị cho status
 const getStatusText = (status: string) => {
   switch (status) {
-    case 'DRAFT':
-      return 'Nháp'
+    case 'INACTIVE':
+      return 'Chưa kích hoạt'
     case 'REJECTED':
       return 'Từ chối'
-    case 'PUBLISHED':
-      return 'Đã xuất bản'
+    case 'ACTIVE':
+      return 'Đã kích hoạt'
     default:
       return status
   }
@@ -81,8 +44,9 @@ export const StaffCourseDetailPage: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   
-  const [course, setCourse] = useState<StaffCourseDetail | null>(null)
+  const [course, setCourse] = useState<Course | null>(null)
   const [chapters, setChapters] = useState<Chapter[]>([])
+  const [exams, setExams] = useState<ExamSummary[]>([])
   const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -97,23 +61,41 @@ export const StaffCourseDetailPage: React.FC = () => {
     setError(null)
 
     try {
-      // Lấy thông tin cơ bản và chi tiết với chapters
+      console.log('🔍 Fetching course data for ID:', courseId);
+      
+      // Sử dụng API giống như CourseDetailPage
       const [courseRes, chaptersRes] = await Promise.all([
-        StaffCourseService.getCourseDetail(courseId),
-        CourseService.getChaptersByCourseId(courseId)
+        CourseService.getCourseDetail(courseId), // API mới: GET /api/course/{courseId}
+        CourseService.getChaptersByCourseId(courseId) // API mới: GET /api/chapters/course/{courseId}
       ]);
+
+      console.log('📊 Course Response:', courseRes);
+      console.log('📊 Chapters Response:', chaptersRes);
 
       if (courseRes.success) {
         setCourse(courseRes.data);
+        console.log('✅ Course data set:', courseRes.data);
       } else {
+        console.error('❌ Course fetch failed:', courseRes.message);
         setError(courseRes.message || "Không thể tải thông tin khóa học");
       }
 
       if (chaptersRes.success) {
-        const sortedChapters = sortChaptersByPrerequisite(chaptersRes.data || [])
-        setChapters(sortedChapters);
+        // Chuyển đổi từ Chapter[] sang Chapter[] (có thể cần format khác)
+        setChapters(chaptersRes.data || []);
+        console.log('✅ Chapters data set:', chaptersRes.data);
       } else {
-        console.error('Error fetching chapters:', chaptersRes.message);
+        console.error('❌ Chapters fetch failed:', chaptersRes.message);
+        setChapters([]);
+      }
+
+      // Load exams for this course
+      try {
+        const examsData = await StaffExamService.getExamsByScope('course', courseId);
+        setExams(examsData);
+      } catch (examError) {
+        console.log('Exam service error:', examError);
+        setExams([]);
       }
     } catch (error) {
       console.error('Error fetching course data:', error)
@@ -333,9 +315,9 @@ export const StaffCourseDetailPage: React.FC = () => {
                     
                     <div className="text-center p-4 bg-purple-50 rounded-lg">
                       <div className="text-2xl font-bold text-purple-600 mb-1 flex items-center justify-center gap-1">
-                        {course.rating ? (
+                        {course.averageRating ? (
                           <>
-                            {course.rating.toFixed(1)}
+                            {course.averageRating.toFixed(1)}
                             <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
                           </>
                         ) : (
@@ -412,20 +394,13 @@ export const StaffCourseDetailPage: React.FC = () => {
                     <Users className="h-4 w-4 mr-2" />
                     Xem học viên {course.enrollmentCount ? `(${course.enrollmentCount})` : '(0)'}
                   </Button> */}
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="w-full"
                     onClick={() => navigate(`/staff/course/${course.id}/reviews`)}
                   >
                     <Star className="h-4 w-4 mr-2" />
-                    Xem đánh giá ({course.rating ? `${course.rating.toFixed(1)}★` : "0★"})
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="w-full text-purple-600 border-purple-300 hover:bg-purple-50"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Thêm bài kiểm tra
+                    Xem đánh giá ({course.averageRating ? `${course.averageRating.toFixed(1)}★` : "0★"})
                   </Button>
                 </CardContent>
               </Card>
@@ -448,6 +423,97 @@ export const StaffCourseDetailPage: React.FC = () => {
                 </CardContent>
               </Card>
 
+              {/* Exams List */}
+              <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-xl flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-purple-600" />
+                      Bài kiểm tra ({exams.length})
+                    </CardTitle>
+                    <Button 
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                      onClick={() => navigate('/staff/create-exam', { 
+                        state: { 
+                          scope: 'course', 
+                          scopeId: course.id, 
+                          scopeName: course.title 
+                        } 
+                      })}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Tạo bài kiểm tra
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {exams.length > 0 ? (
+                      exams.map((exam) => (
+                        <div key={exam.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-gray-900 mb-1">{exam.title}</h4>
+                              <p className="text-sm text-gray-600 mb-2">{exam.description}</p>
+                              <div className="flex items-center space-x-4 text-sm text-gray-500">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {exam.duration} phút
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <BookOpen className="h-3 w-3" />
+                                  {exam.questionCount || 0} câu hỏi
+                                </span>
+                                <Badge className={exam.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                                  {exam.status === 'ACTIVE' ? 'Đã kích hoạt' : 'Chưa kích hoạt'}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => navigate(`/staff/exams/${exam.id}/edit`, {
+                                  state: {
+                                    scope: 'course',
+                                    scopeId: course.id,
+                                    scopeName: course.title
+                                  }
+                                })}
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Chỉnh sửa
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <FileText className="h-12 w-12 mx-auto text-purple-300 mb-3" />
+                        <p className="text-purple-600 font-medium mb-1">Chưa có bài kiểm tra nào</p>
+                        <p className="text-sm text-purple-500 mb-4">
+                          Tạo bài kiểm tra đầu tiên cho khóa học này
+                        </p>
+                        <Button 
+                          className="bg-purple-600 hover:bg-purple-700 text-white"
+                          onClick={() => navigate('/staff/create-exam', { 
+                            state: { 
+                              scope: 'course', 
+                              scopeId: course.id, 
+                              scopeName: course.title 
+                            } 
+                          })}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Tạo bài kiểm tra
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Chapters List */}
               <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
                 <CardHeader>
@@ -456,13 +522,15 @@ export const StaffCourseDetailPage: React.FC = () => {
                       <BookOpen className="h-5 w-5 text-green-600" />
                       Danh sách chương ({chapters.length})
                     </CardTitle>
-                    <Button 
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                      onClick={handleAddChapter}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Thêm chương
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                        onClick={handleAddChapter}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Thêm chương
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>

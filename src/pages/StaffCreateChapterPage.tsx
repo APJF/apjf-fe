@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { Alert } from '../components/ui/Alert'
 import { AlertCircle, ArrowLeft, BookOpen, Hash, Info, Plus } from 'lucide-react'
@@ -9,9 +9,10 @@ import { Label } from '../components/ui/Label'
 import { Textarea } from '../components/ui/Textarea'
 import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
-import { StaffChapterService } from '../services/staffChapterService'
-import { StaffCourseService } from '../services/staffCourseService'
-import type { CreateChapterRequest, StaffCourseDetail } from '../types/staffCourse'
+import { CourseService } from '../services/courseService'
+import type { CreateChapterRequest } from '../types/course'
+import type { StaffCourseDetail } from '../types/staffCourse'
+import { useToast } from '../hooks/useToast'
 
 interface LocationState {
   course?: StaffCourseDetail
@@ -22,6 +23,7 @@ const StaffCreateChapterPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>()
   const location = useLocation()
   const locationState = location.state as LocationState || {}
+  const { showToast } = useToast()
 
   const [course, setCourse] = useState<StaffCourseDetail | null>(locationState.course || null)
   const [chapterCount, setChapterCount] = useState<number>(0)
@@ -35,6 +37,42 @@ const StaffCreateChapterPage: React.FC = () => {
     prerequisiteChapterId: ''
   })
 
+  const fetchCourseData = useCallback(async () => {
+    if (!courseId) return
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const [courseData, chaptersData] = await Promise.all([
+        CourseService.getCourseDetail(courseId),
+        CourseService.getChaptersByCourseId(courseId)
+      ])
+
+      if (courseData.success && courseData.data) {
+        // Convert Course to StaffCourseDetail
+        const courseDetail: StaffCourseDetail = {
+          ...courseData.data,
+          description: courseData.data.description || '',
+          requirement: courseData.data.requirement || '',
+          exams: [],
+          chapters: [],
+          enrollmentCount: 0,
+          rating: courseData.data.averageRating || 0
+        }
+        setCourse(courseDetail)
+        setChapterCount(chaptersData.data?.length || 0)
+      } else {
+        setError("Không tìm thấy khóa học")
+      }
+    } catch (error) {
+      console.error('Error fetching course data:', error)
+      setError("Không thể tải thông tin khóa học. Vui lòng thử lại.")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [courseId])
+
   useEffect(() => {
     if (!courseId) {
       setError("ID khóa học không hợp lệ")
@@ -46,33 +84,7 @@ const StaffCreateChapterPage: React.FC = () => {
     } else {
       setChapterCount(course.chapters?.length || 0)
     }
-  }, [courseId, course])
-
-  const fetchCourseData = async () => {
-    if (!courseId) return
-
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const [courseData, courseDetailData] = await Promise.all([
-        StaffCourseService.getCourseDetail(courseId),
-        StaffCourseService.getCourseWithChapters(courseId)
-      ])
-
-      if (courseData.success && courseData.data) {
-        setCourse(courseData.data)
-        setChapterCount(courseDetailData.data?.course.chapters?.length || 0)
-      } else {
-        setError("Không tìm thấy khóa học")
-      }
-    } catch (error) {
-      console.error('Error fetching course data:', error)
-      setError("Không thể tải thông tin khóa học. Vui lòng thử lại.")
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  }, [courseId, course, fetchCourseData])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -90,16 +102,77 @@ const StaffCreateChapterPage: React.FC = () => {
                      formData.title.trim() && 
                      formData.description.trim()
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
+  const validateFormData = (): boolean => {
     if (!isFormValid) {
       setError('Vui lòng điền đầy đủ thông tin bắt buộc')
-      return
+      return false
     }
 
     if (!courseId) {
-      setError("Không tìm thấy ID khóa học")
+      setError("Không tìm thấy ID khóa học") 
+      return false
+    }
+
+    return true
+  }
+
+  const createChapterData = (): CreateChapterRequest => {
+    return {
+      id: formData.id.trim(),
+      title: formData.title.trim(),
+      description: formData.description.trim(),
+      status: "INACTIVE",
+      courseId: courseId!,
+      prerequisiteChapterId: formData.prerequisiteChapterId.trim() || null
+    }
+  }
+
+  const handleCreateSuccess = () => {
+    showToast('success', 'Tạo chương thành công!')
+    
+    navigate(`/staff/courses/${courseId}`, {
+      replace: true,
+      state: { 
+        message: 'Tạo chương thành công!',
+        refreshData: true,
+        timestamp: Date.now()
+      }
+    })
+  }
+
+  const handleCreateError = (error: unknown) => {
+    console.error('❌ Error creating chapter:', error)
+    
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as { response?: { status: number, data?: unknown } }
+      const errorData = axiosError.response?.data as { message?: string }
+      const errorMsg = errorData?.message || 'Lỗi không xác định'
+      
+      let userFriendlyError = errorMsg
+      if (axiosError.response?.status === 400) {
+        if (errorMsg.includes('prerequisite') || errorMsg.includes('tiên quyết')) {
+          userFriendlyError = 'Lỗi chương tiên quyết: ' + errorMsg
+        } else if (errorMsg.includes('duplicate') || errorMsg.includes('đã tồn tại')) {
+          userFriendlyError = 'Mã chương đã tồn tại trong hệ thống'
+        } else {
+          userFriendlyError = 'Dữ liệu không hợp lệ: ' + errorMsg
+        }
+      }
+      
+      const errorMessage = `Lỗi tạo chương (${axiosError.response?.status}): ${userFriendlyError}`
+      showToast('error', errorMessage)
+      setError(errorMessage)
+    } else {
+      const fallbackError = 'Có lỗi xảy ra khi tạo chương. Vui lòng thử lại.'
+      showToast('error', fallbackError)
+      setError(fallbackError)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!validateFormData()) {
       return
     }
 
@@ -107,30 +180,17 @@ const StaffCreateChapterPage: React.FC = () => {
     setError(null)
 
     try {
-      const chapterData: CreateChapterRequest = {
-        id: formData.id.trim(),
-        title: formData.title.trim(),
-        description: formData.description.trim(),
-        status: "DRAFT",
-        courseId,
-        prerequisiteChapterId: formData.prerequisiteChapterId.trim() || null,
-        units: []
-      }
+      const chapterData = createChapterData()
 
-      await StaffChapterService.createChapter(chapterData)
-      
-      // Navigate back to course detail with success message and force refresh
-      navigate(`/staff/courses/${courseId}`, {
-        replace: true,
-        state: { 
-          message: 'Tạo chương thành công!',
-          refreshData: true,
-          timestamp: Date.now()
-        }
+      console.log('📤 Sending chapter data:', {
+        ...chapterData,
+        prerequisiteChapterNote: chapterData.prerequisiteChapterId ? 'Has prerequisite' : 'No prerequisite (null)'
       })
+
+      await CourseService.createChapter(chapterData)
+      handleCreateSuccess()
     } catch (error) {
-      console.error('Error creating chapter:', error)
-      setError('Có lỗi xảy ra khi tạo chương. Vui lòng thử lại.')
+      handleCreateError(error)
     } finally {
       setIsLoading(false)
     }

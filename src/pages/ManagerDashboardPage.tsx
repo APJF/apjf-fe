@@ -49,7 +49,7 @@ function ManagerSidebar({ activeTab, setActiveTab, isCollapsed, setIsCollapsed }
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         {!isCollapsed && (
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center">
               <BookOpen className="h-5 w-5 text-white" />
             </div>
             <span className="font-bold text-gray-900">Manager Panel</span>
@@ -76,7 +76,7 @@ function ManagerSidebar({ activeTab, setActiveTab, isCollapsed, setIsCollapsed }
                 onClick={() => setActiveTab(item.id)}
                 className={`w-full flex items-center px-3 py-2 rounded-lg text-left transition-colors ${
                   isActive 
-                    ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600' 
+                    ? 'bg-red-50 text-red-700 border-r-2 border-red-600' 
                     : 'text-gray-700 hover:bg-gray-50'
                 }`}
                 title={isCollapsed ? item.label : undefined}
@@ -106,10 +106,10 @@ function ManagerSidebar({ activeTab, setActiveTab, isCollapsed, setIsCollapsed }
 // Overview Tab Component
 function OverviewTab() {
   const stats = [
-    { title: 'Tổng người dùng', value: '12,543', change: '+12%', icon: Users, color: 'text-blue-600', bgColor: 'bg-blue-50' },
-    { title: 'Khóa học hoạt động', value: '156', change: '+5%', icon: BookOpen, color: 'text-green-600', bgColor: 'bg-green-50' },
-    { title: 'Doanh thu tháng', value: '₫ 45.2M', change: '+18%', icon: DollarSign, color: 'text-yellow-600', bgColor: 'bg-yellow-50' },
-    { title: 'Đánh giá trung bình', value: '4.8/5', change: '+0.2%', icon: Award, color: 'text-purple-600', bgColor: 'bg-purple-50' },
+    { title: 'Tổng người dùng', value: '12,543', change: '+12%', icon: Users, color: 'text-red-600', bgColor: 'bg-red-50' },
+    { title: 'Khóa học hoạt động', value: '156', change: '+5%', icon: BookOpen, color: 'text-red-700', bgColor: 'bg-red-100' },
+    { title: 'Doanh thu tháng', value: '₫ 45.2M', change: '+18%', icon: DollarSign, color: 'text-red-800', bgColor: 'bg-red-200' },
+    { title: 'Đánh giá trung bình', value: '4.8/5', change: '+0.2%', icon: Award, color: 'text-red-900', bgColor: 'bg-red-300' },
   ];
 
   const recentActivities = [
@@ -176,9 +176,9 @@ function OverviewTab() {
             <div className="space-y-4">
               {recentActivities.map((activity) => {
                 const getActivityColor = (type: string) => {
-                  if (type === 'success') return 'bg-green-500';
-                  if (type === 'warning') return 'bg-yellow-500';
-                  return 'bg-blue-500';
+                  if (type === 'success') return 'bg-red-500';
+                  if (type === 'warning') return 'bg-red-300';
+                  return 'bg-red-600';
                 };
 
                 return (
@@ -214,7 +214,7 @@ function UsersTab() {
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case 'Giảng viên': return 'bg-purple-100 text-purple-800';
+      case 'Giảng viên': return 'bg-red-100 text-red-800';
       case 'Manager': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -222,7 +222,7 @@ function UsersTab() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Hoạt động': return 'bg-green-100 text-green-800';
+      case 'Hoạt động': return 'bg-red-200 text-red-800';
       case 'Tạm khóa': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -247,7 +247,7 @@ function UsersTab() {
               <Filter className="h-4 w-4 mr-2" />
               Lọc
             </Button>
-            <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+            <Button size="sm" className="bg-red-600 hover:bg-red-700">
               <Plus className="h-4 w-4 mr-2" />
               Thêm người dùng
             </Button>
@@ -273,7 +273,7 @@ function UsersTab() {
                 <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="p-3">
                     <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                      <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
                         <span className="text-sm font-medium text-blue-600">
                           {user.name.charAt(0)}
                         </span>

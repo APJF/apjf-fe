@@ -540,64 +540,42 @@ const numCycles = Math.floor(numUnits / 3); // Mỗi chu kỳ 2 hàng (2+1 unit)
 const remainingUnits = numUnits % 3;
 const numRows = remainingUnits === 0 ? numCycles * 2 : numCycles * 2 + 1;
 const contentHeight = numRows * rowHeight; // Chiều cao nội dung thực tế
-const svgHeight = Math.max(contentHeight, 400); // Chiều cao SVG, tối thiểu 400px
   
-// CSS Animation for Trees and Cherry Blossoms
+// CSS Animation for Cherry Blossoms only - Optimized for performance
 const treeAnimationStyle = `
-  .tree {
-    animation: sway 3s ease-in-out infinite;
-    transform-origin: bottom center;
-  }
-  
-  @keyframes sway {
-    0%, 100% { transform: rotate(0deg); }
-    50% { transform: rotate(-5deg); }
-  }
-  
-  .flower {
-    animation: bloom 2s ease-in-out infinite alternate;
-  }
-  
-  @keyframes bloom {
-    0% { transform: scale(1); }
-    100% { transform: scale(1.1); }
-  }
-  
-  .grass {
-    animation: wave 4s ease-in-out infinite;
-  }
-  
-  @keyframes wave {
-    0%, 100% { transform: translateX(0); }
-    50% { transform: translateX(5px); }
-  }
-  
   .falling-petals {
-    animation: fallAndDrift 7s linear infinite;
+    animation: fallAndDrift 10s linear infinite;
+    will-change: transform, opacity;
+    pointer-events: none;
   }
   
   @keyframes fallAndDrift {
     0% {
-      transform: translateY(-10px) rotate(0deg);
-      opacity: 1;
+      transform: translateY(-20px) translateX(0px) rotate(0deg);
+      opacity: 0.9;
     }
-    50% {
-      transform: translateY(50vh) rotate(180deg);
+    25% {
+      transform: translateY(25vh) translateX(10px) rotate(90deg);
       opacity: 0.8;
     }
+    50% {
+      transform: translateY(50vh) translateX(-5px) rotate(180deg);
+      opacity: 0.6;
+    }
+    75% {
+      transform: translateY(75vh) translateX(15px) rotate(270deg);
+      opacity: 0.4;
+    }
     100% {
-      transform: translateY(100vh) rotate(360deg);
+      transform: translateY(100vh) translateX(-10px) rotate(360deg);
       opacity: 0;
     }
   }
   
-  .cherry-blossom {
-    animation: gentleBloom 3s ease-in-out infinite alternate;
-  }
-  
-  @keyframes gentleBloom {
-    0% { transform: scale(1) rotate(0deg); }
-    100% { transform: scale(1.05) rotate(5deg); }
+  /* Performance optimizations */
+  .falling-petals {
+    backface-visibility: hidden;
+    perspective: 1000px;
   }
 `;
 
@@ -637,250 +615,157 @@ const treeAnimationStyle = `
         </Button>
       </div>
 
-      {/* Scrollable Units Path with Dynamic Background */}
-      <div 
-        ref={unitContainerRef}
-        className="relative bg-transparent rounded-lg p-2 max-h-96 overflow-y-auto"
-        style={{ scrollBehavior: 'smooth' }}
-      >
-        {/* Add CSS Animation Styles */}
-        <style dangerouslySetInnerHTML={{ __html: treeAnimationStyle }} />
-        
-        {/* SVG Background with Dynamic Height */}
-        <div className="absolute inset-0 z-0">
-  <svg
-    className="w-full"
-    style={{ height: `${svgHeight}px` }}
-    viewBox={`0 0 400 ${svgHeight}`}
-    preserveAspectRatio="xMidYMin slice"
-  >
-    <defs>
-      <linearGradient id="grassGradient" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="#66BB6A" />
-        <stop offset="100%" stopColor="#4CAF50" />
-      </linearGradient>
-    </defs>
-
-    {/* Sky Background */}
-    <rect x="0" y="0" width="400" height={svgHeight} fill="#E0F7FA" />
-
-    {/* Road Path - Đường đi qua từng unit theo pattern liên tục */}
-    <path
-      d={(() => {
-        const pathCommands = ['M130 0']; // Bắt đầu tại (130, 0)
-        const numRows = pathLayout.length; // Số lượng hàng
-        const rowHeight = 100; // Chiều cao mỗi hàng
-        const numPairs = Math.floor(numRows / 2); // Số cặp hàng
-        const hasExtraRow = numRows % 2 === 1; // Kiểm tra số hàng lẻ
-        let startY = 0; // Vị trí y trước đó
-        let lastX = 130; // Theo dõi tọa độ x cuối cùng
-
-        // Lặp qua từng cặp hàng
-        for (let k = 0; k < numPairs; k++) {
-          const y0 = 50 + 2 * k * rowHeight - 5 * k; // y của hàng đầu tiên trong cặp
-          const y1 = y0 + rowHeight; // y của hàng thứ hai trong cặp
-          
-          if (k === 0) {
-        // Cong xuống từ (130, 0) đến (130, 50) với độ cong lớn hơn
-        pathCommands.push(`Q122 ${y0 - 25} 130 ${y0}`);
-      } else {
-        // Cong xuống từ điểm trước đó đến hàng tiếp theo với độ cong lớn hơn
-        pathCommands.push(`Q100 ${(startY + y0) / 2 - 10} 130 ${y0}`);
-      }
-          pathCommands.push(`L270 ${y0}`); // Đi ngang qua phải của hàng đầu tiên
-          // Cong mềm xuống hàng thứ hai
-          pathCommands.push(`Q300 ${(y0 + y1) / 2} 270 ${y1}`); 
-          pathCommands.push(`L130 ${y1}`); // Đi ngang qua trái của hàng thứ hai
-          startY = y1; // Cập nhật vị trí y trước đó
-        }
-
-        // Xử lý hàng lẻ nếu có
-        if (hasExtraRow) {
-          const yLast = 50 + (2 * numPairs) * rowHeight; // y của hàng cuối
-          pathCommands.push(`Q120 ${(startY + yLast) / 2} 130 ${yLast}`); // Cong xuống trái của hàng cuối - mềm mại hơn
-          pathCommands.push(`L270 ${yLast}`); // Đi ngang qua phải của hàng cuối
-          lastX = 270; // Cập nhật x cuối cùng là 270
-        }
-
-        // Kết thúc bằng đường cong dọc xuống thay vì đi thẳng về giữa
-        if (lastX === 270) {
-      // Nếu kết thúc ở bên phải, cong dọc xuống bên phải
-      pathCommands.push(`Q278 ${svgHeight - 25} 270 ${svgHeight}`);
-    } else {
-      // Nếu kết thúc ở bên trái, cong dọc xuống bên trái
-      pathCommands.push(`Q122 ${svgHeight - 25} 130 ${svgHeight}`);
-    }
-
-
-        return pathCommands.join(' ');
-      })()}
-      fill="none"
-      stroke="#8B4513"
-      strokeWidth="15"
-      strokeLinecap="round"
-    />
-    {/* Grass on Left Side */}
-<path
-  className="grass"
-  d={`
-    M0 0 
-    L100 0 
-    ${Array.from({ length: Math.floor(svgHeight / 150) }, (_, i) => {
-      const y = 75 + (i + 1) * 150;
-      const offset = Math.sin(i * 0.3) * 8; // Offset bên trái
-      const x = 85 + offset; // Khi offset dương thì lồi ra ngoài
-      const controlX1 = 85 + Math.sin(i * 0.3 - 0.1) * 6;
-      const controlX2 = 85 + Math.sin(i * 0.3 + 0.1) * 6;
-      return `C${controlX1} ${y - 75}, ${controlX2} ${y - 25}, ${x} ${y}`;
-    }).join(' ')}
-    L0 ${svgHeight} 
-    Z
-  `}
-  fill="url(#grassGradient)"
-/>
-
-{/* Grass on Right Side */}
-<path
-  className="grass"
-  d={`
-    M400 0 
-    L300 0 
-    ${Array.from({ length: Math.floor(svgHeight / 150) }, (_, i) => {
-      const y = 75 + (i + 1) * 150;
-      const offset = -Math.sin(i * 0.3) * 8; // Đồng bộ hóa sóng sin đối lập
-      const x = 315 + offset; // Điều chỉnh cho sóng sin đối lập
-      const controlX1 = 315 - Math.sin(i * 0.3 - 0.1) * 6; // Điểm điều khiển
-      const controlX2 = 315 - Math.sin(i * 0.3 + 0.1) * 6; // Điểm điều khiển
-      return `C${controlX1} ${y - 75}, ${controlX2} ${y - 25}, ${x} ${y}`;
-    }).join(' ')}
-    L400 ${svgHeight} 
-    Z
-  `}
-  fill="url(#grassGradient)"
-/>
-
-    {/* Cherry Blossom Trees - Extended throughout the entire SVG height */}
-    {Array.from({ length: Math.ceil(svgHeight / 100) }, (_, index) => (
-      <g key={`cherry-tree-${currentStage}-${index}`} transform={`translate(0, ${index * 100})`}>
-        {/* Cherry Tree Left - repositioned to translate(50, 80) */}
-        <g className="tree" transform="translate(50, 80)">
-          {/* Tree trunk - increased height to 30 */}
-          <rect x="-6" y="10" width="12" height="30" fill="#8B4513" />
-          {/* Tree crown - larger radius 20 with semi-transparent green */}
-          <circle cx="0" cy="0" r="20" fill="#90EE90" fillOpacity="0.3" />
-          {/* Cherry blossoms - more abundant and varied */}
-          <g className="cherry-blossom">
-            <circle cx="0" cy="0" r="4" fill="#FFB6C1" />
-            <circle cx="10" cy="-8" r="3" fill="#FF69B4" />
-            <circle cx="-10" cy="-8" r="3" fill="#FF69B4" />
-            <circle cx="8" cy="10" r="2.5" fill="#FFC0CB" />
-            <circle cx="-8" cy="10" r="2.5" fill="#FFC0CB" />
-            <circle cx="0" cy="-12" r="3" fill="#FFB6C1" />
-            <circle cx="-12" cy="2" r="2.5" fill="#FF69B4" />
-            <circle cx="12" cy="2" r="2.5" fill="#FF69B4" />
-          </g>
-        </g>
-        
-        {/* Cherry Tree Right - repositioned to translate(350, 120) */}
-        <g className="tree" transform="translate(350, 120)">
-          {/* Tree trunk - increased height to 30 */}
-          <rect x="-6" y="10" width="12" height="30" fill="#8B4513" />
-          {/* Tree crown - larger radius 20 with semi-transparent green */}
-          <circle cx="0" cy="0" r="20" fill="#90EE90" fillOpacity="0.3" />
-          {/* Cherry blossoms - more abundant and varied */}
-          <g className="cherry-blossom">
-            <circle cx="0" cy="0" r="4" fill="#FFB6C1" />
-            <circle cx="10" cy="-8" r="3" fill="#FF69B4" />
-            <circle cx="-10" cy="-8" r="3" fill="#FF69B4" />
-            <circle cx="8" cy="10" r="2.5" fill="#FFC0CB" />
-            <circle cx="-8" cy="10" r="2.5" fill="#FFC0CB" />
-            <circle cx="0" cy="-12" r="3" fill="#FFB6C1" />
-            <circle cx="-12" cy="2" r="2.5" fill="#FF69B4" />
-            <circle cx="12" cy="2" r="2.5" fill="#FF69B4" />
-          </g>
-        </g>
-      </g>
-    ))}
-
-    {/* Flowers on Grass - Extended throughout the entire SVG height */}
-    {Array.from({ length: Math.ceil(svgHeight / 75) * 2 }, (_, index) => {
-      const x = index % 2 === 0 ? 60 : 340; // Alternate between left (60) and right (340)
-      const y = 80 + (Math.floor(index / 2) * 75); // Distributed vertically every 75px
-      
-      return (
-        <g key={`grass-flower-${currentStage}-${index}`} transform={`translate(${x}, ${y})`}>
-          <circle className="flower" cx="0" cy="0" r="5" fill="#FF69B4" />
-          <circle cx="5" cy="5" r="3" fill="#FFD700" />
-          <circle cx="-5" cy="5" r="3" fill="#FFD700" />
-        </g>
-      );
-    })}
-
-    {/* Falling Cherry Blossoms - Improved animation */}
-    {Array.from({ length: 20 }, (_, index) => {
-      const startX = Math.random() * 400;
-      const startY = Math.random() * (svgHeight * 0.7); // Không bay quá thấp
-      const driftX = (Math.random() - 0.5) * 150; // Random horizontal drift
-      const size = 2 + Math.random() * 2; // Variable petal sizes (2-4px)
-      const colors = ['#FFB6C1', '#FF69B4', '#FFC0CB', '#FFCCCB'];
-      const color = colors[Math.floor(Math.random() * colors.length)];
-      
-      return (
-        <circle
-          key={`petal-${currentStage}-${index}`}
-          className="falling-petals"
-          cx={startX}
-          cy={startY}
-          r={size}
-          fill={color}
-          fillOpacity="0.8"
+      {/* Container with Fixed Background and Scrollable Content */}
+      <div className="relative rounded-lg overflow-hidden" style={{ height: "384px" }}>
+        {/* Fixed Background */}
+        <div 
+          className="absolute inset-0 z-0"
           style={{
-            animationDelay: `${Math.random() * 8}s`,
-            animationDuration: `${6 + Math.random() * 4}s`,
-            transform: `translate(${driftX}px, 0)`,
+            backgroundImage: "url('/img/RoadMap2.jpg')",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat"
           }}
         />
-      );
-    })}
-  </svg>
-</div>
 
-        {/* Path with Units */}
-        <div className="relative py-4 z-10" style={{ gap: '50px', display: 'flex', flexDirection: 'column' }}>
-          {pathLayout.map((rowUnits, rowIndex) => (
-            <div key={`row-${rowIndex}-${rowUnits[0] || rowIndex}`} className="relative">
-              <div className="flex items-center justify-center space-x-8">
-                {rowUnits.map((unitNumber) => {
-                  const status = getUnitStatus(unitNumber);
-                  const isCurrentUnit = currentStageData.status === "in_progress" && 
-                    unitNumber === currentStageData.unitNumbers[0] + Math.floor(currentStageData.units * 0.65);
+        {/* Scrollable Container for Path and Units */}
+        <div 
+          ref={unitContainerRef}
+          className="relative z-10 h-full overflow-y-auto"
+          style={{ 
+            scrollBehavior: 'smooth'
+          }}
+        >
+          {/* Add CSS Animation Styles for falling petals */}
+          <style dangerouslySetInnerHTML={{ __html: treeAnimationStyle }} />
 
-                  return (
-                    <div key={unitNumber} className="relative">
-                      <div
-                        data-unit={unitNumber}
-                        className={`w-12 h-12 rounded-full border-4 flex items-center justify-center font-bold text-sm shadow-lg cursor-pointer hover:scale-110 transition-transform relative ${getUnitStatusClass(status)} ${
-                          isCurrentUnit ? 'ring-4 ring-blue-300 ring-opacity-50 animate-pulse' : ''
-                        }`}
-                      >
-                        {unitNumber}
-                        {status === "completed" && (
-                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                            <CheckCircle className="w-2 h-2 text-white" />
+          {/* SVG for Scrollable Path */}
+          <div className="relative">
+            <svg
+              className="w-full"
+              style={{ height: `${contentHeight}px` }}
+              viewBox={`0 0 400 ${contentHeight}`}
+              preserveAspectRatio="xMidYMin slice"
+            >
+              {/* Road Path - Dynamic based on content with smooth curves */}
+              <path
+                d={(() => {
+                  const pathCommands = ['M130 0'];
+                  const numRows = pathLayout.length;
+                  const rowHeight = 100;
+                  const numPairs = Math.floor(numRows / 2);
+                  const hasExtraRow = numRows % 2 === 1;
+                  let startY = 0;
+                  let lastX = 130;
+
+                  for (let k = 0; k < numPairs; k++) {
+                    const y0 = 50 + 2 * k * rowHeight - 5 * k;
+                    const y1 = y0 + rowHeight;
+                    
+                    if (k === 0) {
+                      // Smooth curve from start to first position using Cubic Bezier
+                      pathCommands.push(`C125 ${y0 - 30}, 125 ${y0 - 15}, 130 ${y0}`);
+                    } else {
+                      // Smooth transition between rows using Cubic Bezier
+                      pathCommands.push(`C70 ${(startY + y0) / 2 - 20}, 70 ${(startY + y0) / 2 + 10}, 130 ${y0}`);
+                    }
+                    // Horizontal line with smooth curve to right side
+                    pathCommands.push(`C200 ${y0 - 5}, 240 ${y0 + 5}, 270 ${y0}`);
+                    // Smooth curve down the right side
+                    pathCommands.push(`C320 ${(y0 + y1) / 2 - 15}, 320 ${(y0 + y1) / 2 + 15}, 270 ${y1}`);
+                    // Horizontal line back to left with smooth curve  
+                    pathCommands.push(`C240 ${y1 + 5}, 200 ${y1 - 5}, 130 ${y1}`);
+                    startY = y1;
+                  }
+
+                  if (hasExtraRow) {
+                    const yLast = 50 + (2 * numPairs) * rowHeight;
+                    // Smooth curve to final row using Cubic Bezier
+                    pathCommands.push(`C115 ${(startY + yLast) / 2 - 15}, 125 ${(startY + yLast) / 2 + 15}, 130 ${yLast}`);
+                    pathCommands.push(`C200 ${yLast - 5}, 240 ${yLast + 5}, 270 ${yLast}`);
+                    lastX = 270;
+                  }
+
+                  // Smooth ending curve
+                  if (lastX === 270) {
+                    pathCommands.push(`C275 ${contentHeight - 30}, 275 ${contentHeight - 15}, 270 ${contentHeight}`);
+                  } else {
+                    pathCommands.push(`C125 ${contentHeight - 30}, 125 ${contentHeight - 15}, 130 ${contentHeight}`);
+                  }
+
+                  return pathCommands.join(' ');
+                })()}
+                fill="none"
+                stroke="#8B4513"
+                strokeWidth="8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+
+              {/* Falling Cherry Blossoms - Only in this scrollable area */}
+              {Array.from({ length: 40 }, (_, index) => {
+                const startX = Math.random() * 400;
+                const startY = Math.random() * contentHeight;
+                const size = 1.5 + Math.random() * 2.5;
+                const colors = ['#FFB6C1', '#FF69B4', '#FFC0CB', '#FFCCCB', '#FFE4E1', '#F8BBD9'];
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                
+                return (
+                  <circle
+                    key={`petal-scrollable-${index}`}
+                    className="falling-petals"
+                    cx={startX}
+                    cy={startY}
+                    r={size}
+                    fill={color}
+                    fillOpacity="0.8"
+                    style={{
+                      animationDelay: `${Math.random() * 12}s`,
+                      animationDuration: `${8 + Math.random() * 6}s`,
+                    }}
+                  />
+                );
+              })}
+            </svg>
+
+            {/* Path with Units */}
+            <div className="absolute top-0 left-0 w-full py-4" style={{ gap: '50px', display: 'flex', flexDirection: 'column' }}>
+              {pathLayout.map((rowUnits, rowIndex) => (
+                <div key={`row-${rowIndex}-${rowUnits[0] || rowIndex}`} className="relative">
+                  <div className="flex items-center justify-center space-x-8">
+                    {rowUnits.map((unitNumber) => {
+                      const status = getUnitStatus(unitNumber);
+                      const isCurrentUnit = currentStageData.status === "in_progress" && 
+                        unitNumber === currentStageData.unitNumbers[0] + Math.floor(currentStageData.units * 0.65);
+
+                      return (
+                        <div key={unitNumber} className="relative">
+                          <div
+                            data-unit={unitNumber}
+                            className={`w-12 h-12 rounded-full border-4 flex items-center justify-center font-bold text-sm shadow-lg cursor-pointer hover:scale-110 transition-transform relative bg-white ${getUnitStatusClass(status)} ${
+                              isCurrentUnit ? 'ring-4 ring-blue-300 ring-opacity-50 animate-pulse' : ''
+                            }`}
+                          >
+                            {unitNumber}
+                            {status === "completed" && (
+                              <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                                <CheckCircle className="w-2 h-2 text-white" />
+                              </div>
+                            )}
+                            {isCurrentUnit && (
+                              <div className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center animate-bounce">
+                                <Play className="w-3 h-3 text-white" />
+                              </div>
+                            )}
                           </div>
-                        )}
-                        {isCurrentUnit && (
-                          <div className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center animate-bounce">
-                            <Play className="w-3 h-3 text-white" />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       </div>
 

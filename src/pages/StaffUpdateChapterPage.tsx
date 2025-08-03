@@ -9,8 +9,8 @@ import { Label } from '../components/ui/Label'
 import { Textarea } from '../components/ui/Textarea'
 import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
-import { StaffCourseService } from '../services/staffCourseService'
-import type { ChapterDetail, UpdateChapterRequest, StaffCourseDetail } from '../types/staffCourse'
+import { StaffChapterService, type UpdateChapterRequest } from '../services/staffChapterService'
+import type { ChapterDetail, StaffCourseDetail } from '../types/staffCourse'
 
 interface LocationState {
   chapter?: ChapterDetail
@@ -64,10 +64,16 @@ const StaffUpdateChapterPage: React.FC = () => {
     setError(null)
 
     try {
-      const response = await StaffCourseService.getChapterDetail(chapterId)
+      const response = await StaffChapterService.getChapterDetail(chapterId)
       if (response.success && response.data) {
-        setChapter(response.data)
-        initializeFormData(response.data)
+        // Convert Chapter to ChapterDetail
+        const chapterDetail: ChapterDetail = {
+          ...response.data,
+          description: response.data.description || '',
+          units: []
+        }
+        setChapter(chapterDetail)
+        initializeFormData(chapterDetail)
       } else {
         setError("Không tìm thấy thông tin chương")
       }
@@ -105,8 +111,8 @@ const StaffUpdateChapterPage: React.FC = () => {
 
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
-      case 'PUBLISHED': return 'bg-green-600'
-      case 'DRAFT': return 'bg-yellow-600'
+      case 'ACTIVE': return 'bg-green-600'
+      case 'INACTIVE': return 'bg-yellow-600'
       default: return 'bg-red-600'
     }
   }
@@ -132,14 +138,13 @@ const StaffUpdateChapterPage: React.FC = () => {
         id: chapter?.id || formData.id.trim(), // Giữ nguyên ID gốc
         title: formData.title.trim(),
         description: formData.description.trim(),
-        status: chapter?.status || "DRAFT",
+        status: chapter?.status === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE',
         courseId: chapter?.courseId || formData.courseId.trim(), // Giữ nguyên courseId gốc
-        prerequisiteChapterId: chapter?.prerequisiteChapterId || undefined, // Giữ nguyên prerequisite gốc
-        exams: chapter?.exams || [],
-        units: chapter?.units || []
+        prerequisiteChapterId: chapter?.prerequisiteChapterId || '', // Giữ nguyên prerequisite gốc
+        exams: chapter?.exams || []
       }
 
-      const response = await StaffCourseService.updateChapter(chapterId, updateData)
+      const response = await StaffChapterService.updateChapter(chapterId, updateData)
       
       if (response.success && response.data) {
         // Navigate back to chapter detail with updated data and success message
@@ -319,7 +324,7 @@ const StaffUpdateChapterPage: React.FC = () => {
                       <div>
                         <p className="text-amber-800 text-sm font-medium mb-1">Lưu ý khi chỉnh sửa</p>
                         <p className="text-amber-700 text-xs leading-relaxed">
-                          Thay đổi sẽ được lưu với trạng thái DRAFT. Chương cần được phê duyệt lại sau khi chỉnh sửa.
+                          Thay đổi sẽ được lưu với trạng thái INACTIVE. Chương cần được phê duyệt lại sau khi chỉnh sửa.
                         </p>
                       </div>
                     </div>

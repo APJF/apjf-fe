@@ -1,23 +1,78 @@
-import type { CourseApiResponse, CourseFilters, TopCoursesApiResponse } from '../types/course';
+import type { 
+  CourseFilters, 
+  TopCoursesApiResponse, 
+  AllCoursesApiResponse,
+  CourseDetailApiResponse,
+  ChaptersApiResponse,
+  CreateCourseRequest,
+  CreateCourseApiResponse,
+  CreateChapterRequest,
+  CreateChapterApiResponse,
+  ChapterDetailApiResponse,
+  UnitsApiResponse,
+  CreateUnitRequest,
+  CreateUnitApiResponse
+} from '../types/course';
 import api from '../api/axios';
 
 export class CourseService {
-  static async getChaptersByCourseId(courseId: string) {
+    // Get course detail by ID (new API)
+  static async getCourseDetail(courseId: string): Promise<CourseDetailApiResponse> {
+    const response = await api.get(`/courses/${courseId}`);
+    return response.data;
+  }
+
+  // Get chapters by course ID  
+  static async getChaptersByCourseId(courseId: string): Promise<ChaptersApiResponse> {
     const response = await api.get(`/chapters/course/${courseId}`);
     return response.data;
   }
-  static async getCourses(filters: CourseFilters = {}): Promise<CourseApiResponse> {
+
+  // Get all courses for public (status ACTIVE only)
+  static async getCourses(filters: CourseFilters = {}): Promise<AllCoursesApiResponse> {
     const params = {
       page: filters.page || 0,
       size: filters.size || 12,
       sortBy: filters.sortBy || 'title',
       direction: filters.sortDirection || 'asc',
-      status: 'PUBLISHED',
+      status: 'ACTIVE',
       title: filters.searchTitle?.trim(),
       level: filters.level,
     };
 
+    // Remove undefined values
+    Object.keys(params).forEach(key => {
+      if (params[key as keyof typeof params] === undefined) {
+        delete params[key as keyof typeof params];
+      }
+    });
+
     const response = await api.get('/courses', { params });
+    return response.data;
+  }
+
+  // Get all courses for staff (returns simple array as per API spec)
+  static async getAllCoursesForStaff(filters: CourseFilters = {}): Promise<AllCoursesApiResponse> {
+    const params = {
+      title: filters.searchTitle?.trim(),
+      level: filters.level,
+      // API returns all courses without pagination or status filtering
+    };
+
+    // Remove undefined values
+    Object.keys(params).forEach(key => {
+      if (params[key as keyof typeof params] === undefined) {
+        delete params[key as keyof typeof params];
+      }
+    });
+
+    const response = await api.get('/courses', { params });
+    return response.data;
+  }
+
+  // Create a new course (for staff)
+  static async createCourse(courseData: CreateCourseRequest): Promise<CreateCourseApiResponse> {
+    const response = await api.post('/courses', courseData);
     return response.data;
   }
 
@@ -31,21 +86,31 @@ export class CourseService {
     return response.data;
   }
 
-  // New method for staff to get all courses regardless of status
-  static async getAllCoursesForStaff(filters: CourseFilters = {}): Promise<CourseApiResponse> {
-    const params = new URLSearchParams();
-
-    if (filters.page !== undefined) params.append('page', filters.page.toString());
-    if (filters.size !== undefined) params.append('size', filters.size.toString());
-    if (filters.sortBy) params.append('sortBy', filters.sortBy);
-    if (filters.sortDirection) params.append('direction', filters.sortDirection);
-    if (filters.searchTitle?.trim()) params.append('title', filters.searchTitle.trim());
-    if (filters.level) params.append('level', filters.level);
-
-    const response = await api.get(`/courses?${params.toString()}`);
+  // Create a new chapter (for staff)
+  static async createChapter(chapterData: CreateChapterRequest): Promise<CreateChapterApiResponse> {
+    const response = await api.post('/chapters', chapterData);
     return response.data;
   }
 
+  // Get chapter detail by ID (new API)
+  static async getChapterDetail(chapterId: string): Promise<ChapterDetailApiResponse> {
+    const response = await api.get(`/chapters/${chapterId}`);
+    return response.data;
+  }
+
+  // Get units by chapter ID (new API)
+  static async getUnitsByChapterId(chapterId: string): Promise<UnitsApiResponse> {
+    const response = await api.get(`/api/units/chapter/${chapterId}`);
+    return response.data;
+  }
+
+  // Create a new unit (for staff)
+  static async createUnit(unitData: CreateUnitRequest): Promise<CreateUnitApiResponse> {
+    const response = await api.post('/api/units', unitData);
+    return response.data;
+  }
+
+  // Old API for backward compatibility
   static async getCourseById(id: string) {
     const response = await api.get(`/courses/${id}`);
     return response.data;

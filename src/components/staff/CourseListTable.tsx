@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "../ui/Button"
 import { Input } from "../ui/Input"
@@ -30,6 +30,27 @@ export const CourseListTable: React.FC<CourseListTableProps> = ({
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedLevel, setSelectedLevel] = useState<string>("all")
   const [selectedStatus, setSelectedStatus] = useState<string>("all")
+  
+  // Color utility functions using unified red theme
+  const getJLPTLevelColor = (level: string) => {
+    switch (level) {
+      case "N5": return "bg-red-100 text-red-800 border-red-300"
+      case "N4": return "bg-red-200 text-red-800 border-red-400"
+      case "N3": return "bg-red-300 text-red-900 border-red-500"
+      case "N2": return "bg-red-400 text-red-900 border-red-600"
+      case "N1": return "bg-red-500 text-white border-red-700"
+      default: return "bg-gray-100 text-gray-800 border-gray-300"
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "ACTIVE": return "bg-red-500 text-white border-red-600"
+      case "INACTIVE": return "bg-red-200 text-red-900 border-red-300"
+      case "DRAFT": return "bg-gray-100 text-gray-800 border-gray-300"
+      default: return "bg-gray-100 text-gray-800 border-gray-300"
+    }
+  }
   // const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc") // mặc định là mới nhất (desc)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -38,7 +59,7 @@ export const CourseListTable: React.FC<CourseListTableProps> = ({
   const navigate = useNavigate()
 
   // Fetch courses from API
-  const fetchCourses = async (page = 0) => {
+  const fetchCourses = useCallback(async (page = 0) => {
     setIsLoading(true)
     setError(null)
     try {
@@ -53,10 +74,16 @@ export const CourseListTable: React.FC<CourseListTableProps> = ({
 
       const response = await CourseService.getAllCoursesForStaff(filters)
       
-      if (response.success && response.data?.content) {
-        setCourses(response.data.content)
-        setTotalPages(response.data.totalPages)
-        setTotalElements(response.data.totalElements)
+      if (response.success && response.data) {
+        // API returns simple array, so we need to handle pagination locally
+        const courses = response.data
+        const startIndex = (currentPage - 1) * itemsPerPage
+        const endIndex = startIndex + itemsPerPage
+        const paginatedCourses = courses.slice(startIndex, endIndex)
+        
+        setCourses(paginatedCourses)
+        setTotalPages(Math.ceil(courses.length / itemsPerPage))
+        setTotalElements(courses.length)
       } else {
         throw new Error(response.message || "Không thể tải danh sách khóa học")
       }
@@ -67,18 +94,18 @@ export const CourseListTable: React.FC<CourseListTableProps> = ({
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [searchTerm, selectedLevel, currentPage, itemsPerPage])
 
   // Initial load and when filters change
   useEffect(() => {
     fetchCourses(0)
     setCurrentPage(1)
-  }, [searchTerm, selectedLevel, selectedStatus, refreshTrigger]) // added refreshTrigger
+  }, [fetchCourses, refreshTrigger]) // added refreshTrigger
 
   // When page changes
   useEffect(() => {
     fetchCourses(currentPage - 1)
-  }, [currentPage])
+  }, [fetchCourses, currentPage])
 
   // Get unique levels and statuses for filters
   const uniqueLevels = useMemo(() => {
@@ -95,30 +122,10 @@ export const CourseListTable: React.FC<CourseListTableProps> = ({
     return courses.filter(course => course.status === selectedStatus)
   }, [courses, selectedStatus])
 
-  const getLevelColor = (level: string) => {
-    switch (level) {
-      case "N5": return "bg-green-200 text-green-800 border-green-300"
-      case "N4": return "bg-blue-200 text-blue-800 border-blue-300"
-      case "N3": return "bg-orange-200 text-orange-800 border-orange-300"
-      case "N2": return "bg-red-200 text-red-800 border-red-300"
-      case "N1": return "bg-purple-200 text-purple-800 border-purple-300"
-      default: return "bg-gray-200 text-gray-800 border-gray-300"
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "PUBLISHED": return "bg-green-500 text-white border-green-600"
-      case "DRAFT": return "bg-yellow-400 text-yellow-900 border-yellow-500"
-      case "ARCHIVED": return "bg-red-200 text-red-700 border-red-300"
-      default: return "bg-gray-100 text-gray-800 border-gray-300"
-    }
-  }
-
   const getStatusText = (status: string) => {
     switch (status) {
-      case "PUBLISHED": return "Đã xuất bản"
-      case "DRAFT": return "Nháp"
+      case "ACTIVE": return "Hoạt động"
+      case "INACTIVE": return "Không hoạt động"
       case "ARCHIVED": return "Đã lưu trữ"
       default: return status
     }
@@ -180,7 +187,7 @@ export const CourseListTable: React.FC<CourseListTableProps> = ({
           )}
         </div>
         <div className="col-span-2">
-          <Badge className={`rounded-full px-3 py-1 text-xs font-medium border ${getLevelColor(course.level)}`}>
+          <Badge className={`rounded-full px-3 py-1 text-xs font-medium border ${getJLPTLevelColor(course.level)}`}>
             {course.level}
           </Badge>
         </div>
@@ -194,7 +201,7 @@ export const CourseListTable: React.FC<CourseListTableProps> = ({
             size="sm"
             variant="ghost"
             onClick={() => navigate(`/staff/courses/${course.id}`)}
-            className="h-8 w-8 p-0 hover:bg-blue-100 hover:text-blue-600"
+            className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-600"
             title="Xem chi tiết"
           >
             <Eye className="h-4 w-4" />
@@ -203,7 +210,7 @@ export const CourseListTable: React.FC<CourseListTableProps> = ({
             size="sm"
             variant="ghost"
             onClick={() => navigate(`/staff/courses/${course.id}/edit`)}
-            className="h-8 w-8 p-0 hover:bg-green-100 hover:text-green-600"
+            className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-600"
             title="Chỉnh sửa"
           >
             <Edit className="h-4 w-4" />

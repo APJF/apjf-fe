@@ -1,45 +1,79 @@
 import axios from '../api/axios'
-import type { ApiResponse } from '../types/api'
+
+// Helper function để lấy headers với token
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('access_token')
+  return token ? {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  } : {
+    'Content-Type': 'application/json'
+  }
+}
 
 export interface Material {
-  id: string;
-  title: string;
-  description?: string;
-  status: 'PUBLISHED' | 'DRAFT';
-  type: MaterialType;
-  url?: string;
-  content?: string;
-  unitId: string;
-  createdAt?: string;
-  updatedAt?: string;
+  id: string
+  description: string
+  fileUrl: string
+  type: MaterialType
 }
 
 export type MaterialType = 'KANJI' | 'GRAMMAR' | 'VOCAB' | 'LISTENING' | 'READING' | 'WRITING'
 
 export interface CreateMaterialRequest {
-  id?: string
+  id: string
   description: string
   fileUrl: string
   type: MaterialType
-  unitId: string
+}
+
+export interface UpdateMaterialRequest {
+  id: string
+  description: string
+  fileUrl: string
+  type: MaterialType
+}
+
+interface ApiResponse<T> {
+  success: boolean
+  message: string
+  data: T
+  timestamp: number
 }
 
 export const MaterialService = {
-  // Lấy danh sách materials theo unitId
-  getMaterialsByUnitId: async (unitId: string): Promise<ApiResponse<Material[]>> => {
+  // Lấy danh sách tài liệu theo unitId
+  getMaterialsByUnit: async (unitId: string): Promise<ApiResponse<Material[]>> => {
     try {
-      const response = await axios.get(`/materials/unit/${unitId}`)
+      const response = await axios.get(`/materials/unit/${unitId}`, {
+        headers: getAuthHeaders()
+      })
       return response.data
     } catch (error) {
-      console.error('Error fetching materials:', error)
+      console.error('Error fetching materials by unit:', error)
       throw error
     }
   },
 
-  // Tạo material mới
+  // Lấy chi tiết tài liệu theo materialId
+  getMaterialDetail: async (materialId: string): Promise<ApiResponse<Material>> => {
+    try {
+      const response = await axios.get(`/materials/${materialId}`, {
+        headers: getAuthHeaders()
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error fetching material detail:', error)
+      throw error
+    }
+  },
+
+  // Tạo tài liệu mới
   createMaterial: async (materialData: CreateMaterialRequest): Promise<ApiResponse<Material>> => {
     try {
-      const response = await axios.post('/materials', materialData)
+      const response = await axios.post('/materials', materialData, {
+        headers: getAuthHeaders()
+      })
       return response.data
     } catch (error) {
       console.error('Error creating material:', error)
@@ -47,10 +81,12 @@ export const MaterialService = {
     }
   },
 
-  // Cập nhật material
-  updateMaterial: async (materialId: string, materialData: CreateMaterialRequest): Promise<ApiResponse<Material>> => {
+  // Cập nhật tài liệu
+  updateMaterial: async (materialId: string, materialData: UpdateMaterialRequest): Promise<ApiResponse<Material>> => {
     try {
-      const response = await axios.put(`/materials/${materialId}`, materialData)
+      const response = await axios.put(`/materials/${materialId}`, materialData, {
+        headers: getAuthHeaders()
+      })
       return response.data
     } catch (error) {
       console.error('Error updating material:', error)
@@ -58,24 +94,12 @@ export const MaterialService = {
     }
   },
 
-  // Xóa material
-  deleteMaterial: async (materialId: string): Promise<ApiResponse<void>> => {
+  // Xóa tài liệu
+  deleteMaterial: async (materialId: string): Promise<ApiResponse<{ message: string }>> => {
     try {
-      console.log('Deleting material with ID:', materialId)
-      
-      // Get user info for header
-      const userString = localStorage.getItem('user')
-      const user = userString ? JSON.parse(userString) : null
-      console.log('User info for delete:', user ? { id: user.id } : 'No user info')
-      
-      // Explicitly set headers
-      const headers: { [key: string]: string } = {}
-      if (user?.id) {
-        headers['X-User-Id'] = user.id.toString()
-      }
-      
-      const response = await axios.delete(`/materials/${materialId}`, { headers })
-      console.log('Delete material response:', response.data)
+      const response = await axios.delete(`/materials/${materialId}`, {
+        headers: getAuthHeaders()
+      })
       return response.data
     } catch (error) {
       console.error('Error deleting material:', error)
@@ -83,3 +107,5 @@ export const MaterialService = {
     }
   }
 }
+
+export default MaterialService

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { Alert } from '../components/ui/Alert'
 import { AlertCircle, ArrowLeft, BookOpen, Hash, Info, FileText, ChevronDown, ChevronRight, X } from 'lucide-react'
@@ -11,7 +11,7 @@ import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
 import { StaffUnitService } from '../services/staffUnitService'
 import { MaterialService, type Material, type MaterialType } from '../services/materialService'
-import type { UpdateUnitRequest, StaffCourseDetail, ChapterDetail, UnitDetail } from '../types/staffCourse'
+import type { StaffCourseDetail, ChapterDetail, UnitDetail } from '../types/staffCourse'
 
 interface LocationState {
   unit?: UnitDetail
@@ -80,7 +80,7 @@ const StaffUpdateUnitPage: React.FC = () => {
       initializeFormData(unit)
       fetchMaterials()
     }
-  }, [courseId, chapterId, unitId])
+  }, [courseId, chapterId, unitId, unit, chapter, course])
 
   const fetchData = async () => {
     if (!courseId || !chapterId || !unitId) return
@@ -92,8 +92,15 @@ const StaffUpdateUnitPage: React.FC = () => {
       const unitResponse = await StaffUnitService.getUnitDetail(unitId)
       
       if (unitResponse.success && unitResponse.data) {
-        setUnit(unitResponse.data)
-        initializeFormData(unitResponse.data)
+        // Convert service type to component type
+        const convertedUnit: UnitDetail = {
+          ...unitResponse.data,
+          chapterId: unitResponse.data.chapterId || chapterId || '',
+          description: unitResponse.data.description || '',
+          exams: []
+        }
+        setUnit(convertedUnit)
+        initializeFormData(convertedUnit)
         await fetchMaterials()
       } else {
         setError("Không tìm thấy thông tin bài học")
@@ -110,9 +117,9 @@ const StaffUpdateUnitPage: React.FC = () => {
     if (!unitId) return
 
     try {
-      const response = await MaterialService.getMaterialsByUnitId(unitId)
+      const response = await MaterialService.getMaterialsByUnit(unitId)
       if (response.success && response.data) {
-        setMaterials(response.data.map(material => ({
+        setMaterials(response.data.map((material: Material) => ({
           ...material,
           expanded: false,
           originalData: { ...material }
@@ -137,6 +144,8 @@ const StaffUpdateUnitPage: React.FC = () => {
   }
 
   const handleMaterialChange = (materialId: string, field: keyof Material, value: string) => {
+    if (!materialId) return;
+    
     setMaterials(prev =>
       prev.map(material => {
         if (material.id === materialId) {
@@ -158,7 +167,6 @@ const StaffUpdateUnitPage: React.FC = () => {
       description: '',
       fileUrl: '',
       type: 'GRAMMAR' as MaterialType,
-      unitId: unitId!,
       expanded: true,
       isNew: true
     }
@@ -166,6 +174,8 @@ const StaffUpdateUnitPage: React.FC = () => {
   }
 
   const removeMaterial = (materialId: string) => {
+    if (!materialId) return;
+    
     console.log('Removing material:', materialId)
     setMaterials(prev => {
       const updated = prev.map(material => {
@@ -198,6 +208,8 @@ const StaffUpdateUnitPage: React.FC = () => {
   }
 
   const toggleMaterial = (materialId: string) => {
+    if (!materialId) return;
+    
     setMaterials(prev =>
       prev.map(material =>
         material.id === materialId 
@@ -217,9 +229,14 @@ const StaffUpdateUnitPage: React.FC = () => {
     }
   }
 
-  const isFormValid = formData.title.trim() && 
-                     formData.description.trim() &&
-                     materials.filter(m => !m.isDeleted).every(m => m.type && m.description.trim() && m.fileUrl.trim())
+  const isFormValid = useMemo(() => {
+    const hasValidBasicInfo = formData.title.trim() && formData.description.trim();
+    const hasValidMaterials = materials
+      .filter(m => !m.isDeleted)
+      .every(m => m.type && m.description.trim() && m.fileUrl.trim());
+    
+    return hasValidBasicInfo && hasValidMaterials;
+  }, [formData.title, formData.description, materials]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -239,14 +256,15 @@ const StaffUpdateUnitPage: React.FC = () => {
 
     try {
       // 1. Cập nhật unit
-      const unitData: UpdateUnitRequest = {
-        id: unit?.id || formData.id.trim(), // Giữ nguyên ID gốc
+      const status: "ACTIVE" | "INACTIVE" = unit?.status === "ACTIVE" ? "ACTIVE" : "INACTIVE";
+      const unitData = {
+        id: unit?.id || formData.id.trim(),
         title: formData.title.trim(),
         description: formData.description.trim(),
-        status: (unit?.status === "PUBLISHED" ? "PUBLISHED" : "DRAFT") as "DRAFT" | "PUBLISHED",
+        status,
         chapterId: chapter?.id || chapterId,
-        prerequisiteUnitId: unit?.prerequisiteUnitId || undefined, // Giữ nguyên prerequisite gốc
-        exams: unit?.exams || []
+        prerequisiteUnitId: unit?.prerequisiteUnitId || '',
+        examIds: unit?.exams?.map(exam => exam.id) || []
       }
 
       const unitResponse = await StaffUnitService.updateUnit(unitId, unitData)
@@ -274,21 +292,20 @@ const StaffUpdateUnitPage: React.FC = () => {
             // Tạo material mới (chỉ khi không bị xóa)
             materialPromises.push(
               MaterialService.createMaterial({
+                id: `${unitId}_${Date.now()}`,
                 description: material.description.trim(),
                 fileUrl: material.fileUrl.trim(),
-                type: material.type,
-                unitId: unitId
+                type: material.type
               })
             )
-          } else if (material.isUpdated && material.originalData && !material.isDeleted) {
+          } else if (material.isUpdated && material.originalData && !material.isDeleted && material.id) {
             // Cập nhật material đã có (chỉ khi không bị xóa)
             materialPromises.push(
-              MaterialService.updateMaterial(material.id!, {
+              MaterialService.updateMaterial(material.id, {
                 id: material.id,
                 description: material.description.trim(),
                 fileUrl: material.fileUrl.trim(),
-                type: material.type,
-                unitId: unitId
+                type: material.type
               })
             )
           }
@@ -602,11 +619,14 @@ const StaffUpdateUnitPage: React.FC = () => {
                           {/* Material Header */}
                           <div className="flex items-center justify-between p-4">
                             {/* Left side - clickable area for toggle */}
-                            <button
-                              type="button"
-                              onClick={() => toggleMaterial(material.id!)}
-                              className="flex items-center gap-3 flex-1 text-left hover:bg-purple-50/50 transition-colors rounded-lg p-2 -m-2"
-                            >
+                              <button
+                                type="button"
+                                onClick={() => material.id && toggleMaterial(material.id)}
+                                className="flex items-center gap-3 flex-1 text-left hover:bg-purple-50/50 transition-colors rounded-lg p-2 -m-2"
+                                aria-expanded={material.expanded}
+                                aria-controls={`material-content-${material.id}`}
+                                aria-label={`Toggle material ${index + 1} details`}
+                              >
                               {(() => {
                                 let badgeClass = 'bg-gradient-to-br from-purple-600 to-pink-600'
                                 if (material.isNew) {
@@ -639,24 +659,29 @@ const StaffUpdateUnitPage: React.FC = () => {
                             {/* Right side - action buttons */}
                             <div className="flex items-center gap-2 ml-4">
                               {materials.length > 1 && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    removeMaterial(material.id!)
-                                  }}
-                                  className="h-8 w-8 p-0 text-red-500 hover:bg-red-50"
-                                >
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      if (material.id) {
+                                        removeMaterial(material.id)
+                                      }
+                                    }}
+                                    className="h-8 w-8 p-0 text-red-500 hover:bg-red-50"
+                                    aria-label={`Remove material ${index + 1}`}
+                                  >
                                   <X className="h-4 w-4" />
                                 </Button>
                               )}
-                              <button
-                                type="button"
-                                onClick={() => toggleMaterial(material.id!)}
-                                className="p-1 rounded hover:bg-purple-100 transition-colors"
-                              >
+                                <button
+                                  type="button"
+                                  onClick={() => material.id && toggleMaterial(material.id)}
+                                  className="p-1 rounded hover:bg-purple-100 transition-colors"
+                                  aria-expanded={material.expanded}
+                                  aria-label={`${material.expanded ? 'Collapse' : 'Expand'} material ${index + 1}`}
+                                >
                                 {material.expanded ? (
                                   <ChevronDown className="h-5 w-5 text-purple-400" />
                                 ) : (
@@ -668,7 +693,11 @@ const StaffUpdateUnitPage: React.FC = () => {
 
                           {/* Material Content */}
                           {material.expanded && (
-                            <div className="border-t border-purple-200 bg-purple-50/30 p-6 space-y-4">
+                            <section 
+                              className="border-t border-purple-200 bg-purple-50/30 p-6 space-y-4"
+                              id={`material-content-${material.id}`}
+                              aria-labelledby={`material-header-${material.id}`}
+                            >
                               {/* Material Type */}
                               <div className="space-y-2">
                                 <Label className="text-purple-800 font-medium">
@@ -676,7 +705,7 @@ const StaffUpdateUnitPage: React.FC = () => {
                                 </Label>
                                 <select
                                   value={material.type}
-                                  onChange={(e) => handleMaterialChange(material.id!, "type", e.target.value)}
+                                  onChange={(e) => material.id && handleMaterialChange(material.id, "type", e.target.value)}
                                   className="w-full px-3 py-2 border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
                                   required
                                 >
@@ -696,7 +725,7 @@ const StaffUpdateUnitPage: React.FC = () => {
                                 </Label>
                                 <Input
                                   value={material.description}
-                                  onChange={(e) => handleMaterialChange(material.id!, "description", e.target.value)}
+                                  onChange={(e) => material.id && handleMaterialChange(material.id, "description", e.target.value)}
                                   placeholder="Ví dụ: Bảng Hiragana cơ bản"
                                   className="border-purple-300 focus:border-purple-500 focus:ring-purple-500"
                                   required
@@ -710,7 +739,7 @@ const StaffUpdateUnitPage: React.FC = () => {
                                 </Label>
                                 <Input
                                   value={material.fileUrl}
-                                  onChange={(e) => handleMaterialChange(material.id!, "fileUrl", e.target.value)}
+                                  onChange={(e) => material.id && handleMaterialChange(material.id, "fileUrl", e.target.value)}
                                   placeholder="https://example.com/material.pdf hoặc /docs/material.pdf"
                                   className="border-purple-300 focus:border-purple-500 focus:ring-purple-500"
                                   required
@@ -719,7 +748,7 @@ const StaffUpdateUnitPage: React.FC = () => {
                                   Nhập URL đầy đủ hoặc đường dẫn tương đối đến tài liệu
                                 </p>
                               </div>
-                            </div>
+                            </section>
                           )}
                         </div>
                       ))}

@@ -1,7 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { Alert } from '../components/ui/Alert'
-import { AlertCircle, ArrowLeft, BookOpen, Hash, Info, Plus, FileText, ChevronDown, ChevronRight, X } from 'lucide-react'
+import { AlertCircle, ArrowLeft, BookOpen, Hash, Info, Plus, FileText } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
@@ -9,18 +9,19 @@ import { Label } from '../components/ui/Label'
 import { Textarea } from '../components/ui/Textarea'
 import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
-import { StaffUnitService } from '../services/staffUnitService'
-import { MaterialService, type CreateMaterialRequest, type MaterialType } from '../services/materialService'
-import type { CreateUnitRequest, StaffCourseDetail, ChapterDetail } from '../types/staffCourse'
+import { CourseService } from '../services/courseService'
+import type { CreateUnitRequest, Chapter, Course } from '../types/course'
+import { useToast } from '../hooks/useToast'
 
 interface LocationState {
-  course?: StaffCourseDetail
-  chapter?: ChapterDetail
+  course?: Course
+  chapter?: Chapter
 }
 
+// Simplified material interface for form (we'll create materials separately)
 interface MaterialFormData {
   id: number
-  type: MaterialType | ''
+  type: string
   description: string
   fileUrl: string
   expanded: boolean
@@ -31,10 +32,12 @@ const StaffCreateUnitPage: React.FC = () => {
   const { courseId, chapterId } = useParams<{ courseId: string; chapterId: string }>()
   const location = useLocation()
   const locationState = location.state as LocationState || {}
+  const { showToast } = useToast()
 
-  const [course] = useState<StaffCourseDetail | null>(locationState.course || null)
-  const [chapter] = useState<ChapterDetail | null>(locationState.chapter || null)
+  const [course, setCourse] = useState<Course | null>(locationState.course || null)
+  const [chapter, setChapter] = useState<Chapter | null>(locationState.chapter || null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingData, setIsLoadingData] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
@@ -54,27 +57,7 @@ const StaffCreateUnitPage: React.FC = () => {
     }
   ])
 
-  const materialTypes: { value: MaterialType; label: string }[] = [
-    { value: 'KANJI', label: 'Kanji' },
-    { value: 'GRAMMAR', label: 'Ngữ pháp' },
-    { value: 'VOCAB', label: 'Từ vựng' },
-    { value: 'LISTENING', label: 'Nghe hiểu' },
-    { value: 'READING', label: 'Đọc hiểu' },
-    { value: 'WRITING', label: 'Viết' }
-  ]
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-  }
-
-  const handleMaterialChange = (id: number, field: string, value: string) => {
-    setMaterials(prev => 
-      prev.map(material => 
-        material.id === id ? { ...material, [field]: value } : material
-      )
-    )
-  }
-
+  // Simple add material function
   const addMaterial = () => {
     const newId = Math.max(...materials.map(m => m.id)) + 1
     setMaterials(prev => [
@@ -89,18 +72,43 @@ const StaffCreateUnitPage: React.FC = () => {
     ])
   }
 
-  const removeMaterial = (id: number) => {
-    if (materials.length > 1) {
-      setMaterials(prev => prev.filter(material => material.id !== id))
-    }
-  }
+  // Fetch data if not provided through location state
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!courseId || !chapterId) {
+        setError("ID khóa học hoặc chương không hợp lệ")
+        return
+      }
 
-  const toggleMaterial = (id: number) => {
-    setMaterials(prev =>
-      prev.map(material =>
-        material.id === id ? { ...material, expanded: !material.expanded } : material
-      )
-    )
+      // If we don't have course or chapter data, fetch them
+      if (!course || !chapter) {
+        setIsLoadingData(true)
+        try {
+          const [courseResult, chapterResult] = await Promise.all([
+            course ? Promise.resolve({ data: course }) : CourseService.getCourseDetail(courseId),
+            chapter ? Promise.resolve({ data: chapter }) : CourseService.getChapterDetail(chapterId)
+          ])
+
+          if (!course && courseResult.data) {
+            setCourse(courseResult.data)
+          }
+          if (!chapter && chapterResult.data) {
+            setChapter(chapterResult.data)
+          }
+        } catch (error) {
+          console.error('Error fetching data:', error)
+          setError('Không thể tải thông tin khóa học hoặc chương')
+        } finally {
+          setIsLoadingData(false)
+        }
+      }
+    }
+
+    fetchData()
+  }, [courseId, chapterId, course, chapter])
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
   }
 
   const handleBack = () => {
@@ -113,21 +121,84 @@ const StaffCreateUnitPage: React.FC = () => {
     }
   }
 
-  const isFormValid = formData.id.trim() && 
+  const isFormValid = formData.id.trim() &&
                      formData.title.trim() && 
-                     formData.description.trim() &&
-                     materials.every(m => m.type && m.description.trim() && m.fileUrl.trim())
+                     formData.description.trim()
+                     // Remove material validation for now since we'll simplify this
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
+  const validateSubmitForm = (): boolean => {
     if (!isFormValid) {
       setError('Vui lòng điền đầy đủ thông tin bắt buộc')
-      return
+      return false
     }
 
     if (!chapterId) {
       setError("Không tìm thấy ID chương")
+      return false
+    }
+
+    return true
+  }
+
+  const createUnitData = (): CreateUnitRequest => {
+    return {
+      id: formData.id.trim(),
+      title: formData.title.trim(),
+      description: formData.description.trim(),
+      status: "INACTIVE",
+      chapterId: chapterId!,
+      prerequisiteUnitId: formData.prerequisiteUnitId.trim() || null
+    }
+  }
+
+  const handleSubmitSuccess = () => {
+    showToast('success', 'Tạo bài học thành công!')
+    
+    navigate(`/staff/courses/${courseId}/chapters/${chapterId}`, {
+      replace: true,
+      state: { 
+        course,
+        chapter,
+        message: 'Tạo bài học thành công!',
+        refreshData: true,
+        timestamp: Date.now()
+      }
+    })
+  }
+
+  const handleSubmitError = (error: unknown) => {
+    console.error('❌ Error creating unit:', error)
+    
+    if (error && typeof error === 'object' && 'response' in error) {
+      const axiosError = error as { response?: { status: number, data?: unknown } }
+      const errorData = axiosError.response?.data as { message?: string }
+      const errorMsg = errorData?.message || 'Lỗi không xác định'
+      
+      let userFriendlyError = errorMsg
+      if (axiosError.response?.status === 400) {
+        if (errorMsg.includes('prerequisite') || errorMsg.includes('tiên quyết')) {
+          userFriendlyError = 'Lỗi bài học tiên quyết: ' + errorMsg
+        } else if (errorMsg.includes('duplicate') || errorMsg.includes('đã tồn tại')) {
+          userFriendlyError = 'Tên bài học đã tồn tại trong chương này'
+        } else {
+          userFriendlyError = 'Dữ liệu không hợp lệ: ' + errorMsg
+        }
+      }
+      
+      const errorMessage = `Lỗi tạo bài học (${axiosError.response?.status}): ${userFriendlyError}`
+      showToast('error', errorMessage)
+      setError(errorMessage)
+    } else {
+      const fallbackError = 'Có lỗi xảy ra khi tạo bài học. Vui lòng thử lại.'
+      showToast('error', fallbackError)
+      setError(fallbackError)
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!validateSubmitForm()) {
       return
     }
 
@@ -135,53 +206,33 @@ const StaffCreateUnitPage: React.FC = () => {
     setError(null)
 
     try {
-      // 1. Tạo unit trước
-      const unitData: CreateUnitRequest = {
-        id: formData.id.trim(),
-        title: formData.title.trim(),
-        description: formData.description.trim(),
-        status: "DRAFT",
-        chapterId,
-        prerequisiteUnitId: formData.prerequisiteUnitId.trim() || undefined,
-        exams: []
-      }
+      const unitData = createUnitData()
 
-      const unitResponse = await StaffUnitService.createUnit(unitData)
-      
-      if (unitResponse.success && unitResponse.data) {
-        // 2. Tạo materials cho unit vừa tạo
-        const materialPromises = materials.map(material => {
-          const materialData: CreateMaterialRequest = {
-            description: material.description.trim(),
-            fileUrl: material.fileUrl.trim(),
-            type: material.type as MaterialType,
-            unitId: unitResponse.data.id
-          }
-          return MaterialService.createMaterial(materialData)
-        })
+      console.log('📤 Sending unit data:', {
+        ...unitData,
+        prerequisiteNote: unitData.prerequisiteUnitId ? 'Has prerequisite' : 'No prerequisite (null)'
+      })
 
-        await Promise.all(materialPromises)
-        
-        // Navigate back to chapter detail with success message and force refresh
-        navigate(`/staff/courses/${courseId}/chapters/${chapterId}`, {
-          replace: true,
-          state: { 
-            course,
-            chapter,
-            message: 'Tạo bài học thành công!',
-            refreshData: true,
-            timestamp: Date.now()
-          }
-        })
-      } else {
-        setError(unitResponse.message || 'Tạo bài học thất bại')
-      }
+      await CourseService.createUnit(unitData)
+      handleSubmitSuccess()
     } catch (error) {
-      console.error('Error creating unit:', error)
-      setError('Có lỗi xảy ra khi tạo bài học. Vui lòng thử lại.')
+      handleSubmitError(error)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (isLoadingData) {
+    return (
+      <StaffNavigation>
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+          <div className="text-center">
+            <BookOpen className="h-16 w-16 mx-auto text-blue-600 animate-pulse mb-4" />
+            <p className="text-xl text-blue-600 font-medium">Đang tải thông tin khóa học và chương...</p>
+          </div>
+        </div>
+      </StaffNavigation>
+    )
   }
 
   if (!course || !chapter) {
@@ -353,14 +404,14 @@ const StaffCreateUnitPage: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {/* Unit ID */}
                       <div className="space-y-3">
-                        <Label htmlFor="unitId" className="text-blue-800 font-semibold text-base flex items-center gap-2">
+                        <Label htmlFor="id" className="text-blue-800 font-semibold text-base flex items-center gap-2">
                           Mã bài học <span className="text-red-500">*</span>
                           <div className="bg-blue-100 p-1 rounded-full">
                             <Hash className="h-3 w-3 text-blue-600" />
                           </div>
                         </Label>
                         <Input
-                          id="unitId"
+                          id="id"
                           value={formData.id}
                           onChange={(e) => handleInputChange("id", e.target.value)}
                           placeholder="Ví dụ: UNIT01"
@@ -438,7 +489,7 @@ const StaffCreateUnitPage: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-xl font-semibold flex items-center gap-2">
                         <FileText className="h-6 w-6" />
-                        Tài liệu học tập
+                        Tài liệu học tập (Tùy chọn)
                       </CardTitle>
                       <Button
                         type="button"
@@ -453,114 +504,19 @@ const StaffCreateUnitPage: React.FC = () => {
                     </div>
                   </CardHeader>
                   <CardContent className="p-8">
-                    <div className="space-y-4">
-                      {materials.map((material, index) => (
-                        <div
-                          key={material.id}
-                          className="border border-purple-200 rounded-xl bg-gradient-to-r from-white to-purple-50/30"
-                        >
-                          {/* Material Header */}
-                          <button
-                            type="button"
-                            onClick={() => toggleMaterial(material.id)}
-                            className="w-full flex items-center justify-between p-4 hover:bg-purple-50/50 transition-colors rounded-xl"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="bg-gradient-to-br from-purple-600 to-pink-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">
-                                {index + 1}
-                              </div>
-                              <div className="text-left">
-                                <h3 className="font-semibold text-purple-900">
-                                  Tài liệu {index + 1}
-                                  {material.type && ` - ${materialTypes.find(t => t.value === material.type)?.label}`}
-                                </h3>
-                                {material.description && (
-                                  <p className="text-sm text-purple-600 mt-1 line-clamp-1">
-                                    {material.description}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {materials.length > 1 && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    removeMaterial(material.id)
-                                  }}
-                                  className="h-8 w-8 p-0 text-red-500 hover:bg-red-50"
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              )}
-                              {material.expanded ? (
-                                <ChevronDown className="h-5 w-5 text-purple-400" />
-                              ) : (
-                                <ChevronRight className="h-5 w-5 text-purple-400" />
-                              )}
-                            </div>
-                          </button>
-
-                          {/* Material Content */}
-                          {material.expanded && (
-                            <div className="border-t border-purple-200 bg-purple-50/30 p-6 space-y-4">
-                              {/* Material Type */}
-                              <div className="space-y-2">
-                                <Label className="text-purple-800 font-medium">
-                                  Loại tài liệu <span className="text-red-500">*</span>
-                                </Label>
-                                <select
-                                  value={material.type}
-                                  onChange={(e) => handleMaterialChange(material.id, "type", e.target.value)}
-                                  className="w-full px-3 py-2 border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
-                                  required
-                                >
-                                  <option value="">Chọn loại tài liệu</option>
-                                  {materialTypes.map((type) => (
-                                    <option key={type.value} value={type.value}>
-                                      {type.label}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-
-                              {/* Material Description */}
-                              <div className="space-y-2">
-                                <Label className="text-purple-800 font-medium">
-                                  Mô tả tài liệu <span className="text-red-500">*</span>
-                                </Label>
-                                <Input
-                                  value={material.description}
-                                  onChange={(e) => handleMaterialChange(material.id, "description", e.target.value)}
-                                  placeholder="Ví dụ: Bảng Hiragana cơ bản"
-                                  className="border-purple-300 focus:border-purple-500 focus:ring-purple-500"
-                                  required
-                                />
-                              </div>
-
-                              {/* Material URL */}
-                              <div className="space-y-2">
-                                <Label className="text-purple-800 font-medium">
-                                  URL tài liệu <span className="text-red-500">*</span>
-                                </Label>
-                                <Input
-                                  value={material.fileUrl}
-                                  onChange={(e) => handleMaterialChange(material.id, "fileUrl", e.target.value)}
-                                  placeholder="https://example.com/material.pdf hoặc /docs/material.pdf"
-                                  className="border-purple-300 focus:border-purple-500 focus:ring-purple-500"
-                                  required
-                                />
-                                <p className="text-purple-600 text-xs">
-                                  Nhập URL đầy đủ hoặc đường dẫn tương đối đến tài liệu
-                                </p>
-                              </div>
-                            </div>
-                          )}
+                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 mb-6">
+                      <div className="flex items-start gap-3">
+                        <div className="bg-blue-100 p-1 rounded-full mt-0.5">
+                          <Info className="h-4 w-4 text-blue-600" />
                         </div>
-                      ))}
+                        <div>
+                          <p className="text-blue-800 text-sm font-medium mb-1">Chức năng đang phát triển</p>
+                          <p className="text-blue-700 text-xs leading-relaxed">
+                            Tính năng quản lý tài liệu sẽ được hoàn thiện trong phiên bản tiếp theo. 
+                            Hiện tại bạn có thể tạo bài học trước, sau đó thêm tài liệu riêng biệt.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

@@ -3,17 +3,25 @@ import { authService } from '../services/authService';
 import type { LoginCredentials } from '../types/auth';
 
 interface User {
-  id: string;
+  id: string | number; // Support both string and number
+  email?: string;
   username: string;
   avatar: string | null;
   roles: string[];
+  authorities?: string[]; // Support both roles and authorities
 }
 
 const getUserFromLocalStorage = (): User | null => {
   try {
-    const userString = localStorage.getItem('user');
+    // Ưu tiên key mới, fallback sang key cũ
+    let userString = localStorage.getItem('userInfo');
+    if (!userString) {
+      userString = localStorage.getItem('user');
+    }
+    
     if (userString) {
-      return JSON.parse(userString);
+      const userData = JSON.parse(userString);
+      return userData;
     }
     return null;
   } catch (error) {
@@ -27,31 +35,28 @@ export const useAuth = () => {
 
   useEffect(() => {
     const handleAuthStateChange = () => {
-      setUser(getUserFromLocalStorage());
+      const updatedUser = getUserFromLocalStorage();
+      setUser(updatedUser);
     };
 
-    window.addEventListener('authStateChanged', handleAuthStateChange);
-    window.addEventListener('storage', handleAuthStateChange);
+    // Listen for auth state changes from authService
+    window.addEventListener('authStateChanged', handleAuthStateChange as EventListener);
+    // Listen for storage changes from other tabs
+    window.addEventListener('storage', handleAuthStateChange as EventListener);
 
     return () => {
-      window.removeEventListener('authStateChanged', handleAuthStateChange);
-      window.removeEventListener('storage', handleAuthStateChange);
+      window.removeEventListener('authStateChanged', handleAuthStateChange as EventListener);
+      window.removeEventListener('storage', handleAuthStateChange as EventListener);
     };
   }, []);
 
   const login = async (credentials: LoginCredentials) => {
     const data = await authService.login(credentials);
     if (data.success && data.data) {
-      // User info is already stored in localStorage by authService.login
-      // Just update the state with the userInfo from response
-      const localUser: User = {
-        id: data.data.userInfo.id.toString(),
-        username: data.data.userInfo.username,
-        avatar: data.data.userInfo.avatar || null,
-        roles: data.data.userInfo.roles || []
-      };
-      setUser(localUser);
-      window.dispatchEvent(new Event('authStateChanged'));
+      // authService.login already stores userInfo in localStorage
+      // Just refresh our local state from localStorage
+      const updatedUser = getUserFromLocalStorage();
+      setUser(updatedUser);
     }
     return data;
   };
@@ -59,7 +64,7 @@ export const useAuth = () => {
   const logout = () => {
     authService.logout();
     setUser(null);
-    localStorage.removeItem('user');
+    // authService.logout() đã xóa localStorage rồi
     window.dispatchEvent(new Event('authStateChanged'));
   };
 

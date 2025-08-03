@@ -56,10 +56,10 @@ instance.interceptors.request.use(
       '/auth/register',
       '/auth/login',
       '/auth/verify',
-      '/auth/resend-otp',
-      '/auth/forgot-password',
+      '/auth/send-otp',
       '/auth/reset-password',
-      '/auth/refresh-token'
+      '/auth/refresh-token',
+      '/oauth2/'
     ];
 
     // Kiểm tra xem URL hiện tại có phải là public endpoint không
@@ -68,11 +68,20 @@ instance.interceptors.request.use(
     );
 
     if (!isPublicEndpoint) {
-      const token = localStorage.getItem('access_token');
+      // Hỗ trợ cả hai key để tương thích với code cũ và mới
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('access_token');
       if (token) {
         config.headers['Authorization'] = `Bearer ${token}`;
       }
     }
+
+    // Debug logging - sau khi thêm auth header
+    console.log('Request interceptor:', {
+      url: config.url,
+      isPublicEndpoint,
+      hasAuthHeader: !!config.headers['Authorization'],
+      tokenFound: !!(localStorage.getItem('accessToken') || localStorage.getItem('access_token'))
+    });
     
     return config;
   },
@@ -84,33 +93,59 @@ instance.interceptors.request.use(
   }
 );
 
+const handleResponseError = async (err: unknown) => {
+  if (!isAxiosError(err)) {
+    console.error('Non-Axios error:', err);
+    return Promise.reject(err instanceof Error ? err : new Error('Unknown error occurred'));
+  }
+
+  const { config: originalConfig, response } = err;
+  
+  // Debug logging
+  console.error('API Error:', {
+    url: originalConfig?.url,
+    status: response?.status,
+    data: response?.data,
+    headers: originalConfig?.headers
+  });
+
+  // Nếu là lỗi từ auth endpoint, trả về lỗi nguyên gốc để component xử lý
+  if (originalConfig?.url?.includes('/auth/')) {
+    return Promise.reject(err instanceof Error ? err : new Error('Auth request failed'));
+  }
+
+  // Nếu lỗi 401 và không phải là retry
+  if (response?.status === 401 && !originalConfig?._retry) {
+    return handleUnauthorizedError(err, originalConfig);
+  }
+
+  return Promise.reject(err instanceof Error ? err : new Error('Request failed'));
+};
+
+const handleUnauthorizedError = async (err: CustomAxiosError, originalConfig?: AxiosRequestConfig & { _retry?: boolean }) => {
+  console.log('401 error detected, attempting token refresh...');
+  
+  if (!originalConfig || !shouldHandleTokenRefresh(originalConfig, err.response)) {
+    console.log('Cannot refresh token, redirecting to login...');
+    handleAuthError(err);
+    return Promise.reject(err instanceof Error ? err : new Error('Authentication failed'));
+  }
+
+  try {
+    console.log('Attempting to refresh token...');
+    return await handleTokenRefresh(originalConfig);
+  } catch (refreshError) {
+    console.error('Token refresh failed:', refreshError);
+    handleAuthError(refreshError);
+    return Promise.reject(refreshError instanceof Error ? refreshError : new Error('Authentication failed'));
+  }
+};
+
 instance.interceptors.response.use(
   (res) => {
     return res;
   },
-  async (err: unknown) => {
-    if (!isAxiosError(err)) {
-      return Promise.reject(err instanceof Error ? err : new Error('Unknown error occurred'));
-    }
-
-    const { config: originalConfig, response } = err;
-
-    // Nếu là lỗi từ auth endpoint, trả về lỗi nguyên gốc để component xử lý
-    if (originalConfig?.url?.includes('/auth/')) {
-      return Promise.reject(err instanceof Error ? err : new Error('Auth request failed'));
-    }
-
-    if (!originalConfig || !shouldHandleTokenRefresh(originalConfig, response)) {
-      return Promise.reject(err instanceof Error ? err : new Error('Request failed'));
-    }
-
-    try {
-      return await handleTokenRefresh(originalConfig);
-    } catch (refreshError) {
-      handleAuthError(refreshError);
-      return Promise.reject(refreshError instanceof Error ? refreshError : new Error('Authentication failed'));
-    }
-  }
+  handleResponseError
 );
 
 export default instance;

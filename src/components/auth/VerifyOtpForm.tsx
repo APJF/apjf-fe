@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { BookOpen, ShieldCheck, AlertCircle, ArrowLeft } from "lucide-react"
 import authService from "../../services/authService"
-import { useToast } from "../ui/toast"
+import { useToast } from "../../hooks/useToast"
 
 export function VerifyOtpForm() {
   const [otp, setOtp] = useState("")
@@ -10,9 +10,10 @@ export function VerifyOtpForm() {
   const [isResending, setIsResending] = useState(false)
   const [message, setMessage] = useState("")
   const [email, setEmail] = useState("")
+  const [otpType, setOtpType] = useState<'registration' | 'reset_password'>('registration')
   const navigate = useNavigate()
   const location = useLocation()
-  const { toast } = useToast()
+  const { showToast } = useToast()
 
   useEffect(() => {
     if (location.state?.email) {
@@ -25,6 +26,13 @@ export function VerifyOtpForm() {
       } else {
         setMessage("Không tìm thấy email. Vui lòng thử lại.")
       }
+    }
+
+    // Set OTP type based on where user came from
+    if (location.state?.from === "forgot-password") {
+      setOtpType('reset_password')
+    } else {
+      setOtpType('registration')
     }
   }, [location.state])
 
@@ -55,7 +63,7 @@ export function VerifyOtpForm() {
       const response = await authService.verifyOtp({ email, otp })
 
       if (response.success) {
-        toast.success("Thành công", response.message)
+        showToast('success', response.message)
         localStorage.removeItem("email") // Clear stored email after successful verification
         
         const from = location.state?.from;
@@ -85,10 +93,14 @@ export function VerifyOtpForm() {
     setMessage("")
 
     try {
-      const response = await authService.sendVerificationOtp(email)
+      // Use the new sendOtp method with proper type
+      const response = await authService.sendOtp({ 
+        email, 
+        type: otpType 
+      })
       
       if (response.success) {
-        toast.success("Thành công", "Mã OTP mới đã được gửi đến email của bạn.")
+        showToast('success', "Mã OTP mới đã được gửi đến email của bạn.")
         setOtp("") // Clear current OTP input
       } else {
         setMessage(response.message || "Không thể gửi lại mã OTP.")

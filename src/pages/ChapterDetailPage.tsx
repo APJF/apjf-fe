@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getChapterById, getUnitsByChapterId } from '../services/chapterDetailService';
 import { MaterialService } from '../services/materialService';
-import type { Chapter } from '../types/course';
+import type { Chapter, Unit } from '../types/course';
 import type { Material } from '../services/materialService';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
@@ -457,7 +457,6 @@ export default function ChapterDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedSkill, setSelectedSkill] = useState<string>('');
-  const [currentLanguage, setCurrentLanguage] = useState<'vi' | 'ja'>('vi');
   const [currentStage, setCurrentStage] = useState(3);
 
   useEffect(() => {
@@ -479,9 +478,9 @@ export default function ChapterDetailPage() {
           if (unitsRes.success) {
             // Transform units và fetch materials cho mỗi unit
             const unitsWithSkills = await Promise.all(
-              unitsRes.data.map(async (unit, index) => {
+              unitsRes.data.map(async (unit: Unit, index: number) => {
                 try {
-                  const materialsRes = await MaterialService.getMaterialsByUnitId(unit.id);
+                  const materialsRes = await MaterialService.getMaterialsByUnit(unit.id);
                   const materials = materialsRes.success ? materialsRes.data : [];
                   
                   // Generate skills based on materials or default skills

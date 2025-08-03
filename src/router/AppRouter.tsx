@@ -2,12 +2,13 @@ import React from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import Layout from "../components/layout/Layout";
 import { ProtectedRoute } from "../components/auth/ProtectedRoute";
+import OAuthCallback from "../components/auth/OAuthCallback";
 import HomePage from "../pages/HomePage";
 import CoursesPage from "../pages/CoursesPage";
 import CourseDetailPage from "../pages/CourseDetailPage";
 import ChapterDetailPage from "../pages/ChapterDetailPage";
-import RoadmapPage from "../pages/RoadmapPage";
-import RoadmapDetailPage from "../pages/RoadmapDetailPage";
+import RoadmapPage from "../pages/LearningPathPage";
+import RoadmapDetailPage from "../pages/LearningPathDetailPage";
 import LoginPage from "../pages/LoginPage";
 import RegisterPage from "../pages/RegisterPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
@@ -27,12 +28,15 @@ import StaffUpdateChapterPage from "../pages/StaffUpdateChapterPage";
 import StaffCreateChapterPage from "../pages/StaffCreateChapterPage";
 import StaffCreateUnitPage from "../pages/StaffCreateUnitPage";
 import StaffUpdateUnitPage from "../pages/StaffUpdateUnitPage";
+import StaffCreateExamPage from "../pages/StaffCreateExamPage";
+import StaffUpdateExamPage from "../pages/StaffUpdateExamPage";
 import StaffStudentFeedbackPage from "../pages/StaffStudentFeedbackPage";
 import StaffRequestsPage from "../pages/StaffRequestsPage";
 import { ExamPreparationPage } from '../pages/ExamPreparationPage';
 import { ExamDoingPage } from '../pages/ExamDoingPage';
 import { ExamResultPage } from '../pages/ExamResultPage';
 import { ExamAnswerReviewPage } from '../pages/ExamAnswerReviewPage';
+import ExamHistoryPage from '../pages/ExamHistoryPage';
 /**
  * Router Configuration - Cấu hình routing cho ứng dụng
  * Sử dụng React Router v6 với createBrowserRouter
@@ -120,6 +124,10 @@ const router = createBrowserRouter([
     element: <VerifyOtpPage />,
   },
   {
+    path: "/oauth2/redirect",
+    element: <OAuthCallback />,
+  },
+  {
     path: "/chatbot",
     element: (
       <Layout>
@@ -133,6 +141,16 @@ const router = createBrowserRouter([
       <Layout>
         <UserProfilePage />
       </Layout>
+    ),
+  },
+  {
+    path: "/exam-history",
+    element: (
+      <ProtectedRoute requiredRoles={["USER", "STAFF", "MANAGER", "ADMIN"]}>
+        <Layout>
+          <ExamHistoryPage />
+        </Layout>
+      </ProtectedRoute>
     ),
   },
   {
@@ -244,6 +262,22 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
         <StaffStudentFeedbackPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/staff/create-exam",
+    element: (
+      <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
+        <StaffCreateExamPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/staff/exams/:examId/edit",
+    element: (
+      <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
+        <StaffUpdateExamPage />
       </ProtectedRoute>
     ),
   },

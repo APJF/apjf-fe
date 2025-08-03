@@ -1,6 +1,6 @@
 import React from 'react';
 import { Clock, BookOpen, Star, Users, Award, Play } from "lucide-react";
-import type { Course, Topic } from '../../types/courseDetail';
+import type { Course, Topic } from '../../types/course';
 
 interface CourseHeroProps {
   course: Course;
@@ -16,17 +16,18 @@ export const CourseHero: React.FC<CourseHeroProps> = ({
   onStartLearning 
 }) => {
   const getLevelColor = (level: string) => {
+    // Using unified red theme for all levels
     switch (level) {
       case "N5":
-        return "bg-green-100 text-green-800 border-green-200";
+        return "bg-red-50 text-red-900 border-red-100";
       case "N4":
-        return "bg-blue-100 text-blue-800 border-blue-200";
+        return "bg-red-50 text-red-800 border-red-200";
       case "N3":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+        return "bg-red-100 text-red-700 border-red-300";
       case "N2":
-        return "bg-orange-100 text-orange-800 border-orange-200";
+        return "bg-red-200 text-red-600 border-red-400";
       case "N1":
-        return "bg-red-100 text-red-800 border-red-200";
+        return "bg-red-300 text-red-900 border-red-500";
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
     }

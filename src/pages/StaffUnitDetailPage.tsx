@@ -6,9 +6,11 @@ import { Button } from '../components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
-import { StaffUnitService } from '../services/staffUnitService'
+import { StaffUnitService, type UnitDetail } from '../services/staffUnitService'
+import { StaffCourseService } from '../services/staffCourseService'
+import { StaffChapterService } from '../services/staffChapterService'
 import { MaterialService, type Material } from '../services/materialService'
-import type { StaffCourseDetail, ChapterDetail, UnitDetail } from '../types/staffCourse'
+import type { StaffCourseDetail, ChapterDetail } from '../types/staffCourse'
 
 interface LocationState {
   unit?: UnitDetail
@@ -75,7 +77,7 @@ export const StaffUnitDetailPage: React.FC = () => {
     if (!unitId) return
 
     try {
-      const response = await MaterialService.getMaterialsByUnitId(unitId)
+      const response = await MaterialService.getMaterialsByUnit(unitId)
       if (response.success && response.data) {
         setMaterials(response.data)
       }
@@ -94,7 +96,7 @@ export const StaffUnitDetailPage: React.FC = () => {
       // Fetch unit detail and materials in parallel
       const [unitResponse, materialsResponse] = await Promise.all([
         StaffUnitService.getUnitDetail(unitId),
-        MaterialService.getMaterialsByUnitId(unitId)
+        MaterialService.getMaterialsByUnit(unitId)
       ])
 
       if (unitResponse.success && unitResponse.data) {
@@ -118,17 +120,32 @@ export const StaffUnitDetailPage: React.FC = () => {
       }
 
       // If we don't have course/chapter info, fetch them
-      if (!course || !chapter) {
-        const { StaffCourseService } = await import('../services/staffCourseService')
-        const { StaffChapterService } = await import('../services/staffChapterService')
-        
+      if (!course || !chapter) {        
         const [courseData, chapterData] = await Promise.all([
           StaffCourseService.getCourseDetail(courseId),
           StaffChapterService.getChapterDetail(chapterId)
         ])
 
-        if (courseData.success) setCourse(courseData.data)
-        if (chapterData.success) setChapter(chapterData.data)
+        if (courseData.success) {
+          const courseDetail: StaffCourseDetail = {
+            ...courseData.data,
+            description: courseData.data.description || '',
+            requirement: courseData.data.requirement || '',
+            chapters: [],
+            enrollmentCount: 0,
+            rating: courseData.data.averageRating || 0
+          }
+          setCourse(courseDetail)
+        }
+        
+        if (chapterData.success) {
+          const chapterDetail: ChapterDetail = {
+            ...chapterData.data,
+            description: chapterData.data.description || '',
+            units: []
+          }
+          setChapter(chapterDetail)
+        }
       }
     } catch (error) {
       console.error('Error fetching unit data:', error)
@@ -194,11 +211,11 @@ export const StaffUnitDetailPage: React.FC = () => {
 
   const getStatusBadgeClass = (status: string) => {
     switch (status.toUpperCase()) {
-      case 'DRAFT':
+      case 'INACTIVE':
         return 'border-yellow-300 text-yellow-700 bg-yellow-50'
       case 'REJECTED':
         return 'border-red-300 text-red-700 bg-red-50'
-      case 'PUBLISHED':
+      case 'ACTIVE':
         return 'border-green-300 text-green-700 bg-green-50'
       default:
         return 'border-gray-300 text-gray-700 bg-gray-50'
@@ -388,9 +405,16 @@ export const StaffUnitDetailPage: React.FC = () => {
                   <Button 
                     variant="outline" 
                     className="w-full text-purple-600 border-purple-300 hover:bg-purple-50"
+                    onClick={() => navigate('/staff/create-exam', { 
+                      state: { 
+                        scope: 'unit', 
+                        scopeId: unit.id, 
+                        scopeName: unit.title 
+                      } 
+                    })}
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Thêm bài kiểm tra
+                    Tạo Exam
                   </Button>
                 </CardContent>
               </Card>
@@ -432,35 +456,7 @@ export const StaffUnitDetailPage: React.FC = () => {
                 </CardContent>
               </Card>
 
-              {/* Unit Exams */}
-              {unit.exams && unit.exams.length > 0 && (
-                <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
-                  <CardHeader>
-                    <CardTitle className="text-xl flex items-center gap-2">
-                      <FileText className="h-5 w-5 text-orange-600" />
-                      Bài thi bài học ({unit.exams.length})
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {unit.exams.map((exam) => (
-                        <div key={exam.id} className="p-4 bg-orange-50 rounded-lg border border-orange-200">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="font-semibold text-orange-900">{exam.title}</h4>
-                              <p className="text-orange-700 text-sm mt-1">{exam.description}</p>
-                              <div className="flex items-center gap-4 mt-2 text-xs text-orange-600">
-                                <span>⏱️ {exam.duration} phút</span>
-                                <span>📝 {exam.examScopeType}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+              {/* Unit Exams - Not implemented yet */}
 
               {/* Unit Materials */}
               <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
