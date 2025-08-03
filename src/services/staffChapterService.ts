@@ -27,7 +27,7 @@ export interface CreateChapterRequest {
   description: string
   status: 'ACTIVE' | 'INACTIVE'
   courseId: string
-  prerequisiteChapterId: string
+  prerequisiteChapterId: string | null
   exams: any[]
 }
 
@@ -37,7 +37,7 @@ export interface UpdateChapterRequest {
   description: string
   status: 'ACTIVE' | 'INACTIVE'
   courseId: string
-  prerequisiteChapterId: string
+  prerequisiteChapterId: string | null
   exams: any[]
 }
 
@@ -58,6 +58,19 @@ export const StaffChapterService = {
       return response.data
     } catch (error) {
       console.error('Error fetching chapters by course:', error)
+      throw error
+    }
+  },
+
+  // Lấy tất cả chương trong course (cho dropdown prerequisite)
+  getAllChaptersByCourse: async (courseId: string): Promise<ApiResponse<Chapter[]>> => {
+    try {
+      const response = await axios.get(`/chapters/course/${courseId}`, {
+        headers: getAuthHeaders()
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error fetching all chapters by course:', error)
       throw error
     }
   },
@@ -97,6 +110,19 @@ export const StaffChapterService = {
       return response.data
     } catch (error) {
       console.error('Error updating chapter:', error)
+      throw error
+    }
+  },
+
+  // Deactivate chương (chuyển status về INACTIVE)
+  deactivateChapter: async (chapterId: string): Promise<ApiResponse<Chapter>> => {
+    try {
+      const response = await axios.patch(`/chapters/${chapterId}/deactivate`, {}, {
+        headers: getAuthHeaders()
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error deactivating chapter:', error)
       throw error
     }
   },

@@ -9,8 +9,9 @@ import { Label } from '../components/ui/Label'
 import { Textarea } from '../components/ui/Textarea'
 import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
-import { StaffUnitService } from '../services/staffUnitService'
+import { StaffUnitService, type Unit } from '../services/staffUnitService'
 import { MaterialService, type Material, type MaterialType } from '../services/materialService'
+import { SearchableSelect } from '../components/ui/SearchableSelect'
 import type { StaffCourseDetail, ChapterDetail, UnitDetail } from '../types/staffCourse'
 
 interface LocationState {
@@ -47,6 +48,7 @@ const StaffUpdateUnitPage: React.FC = () => {
   const [course] = useState<StaffCourseDetail | null>(locationState.course || null)
   const [chapter] = useState<ChapterDetail | null>(locationState.chapter || null)
   const [unit, setUnit] = useState<UnitDetail | null>(locationState.unit || null)
+  const [availableUnits, setAvailableUnits] = useState<Unit[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -80,6 +82,9 @@ const StaffUpdateUnitPage: React.FC = () => {
       initializeFormData(unit)
       fetchMaterials()
     }
+    
+    // Fetch available units for prerequisite selection
+    fetchAvailableUnits()
   }, [courseId, chapterId, unitId, unit, chapter, course])
 
   const fetchData = async () => {
@@ -127,6 +132,24 @@ const StaffUpdateUnitPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching materials:', error)
+    }
+  }
+
+  const fetchAvailableUnits = async () => {
+    if (!chapterId && !chapter?.id) return
+
+    try {
+      const currentChapterId = chapterId || chapter?.id
+      if (currentChapterId) {
+        const response = await StaffUnitService.getAllUnitsByChapter(currentChapterId)
+        if (response.success && response.data) {
+          // Filter out current unit
+          const filtered = response.data.filter(u => u.id !== unitId)
+          setAvailableUnits(filtered)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching available units:', error)
     }
   }
 
@@ -263,7 +286,7 @@ const StaffUpdateUnitPage: React.FC = () => {
         description: formData.description.trim(),
         status,
         chapterId: chapter?.id || chapterId,
-        prerequisiteUnitId: unit?.prerequisiteUnitId || '',
+        prerequisiteUnitId: formData.prerequisiteUnitId.trim() || null,
         examIds: unit?.exams?.map(exam => exam.id) || []
       }
 
@@ -491,7 +514,7 @@ const StaffUpdateUnitPage: React.FC = () => {
                         <p className="text-amber-800 text-sm font-medium mb-1">Lưu ý khi chỉnh sửa</p>
                         <ul className="text-amber-700 text-xs leading-relaxed list-disc ml-4 space-y-1">
                           <li>Mã bài học (ID) không thể thay đổi sau khi tạo</li>
-                          <li>Không thể thay đổi bài học tiên quyết để đảm bảo tính nhất quán</li>
+                          <li>Có thể cập nhật bài học tiên quyết</li>
                           <li>Thay đổi sẽ được lưu với trạng thái hiện tại</li>
                           <li>Có thể thêm mới hoặc chỉnh sửa tài liệu học</li>
                         </ul>
@@ -534,19 +557,25 @@ const StaffUpdateUnitPage: React.FC = () => {
                         </p>
                       </div>
 
-                      {/* Prerequisite Unit - Read only */}
-                      <div className="space-y-3">
+                      {/* Prerequisite Unit - SearchableSelect */}
+                      <div className="space-y-3 relative z-20">
                         <Label htmlFor="prerequisite" className="text-green-800 font-semibold text-base">
                           Bài học tiên quyết
                         </Label>
-                        <Input
-                          id="prerequisite"
-                          value={formData.prerequisiteUnitId || "Không có"}
-                          className="border-green-300 bg-gray-100 text-gray-600 cursor-not-allowed text-base py-3"
-                          readOnly
+                        <SearchableSelect
+                          value={formData.prerequisiteUnitId}
+                          onChange={(value) => handleInputChange("prerequisiteUnitId", value)}
+                          options={availableUnits.map(unit => ({
+                            id: unit.id,
+                            title: unit.title,
+                            subtitle: `Trạng thái: ${unit.status === 'ACTIVE' ? 'Đã kích hoạt' : 'Chưa kích hoạt'}`
+                          }))}
+                          placeholder="Chọn hoặc tìm kiếm bài học tiên quyết..."
+                          emptyText="Không có bài học tiên quyết"
+                          className="bg-white/80 backdrop-blur-sm"
                         />
-                        <p className="text-amber-600 text-xs mt-1">
-                          ⚠️ Không thể thay đổi bài học tiên quyết
+                        <p className="text-green-600 text-xs mt-1">
+                          💡 Chọn bài học mà học viên cần hoàn thành trước khi học bài này
                         </p>
                       </div>
                     </div>

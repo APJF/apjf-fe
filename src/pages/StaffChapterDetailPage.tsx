@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Alert } from '../components/ui/Alert'
-import { AlertCircle, BookOpen, ArrowLeft, Plus, Edit, Eye } from 'lucide-react'
+import { AlertCircle, BookOpen, ArrowLeft, Plus, Edit, Eye, XCircle } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
@@ -186,6 +186,34 @@ export const StaffChapterDetailPage: React.FC = () => {
       navigate(`/staff/chapters/${chapterId}/edit`, {
         state: { course, chapter }
       })
+    }
+  }
+
+  const handleDeactivateChapter = async () => {
+    if (!chapterId || !chapter) return
+
+    const confirmDeactivate = window.confirm(
+      `Bạn có chắc chắn muốn hủy kích hoạt chương "${chapter.title}"?\n\nHành động này sẽ khiến chương không còn hiển thị cho người dùng.`
+    )
+
+    if (!confirmDeactivate) return
+
+    try {
+      setIsLoading(true)
+      const result = await StaffChapterService.deactivateChapter(chapterId)
+      
+      if (result.success) {
+        setSuccessMessage('Đã hủy kích hoạt chương thành công!')
+        // Refresh chapter data to show updated status
+        await fetchChapterData()
+      } else {
+        setError(result.message || 'Có lỗi xảy ra khi hủy kích hoạt chương')
+      }
+    } catch (error) {
+      console.error('Error deactivating chapter:', error)
+      setError('Có lỗi xảy ra khi hủy kích hoạt chương')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -383,6 +411,17 @@ export const StaffChapterDetailPage: React.FC = () => {
                     <Plus className="h-4 w-4 mr-2" />
                     Tạo Exam
                   </Button>
+                  
+                  {chapter.status === 'ACTIVE' && (
+                    <Button
+                      variant="outline"
+                      className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                      onClick={handleDeactivateChapter}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Hủy kích hoạt chương
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             </div>

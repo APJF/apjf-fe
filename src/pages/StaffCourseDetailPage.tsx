@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Alert } from '../components/ui/Alert'
-import { AlertCircle, BookOpen, Star, ChevronDown, ChevronRight, Eye, Edit, Plus, ArrowLeft, CheckCircle, FileText, Clock } from 'lucide-react'
+import { AlertCircle, BookOpen, Star, ChevronDown, ChevronRight, Eye, Edit, Plus, ArrowLeft, CheckCircle, FileText, Clock, XCircle } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
 import { CourseService } from '../services/courseService' // Sử dụng CourseService thay vì StaffCourseService
+import { StaffCourseService } from '../services/staffCourseService'
 import { StaffExamService } from '../services/staffExamService'
 import type { Course, Chapter } from '../types/course' // Sử dụng Course và Chapter types
 import type { ExamSummary } from '../types/exam'
@@ -160,6 +161,34 @@ export const StaffCourseDetailPage: React.FC = () => {
       navigate(`/staff/courses/${courseId}/chapters/new`, {
         state: { course }
       })
+    }
+  }
+
+  const handleDeactivateCourse = async () => {
+    if (!courseId || !course) return
+
+    const confirmDeactivate = window.confirm(
+      `Bạn có chắc chắn muốn hủy kích hoạt khóa học "${course.title}"?\n\nHành động này sẽ khiến khóa học không còn hiển thị cho người dùng.`
+    )
+
+    if (!confirmDeactivate) return
+
+    try {
+      setIsLoading(true)
+      const result = await StaffCourseService.deactivateCourse(courseId)
+      
+      if (result.success) {
+        setSuccessMessage('Đã hủy kích hoạt khóa học thành công!')
+        // Refresh course data to show updated status
+        await fetchCourseData()
+      } else {
+        setError(result.message || 'Có lỗi xảy ra khi hủy kích hoạt khóa học')
+      }
+    } catch (error) {
+      console.error('Error deactivating course:', error)
+      setError('Có lỗi xảy ra khi hủy kích hoạt khóa học')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -402,6 +431,17 @@ export const StaffCourseDetailPage: React.FC = () => {
                     <Star className="h-4 w-4 mr-2" />
                     Xem đánh giá ({course.averageRating ? `${course.averageRating.toFixed(1)}★` : "0★"})
                   </Button>
+                  
+                  {course.status === 'ACTIVE' && (
+                    <Button
+                      variant="outline"
+                      className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                      onClick={handleDeactivateCourse}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Hủy kích hoạt khóa học
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             </div>

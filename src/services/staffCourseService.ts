@@ -53,7 +53,7 @@ export interface CreateCourseRequest {
   image: string
   requirement: string
   status: 'INACTIVE' | 'ACTIVE'
-  prerequisiteCourseId: string
+  prerequisiteCourseId: string | null
   topicIds: string[]
   examIds: string[]
 }
@@ -67,7 +67,7 @@ export interface UpdateCourseRequest {
   image: string
   requirement: string
   status: 'INACTIVE' | 'ACTIVE'
-  prerequisiteCourseId: string
+  prerequisiteCourseId: string | null
   topicIds: string[]
   examIds: string[]
 }
@@ -100,6 +100,19 @@ export const StaffCourseService = {
       return response.data
     } catch (error) {
       console.error('Error fetching courses:', error)
+      throw error
+    }
+  },
+
+  // Lấy danh sách tất cả khóa học không phân trang (cho dropdown)
+  getAllCoursesForSelection: async (): Promise<ApiResponse<Course[]>> => {
+    try {
+      const response = await axios.get('/courses', {
+        headers: getAuthHeaders()
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error fetching all courses for selection:', error)
       throw error
     }
   },
@@ -192,6 +205,19 @@ export const StaffCourseService = {
       return response.data
     } catch (error) {
       console.error('Error updating course:', error)
+      throw error
+    }
+  },
+
+  // Deactivate khóa học (chuyển status về INACTIVE)
+  deactivateCourse: async (courseId: string): Promise<ApiResponse<Course>> => {
+    try {
+      const response = await axios.patch(`/courses/${courseId}/deactivate`, {}, {
+        headers: getAuthHeaders()
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error deactivating course:', error)
       throw error
     }
   }

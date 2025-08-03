@@ -16,7 +16,7 @@ export interface CreateUnitRequest {
   description: string
   status: 'INACTIVE' | 'ACTIVE'
   chapterId: string
-  prerequisiteUnitId: string
+  prerequisiteUnitId: string | null
   examIds: string[]
 }
 
@@ -26,7 +26,7 @@ export interface UpdateUnitRequest {
   description: string
   status: 'INACTIVE' | 'ACTIVE'
   chapterId: string
-  prerequisiteUnitId: string
+  prerequisiteUnitId: string | null
   examIds: string[]
 }
 
@@ -59,6 +59,19 @@ export const StaffUnitService = {
       return response.data
     } catch (error) {
       console.error('Error fetching units by chapter:', error)
+      throw error
+    }
+  },
+
+  // Lấy tất cả bài học trong chapter (cho dropdown prerequisite)
+  getAllUnitsByChapter: async (chapterId: string): Promise<ApiResponse<Unit[]>> => {
+    try {
+      const response = await axios.get(`/units/chapter/${chapterId}`, {
+        headers: getAuthHeaders()
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error fetching all units by chapter:', error)
       throw error
     }
   },
@@ -98,6 +111,19 @@ export const StaffUnitService = {
       return response.data
     } catch (error) {
       console.error('Error updating unit:', error)
+      throw error
+    }
+  },
+
+  // Deactivate bài học (chuyển status về INACTIVE)
+  deactivateUnit: async (unitId: string): Promise<ApiResponse<UnitDetail>> => {
+    try {
+      const response = await axios.patch(`/units/${unitId}/deactivate`, {}, {
+        headers: getAuthHeaders()
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error deactivating unit:', error)
       throw error
     }
   },

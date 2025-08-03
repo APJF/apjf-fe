@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import { Alert } from '../components/ui/Alert'
-import { AlertCircle, BookOpen, ArrowLeft, FileText, ExternalLink, Music, Edit, Plus, CheckCircle } from 'lucide-react'
+import { AlertCircle, BookOpen, ArrowLeft, FileText, ExternalLink, Music, Edit, Plus, CheckCircle, XCircle } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
@@ -170,6 +170,34 @@ export const StaffUnitDetailPage: React.FC = () => {
       navigate(`/staff/courses/${course.id}/chapters/${chapter.id}/units/${unit.id}/edit`, {
         state: { course, chapter, unit }
       })
+    }
+  }
+
+  const handleDeactivateUnit = async () => {
+    if (!unitId || !unit) return
+
+    const confirmDeactivate = window.confirm(
+      `Bạn có chắc chắn muốn hủy kích hoạt bài học "${unit.title}"?\n\nHành động này sẽ khiến bài học không còn hiển thị cho người dùng.`
+    )
+
+    if (!confirmDeactivate) return
+
+    try {
+      setIsLoading(true)
+      const result = await StaffUnitService.deactivateUnit(unitId)
+      
+      if (result.success) {
+        setSuccessMessage('Đã hủy kích hoạt bài học thành công!')
+        // Refresh unit data to show updated status
+        await fetchUnitData()
+      } else {
+        setError(result.message || 'Có lỗi xảy ra khi hủy kích hoạt bài học')
+      }
+    } catch (error) {
+      console.error('Error deactivating unit:', error)
+      setError('Có lỗi xảy ra khi hủy kích hoạt bài học')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -416,6 +444,17 @@ export const StaffUnitDetailPage: React.FC = () => {
                     <Plus className="h-4 w-4 mr-2" />
                     Tạo Exam
                   </Button>
+                  
+                  {unit.status === 'ACTIVE' && (
+                    <Button
+                      variant="outline"
+                      className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                      onClick={handleDeactivateUnit}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Hủy kích hoạt bài học
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             </div>

@@ -9,8 +9,9 @@ import { Label } from '../components/ui/Label'
 import { Textarea } from '../components/ui/Textarea'
 import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
-import { StaffCourseService, type UpdateCourseRequest } from '../services/staffCourseService'
+import { StaffCourseService, type UpdateCourseRequest, type Course } from '../services/staffCourseService'
 import { useToast } from '../hooks/useToast'
+import { SearchableSelect } from '../components/ui/SearchableSelect'
 import type { StaffCourseDetail } from '../types/staffCourse'
 
 interface LocationState {
@@ -35,6 +36,7 @@ const StaffUpdateCoursePage: React.FC = () => {
   const locationState = location.state as LocationState || {}
 
   const [course, setCourse] = useState<StaffCourseDetail | null>(locationState.course || null)
+  const [availableCourses, setAvailableCourses] = useState<Course[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -104,6 +106,19 @@ const StaffUpdateCoursePage: React.FC = () => {
     }
   }, [courseId, initializeFormData])
 
+  const fetchAvailableCourses = useCallback(async () => {
+    try {
+      const response = await StaffCourseService.getAllCoursesForSelection()
+      if (response.success && response.data) {
+        // Filter out current course
+        const filtered = response.data.filter(c => c.id !== courseId)
+        setAvailableCourses(filtered)
+      }
+    } catch (err) {
+      console.error('Error fetching available courses:', err)
+    }
+  }, [courseId])
+
   useEffect(() => {
     if (!courseId) {
       setError("ID khóa học không hợp lệ")
@@ -115,7 +130,10 @@ const StaffUpdateCoursePage: React.FC = () => {
     } else {
       initializeFormData(course)
     }
-  }, [courseId, course, fetchCourseData, initializeFormData])
+    
+    // Fetch available courses for prerequisite selection
+    fetchAvailableCourses()
+  }, [courseId, course, fetchCourseData, initializeFormData, fetchAvailableCourses])
 
 
   const handleInputChange = useCallback((field: keyof UpdateCourseFormData, value: string) => {
@@ -208,7 +226,7 @@ const StaffUpdateCoursePage: React.FC = () => {
         image: formData.image || '',
         requirement: formData.requirement.trim() || '',
         status: course?.status === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE',
-        prerequisiteCourseId: course?.prerequisiteCourseId || '',
+        prerequisiteCourseId: formData.prerequisiteCourseId.trim() || null,
         topicIds: topicIds.map(id => id.toString()),
         examIds: examIds
       }
@@ -572,26 +590,32 @@ const StaffUpdateCoursePage: React.FC = () => {
                       />
                     </div>
 
-                    {/* Prerequisite Course - Read only */}
-                    <div className="space-y-3 mt-6">
+                    {/* Prerequisite Course - SearchableSelect */}
+                    <div className="space-y-3 mt-6 relative z-50">
                       <Label htmlFor="prerequisite" className="text-blue-800 font-semibold text-base">
                         Khóa học tiên quyết
                       </Label>
-                      <Input
-                        id="prerequisite"
+                      <SearchableSelect
                         value={formData.prerequisiteCourseId}
-                        className="border-blue-300 bg-gray-100 text-gray-600 cursor-not-allowed text-base py-3"
-                        readOnly
+                        onChange={(value) => handleInputChange("prerequisiteCourseId", value)}
+                        options={availableCourses.map(course => ({
+                          id: course.id,
+                          title: course.title,
+                          subtitle: `Trình độ: ${course.level} • Thời lượng: ${course.duration}h`
+                        }))}
+                        placeholder="Chọn hoặc tìm kiếm khóa học tiên quyết..."
+                        emptyText="Không có khóa học tiên quyết"
+                        className="bg-white"
                       />
-                      <p className="text-amber-600 text-xs mt-1">
-                        ⚠️ Không thể thay đổi khóa học tiên quyết
+                      <p className="text-blue-600 text-xs mt-1">
+                        💡 Chọn khóa học mà học viên cần hoàn thành trước khi học khóa này
                       </p>
                     </div>
                   </CardContent>
                 </Card>
 
                 {/* Course Image */}
-                <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm">
+                <Card className="shadow-xl border-0 bg-white/90">
                   <CardHeader className="bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-t-lg">
                     <CardTitle className="text-xl font-semibold flex items-center gap-2">
                       <Upload className="h-6 w-6" />
@@ -642,7 +666,7 @@ const StaffUpdateCoursePage: React.FC = () => {
                           <Upload className="h-12 w-12 text-blue-400 mx-auto" />
                           <div>
                             <p className="text-sm font-medium text-blue-700">Tải lên ảnh khóa học</p>
-                            <p className="text-xs text-blue-500 mt-1">PNG, JPG, GIF tối đa 10MB</p>
+                            <p className="text-xs text-blue-500 mt-1">PNG, JPG, GIF tối đa 800KB</p>
                           </div>
                           <div className="flex items-center justify-center">
                             <label htmlFor="file-upload" className="cursor-pointer">

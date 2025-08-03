@@ -9,7 +9,8 @@ import { Label } from '../components/ui/Label'
 import { Textarea } from '../components/ui/Textarea'
 import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
-import { StaffChapterService, type UpdateChapterRequest } from '../services/staffChapterService'
+import { StaffChapterService, type UpdateChapterRequest, type Chapter } from '../services/staffChapterService'
+import { SearchableSelect } from '../components/ui/SearchableSelect'
 import type { ChapterDetail, StaffCourseDetail } from '../types/staffCourse'
 
 interface LocationState {
@@ -33,6 +34,7 @@ const StaffUpdateChapterPage: React.FC = () => {
 
   const [chapter, setChapter] = useState<ChapterDetail | null>(locationState.chapter || null)
   const [course] = useState<StaffCourseDetail | null>(locationState.course || null)
+  const [availableChapters, setAvailableChapters] = useState<Chapter[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -55,6 +57,9 @@ const StaffUpdateChapterPage: React.FC = () => {
     } else {
       initializeFormData(chapter)
     }
+    
+    // Fetch available chapters for prerequisite selection
+    fetchAvailableChapters()
   }, [chapterId, chapter])
 
   const fetchChapterData = async () => {
@@ -82,6 +87,24 @@ const StaffUpdateChapterPage: React.FC = () => {
       setError("Không thể tải thông tin chương. Vui lòng thử lại.")
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const fetchAvailableChapters = async () => {
+    if (!chapter?.courseId && !course?.id) return
+
+    try {
+      const courseId = chapter?.courseId || course?.id
+      if (courseId) {
+        const response = await StaffChapterService.getAllChaptersByCourse(courseId)
+        if (response.success && response.data) {
+          // Filter out current chapter
+          const filtered = response.data.filter(c => c.id !== chapterId)
+          setAvailableChapters(filtered)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching available chapters:', error)
     }
   }
 
@@ -140,7 +163,7 @@ const StaffUpdateChapterPage: React.FC = () => {
         description: formData.description.trim(),
         status: chapter?.status === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE',
         courseId: chapter?.courseId || formData.courseId.trim(), // Giữ nguyên courseId gốc
-        prerequisiteChapterId: chapter?.prerequisiteChapterId || '', // Giữ nguyên prerequisite gốc
+        prerequisiteChapterId: formData.prerequisiteChapterId.trim() || null, // Cho phép cập nhật prerequisite
         exams: chapter?.exams || []
       }
 
@@ -435,19 +458,25 @@ const StaffUpdateChapterPage: React.FC = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-8">
-                    {/* Prerequisite Chapter - Read only */}
-                    <div className="space-y-3">
+                    {/* Prerequisite Chapter - SearchableSelect */}
+                    <div className="space-y-3 relative z-20">
                       <Label htmlFor="prerequisite" className="text-blue-800 font-semibold text-base">
                         Chương tiên quyết
                       </Label>
-                      <Input
-                        id="prerequisite"
+                      <SearchableSelect
                         value={formData.prerequisiteChapterId}
-                        className="border-blue-300 bg-gray-100 text-gray-600 cursor-not-allowed text-base py-3"
-                        readOnly
+                        onChange={(value) => handleInputChange("prerequisiteChapterId", value)}
+                        options={availableChapters.map(chapter => ({
+                          id: chapter.id,
+                          title: chapter.title,
+                          subtitle: `Trạng thái: ${chapter.status === 'ACTIVE' ? 'Đã kích hoạt' : 'Chưa kích hoạt'}`
+                        }))}
+                        placeholder="Chọn hoặc tìm kiếm chương tiên quyết..."
+                        emptyText="Không có chương tiên quyết"
+                        className="bg-white/80 backdrop-blur-sm"
                       />
-                      <p className="text-amber-600 text-xs mt-1">
-                        ⚠️ Không thể thay đổi chương tiên quyết
+                      <p className="text-blue-600 text-xs mt-1">
+                        💡 Chọn chương mà học viên cần hoàn thành trước khi học chương này
                       </p>
                     </div>
                   </CardContent>
