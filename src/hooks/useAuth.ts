@@ -4,7 +4,8 @@ import type { LoginCredentials } from '../types/auth';
 
 interface User {
   id: string;
-  username: string;
+  username?: string;
+  email:string;
   avatar: string | null;
   roles: string[];
 }
@@ -45,7 +46,8 @@ export const useAuth = () => {
       // Map the auth service user to local User interface
       const localUser: User = {
         id: data.data.userInfo.id,
-        username: data.data.userInfo.name || data.data.userInfo.email,
+        username: data.data.userInfo.name,
+        email:  data.data.userInfo.email,
         avatar: null,
         roles: []
       };

@@ -14,6 +14,7 @@ import { ExamPreparationPage } from '../pages/ExamPreparationPage';
 import { ExamDoingPage } from '../pages/ExamDoingPage';
 import { ExamResultPage } from '../pages/ExamResultPage';
 import { ExamAnswerReviewPage } from '../pages/ExamAnswerReviewPage';
+import ForumPage from "../components/forum/Forum";
 /**
  * Router Configuration - Cấu hình routing cho ứng dụng
  * Sử dụng React Router v6 với createBrowserRouter
@@ -103,6 +104,10 @@ const router = createBrowserRouter([
   {
     path: '/exam-result/:resultId/review',
     element: <Layout><ExamAnswerReviewPage /></Layout>,
+  },
+  {
+    path: '/forum',
+    element: <Layout><ForumPage /></Layout>,
   },
   // Catch all route for 404
   {

@@ -12,7 +12,7 @@ export function Header() {
     { href: "/", label: "Trang chủ" },
     { href: "/courses", label: "Khóa Học" },
     { href: "/about", label: "Giới thiệu" },
-    { href: "/dictionary", label: "Cộng Đồng" },
+    { href: "/forum", label: "Cộng Đồng" },
     { href: "/chatbot", label: "Học với AI" },
     { href: "/contact", label: "Liên hệ" },
   ]
