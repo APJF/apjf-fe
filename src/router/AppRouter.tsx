@@ -7,7 +7,7 @@ import HomePage from "../pages/HomePage";
 import CoursesPage from "../pages/CoursesPage";
 import CourseDetailPage from "../pages/CourseDetailPage";
 import ChapterDetailPage from "../pages/ChapterDetailPage";
-import RoadmapPage from "../pages/LearningPathPage";
+import LearningPathPage from "../pages/LearningPathPage";
 import RoadmapDetailPage from "../pages/LearningPathDetailPage";
 import LoginPage from "../pages/LoginPage";
 import RegisterPage from "../pages/RegisterPage";
@@ -65,10 +65,10 @@ const router = createBrowserRouter([
     ),
   },
   {
-    path: "/roadmap",
+    path: "/learning-path",
     element: (
       <Layout>
-        <RoadmapPage />
+        <LearningPathPage />
       </Layout>
     ),
   },
@@ -301,6 +301,15 @@ const router = createBrowserRouter([
   {
     path: '/forum',
     element: <Layout><ForumPage /></Layout>,
+  },
+  // Alias for backward compatibility
+  {
+    path: "/roadmap",
+    element: (
+      <Layout>
+        <LearningPathPage />
+      </Layout>
+    ),
   },
   // Catch all route for 404
   {

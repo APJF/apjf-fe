@@ -65,8 +65,8 @@ const getDashboardStats = async (): Promise<{
   // Simulate API call delay
   await new Promise(resolve => setTimeout(resolve, 1000))
   
-  // Lấy accessToken từ localStorage (tương tự như axios interceptor)
-  const token = localStorage.getItem('accessToken')
+  // Lấy token từ localStorage theo convention
+  const token = localStorage.getItem('access_token')
   
   if (!token) {
     throw new Error('Unauthorized - No access token')

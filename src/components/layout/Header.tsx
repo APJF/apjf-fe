@@ -13,7 +13,7 @@ export function Header() {
   const navItems = [
     { href: "/", label: "Trang chủ" },
     { href: "/courses", label: "Khóa Học" },
-    { href: "/roadmap", label: "Lộ trình học" },
+    { href: "/learning-path", label: "Lộ trình học" },
     { href: "/about", label: "Giới thiệu" },
     { href: "/forum", label: "Cộng Đồng" },
     { href: "/chatbot", label: "Học với AI" },
@@ -22,7 +22,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white">
-      <div className="container mx-auto px-4 flex h-16 items-center justify-between">
+      <div className="container mx-auto px-2 flex h-16 items-center justify-between">
         <Link to="/" className="flex items-center space-x-2">
           <BookOpen className="h-6 w-6 text-red-600" />
           <span className="text-xl font-bold">
@@ -106,7 +106,7 @@ export function Header() {
       {/* Mobile Navigation */}
       {isMenuOpen && (
         <div className="md:hidden border-t bg-background">
-          <nav className="container mx-auto px-4 py-4 space-y-4">
+          <nav className="container mx-auto px-2 py-4 space-y-4">
             {navItems.map((item) => (
               <Link
                 key={item.href}
@@ -117,7 +117,7 @@ export function Header() {
                 {item.label}
               </Link>
             ))}
-            <div className="md:hidden px-4 pt-2">
+            <div className="md:hidden px-2 pt-2">
               <AuthSection />
             </div>
           </nav>

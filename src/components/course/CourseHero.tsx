@@ -43,7 +43,7 @@ export const CourseHero: React.FC<CourseHeroProps> = ({
 
   return (
     <div className="bg-gradient-to-r from-red-600 via-red-700 to-red-800 text-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-0 sm:px-1 lg:px-2 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
           {/* Course Image */}
           <div className="lg:col-span-1">

@@ -141,7 +141,7 @@ export default function CourseDetailPage() {
 
   const checkEnrollmentStatus = () => {
     // Giả lập kiểm tra đã đăng ký khóa học hay chưa
-    const token = localStorage.getItem("accessToken");
+    const token = localStorage.getItem("access_token");
     if (token) {
       // Trong thực tế, bạn sẽ cần gọi API để kiểm tra
       setIsEnrolled(true); 
@@ -168,7 +168,7 @@ export default function CourseDetailPage() {
   if (error || !course) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-7xl mx-auto px-0 sm:px-1 lg:px-2 py-12">
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 flex items-center gap-3">
             <AlertCircle className="h-6 w-6 text-red-500 flex-shrink-0" />
             <div>
@@ -240,7 +240,7 @@ export default function CourseDetailPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Back Button */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-7xl mx-auto px-0 sm:px-1 lg:px-2 py-4">
           <button
             onClick={() => navigate("/courses")}
             className="flex items-center gap-2 text-red-600 hover:text-red-700 transition-colors font-medium"
@@ -251,7 +251,7 @@ export default function CourseDetailPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-0 sm:px-1 lg:px-2 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">

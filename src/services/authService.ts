@@ -27,8 +27,8 @@ export interface AuthResponse {
   success: boolean
   message: string
   data?: {
-    accessToken: string
-    refreshToken: string
+    access_token: string
+    refresh_token: string
     tokenType: string
     userInfo: UserInfo
   }
@@ -40,8 +40,8 @@ export interface LoginResponse {
   success: boolean
   message: string
   data?: {
-    accessToken: string
-    refreshToken: string
+    access_token: string
+    refresh_token: string
     tokenType?: string
   }
   timestamp?: number
@@ -111,11 +111,11 @@ class AuthService {
 
       if (response.data.success && response.data.data) {
         // Login response chỉ chứa tokens, không có userInfo nữa
-        const { accessToken, refreshToken } = response.data.data
+        const { access_token, refresh_token } = response.data.data
         
         // Lưu tokens trước
-        localStorage.setItem("accessToken", accessToken)
-        localStorage.setItem("refreshToken", refreshToken)
+        localStorage.setItem("access_token", access_token)
+        localStorage.setItem("refresh_token", refresh_token)
         console.log('✅ Tokens saved successfully');
         
         // Gọi getProfile để lấy thông tin user sau khi có token
@@ -155,8 +155,8 @@ class AuthService {
           } else {
             console.error('❌ Profile fetch failed after login:', profileResponse.message);
             // Clear tokens nếu không lấy được profile
-            localStorage.removeItem("accessToken");
-            localStorage.removeItem("refreshToken");
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("refresh_token");
             
             return {
               success: false,
@@ -167,8 +167,8 @@ class AuthService {
         } catch (profileError) {
           console.error('❌ Profile fetch error after login:', profileError);
           // Clear tokens nếu lỗi
-          localStorage.removeItem("accessToken");
-          localStorage.removeItem("refreshToken");
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("refresh_token");
           
           return {
             success: false,
@@ -340,38 +340,27 @@ class AuthService {
    * Refresh token
    */
   async refreshToken(): Promise<AuthResponse> {
-    const refreshToken = localStorage.getItem("refreshToken")
-    if (!refreshToken) {
-      throw new Error("No refresh token found")
-    }
-
-    try {
-      const response = await api.post<AuthResponse>("/auth/refresh-token", {
-        refreshToken: refreshToken
-      })
-
-      if (response.data.success && response.data.data) {
-        const { userInfo, accessToken, refreshToken: newRefreshToken } = response.data.data
-        
-        // Cập nhật tokens theo chuẩn mới
-        localStorage.setItem("accessToken", accessToken)
-        if (newRefreshToken) {
-          localStorage.setItem("refreshToken", newRefreshToken)
-        }
-        
-        // Cập nhật user info nếu có
-        if (userInfo) {
-          localStorage.setItem("userInfo", JSON.stringify(userInfo))
-        }
+    const refresh_token = localStorage.getItem("refresh_token")
+    if (!refresh_token) {
+      return {
+        success: false,
+        message: "No refresh token available",
+        timestamp: Date.now()
       }
-
-      return response.data
-    } catch (error) {
-      // Nếu refresh token hết hạn hoặc không hợp lệ, đăng xuất user
-      this.logout()
-      throw error
     }
-  }
+    try {
+      const response = await api.post('/auth/refresh-token', { 
+        refresh_token: refresh_token
+      })
+      
+      if (response.data.success && response.data.data) {
+        const { userInfo, access_token, refresh_token: newRefreshToken } = response.data.data
+        
+        // Update tokens
+        localStorage.setItem("access_token", access_token)
+        if (newRefreshToken) {
+          localStorage.setItem("refresh_token", newRefreshToken)
+        }
 
   /**
    * Thay đổi mật khẩu (đã đăng nhập)
@@ -567,12 +556,12 @@ class AuthService {
    */
   handleGoogleCallback(): boolean {
     const urlParams = new URLSearchParams(window.location.search)
-    const accessToken = urlParams.get('token')
-    const refreshToken = urlParams.get('refreshToken')
+    const access_token = urlParams.get('token') || ''
+    const refresh_token = urlParams.get('refreshToken') || ''
     const email = urlParams.get('email')
     const username = urlParams.get('username')
 
-    if (accessToken && refreshToken && email && username) {
+    if (access_token && refresh_token && email && username) {
       // Tạo userInfo object
       const userInfo: UserInfo = {
         id: 0, // Temporary ID, backend sẽ provide proper ID
@@ -583,8 +572,8 @@ class AuthService {
       }
 
       // Lưu tokens và userInfo
-      localStorage.setItem('accessToken', accessToken)
-      localStorage.setItem('refreshToken', refreshToken)
+      localStorage.setItem('access_token', access_token)
+      localStorage.setItem('refresh_token', refresh_token)
       localStorage.setItem('userInfo', JSON.stringify(userInfo))
       
       // Dispatch auth state change event
@@ -610,13 +599,15 @@ class AuthService {
    */
   logout(): void {
     localStorage.removeItem('userInfo')
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
+    
+    // Standard keys
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('refresh_token')
     
     // Remove legacy keys for cleanup
     localStorage.removeItem('user')
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
+    localStorage.removeItem('accessToken')
+    localStorage.removeItem('refreshToken')
     
     // Dispatch custom event để notify các component khác
     window.dispatchEvent(new CustomEvent('authStateChanged', {
@@ -628,15 +619,18 @@ class AuthService {
    * Get auth header for manual requests
    */
   getAuthHeader(): string | null {
-    const token = localStorage.getItem('accessToken')
-    return token ? `Bearer ${token}` : null
+    const token = localStorage.getItem('access_token')
+    if (token) {
+      return `Bearer ${token}`
+    }
+    return null
   }
 
   /**
    * Check if user is authenticated
    */
   isAuthenticated(): boolean {
-    return !!localStorage.getItem('accessToken')
+    return !!localStorage.getItem('access_token')
   }
 
   /**

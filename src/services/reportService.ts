@@ -29,7 +29,7 @@ apiInstance.interceptors.response.use(
       originalConfig._retry = true;
       try {
         const result = await refreshToken();
-        const newToken = result.data?.accessToken;
+        const newToken = result.data?.access_token;
         if (newToken) {
           originalConfig.headers['Authorization'] = 'Bearer ' + newToken;
           return apiInstance(originalConfig);

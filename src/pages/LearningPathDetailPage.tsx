@@ -898,7 +898,7 @@ export function RoadmapDetailPage() {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="bg-white border-b border-gray-200 shadow-sm">
-          <div className="max-w-6xl mx-auto px-6 py-6">
+          <div className="max-w-6xl mx-auto px-0 py-3">
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"

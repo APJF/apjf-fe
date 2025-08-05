@@ -12,7 +12,7 @@ const ChangePasswordPage: React.FC = () => {
     <ProtectedRoute requiredRoles={['USER']}>
       <Layout>
         <div className="min-h-screen bg-gray-50 py-8">
-          <div className="container mx-auto px-4">
+          <div className="container mx-auto px-0">
             <ChangePasswordForm />
           </div>
         </div>

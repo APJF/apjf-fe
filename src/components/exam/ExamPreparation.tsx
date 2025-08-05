@@ -123,7 +123,7 @@ export function ExamPreparation({ examId, onStart, onBack }: Readonly<ExamPrepar
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
-      <div className="max-w-4xl mx-auto px-4">
+      <div className="max-w-4xl mx-auto px-0">
         {/* Header với nút back */}
         {onBack && (
           <button

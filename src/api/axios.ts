@@ -68,8 +68,8 @@ instance.interceptors.request.use(
     );
 
     if (!isPublicEndpoint) {
-      // Hỗ trợ cả hai key để tương thích với code cũ và mới
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('access_token');
+      // Chỉ sử dụng access_token (standard convention)
+      const token = localStorage.getItem('access_token');
       if (token) {
         config.headers['Authorization'] = `Bearer ${token}`;
       }
@@ -80,7 +80,7 @@ instance.interceptors.request.use(
       url: config.url,
       isPublicEndpoint,
       hasAuthHeader: !!config.headers['Authorization'],
-      tokenFound: !!(localStorage.getItem('accessToken') || localStorage.getItem('access_token'))
+      tokenFound: !!localStorage.getItem('access_token')
     });
     
     return config;
