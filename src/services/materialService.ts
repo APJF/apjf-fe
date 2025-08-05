@@ -13,26 +13,14 @@ const getAuthHeaders = () => {
 
 export interface Material {
   id: string
-  description: string
   fileUrl: string
   type: MaterialType
+  script?: string
+  translation?: string
+  unitId?: string
 }
 
 export type MaterialType = 'KANJI' | 'GRAMMAR' | 'VOCAB' | 'LISTENING' | 'READING' | 'WRITING'
-
-export interface CreateMaterialRequest {
-  id: string
-  description: string
-  fileUrl: string
-  type: MaterialType
-}
-
-export interface UpdateMaterialRequest {
-  id: string
-  description: string
-  fileUrl: string
-  type: MaterialType
-}
 
 interface ApiResponse<T> {
   success: boolean
@@ -69,7 +57,14 @@ export const MaterialService = {
   },
 
   // Tạo tài liệu mới
-  createMaterial: async (materialData: CreateMaterialRequest): Promise<ApiResponse<Material>> => {
+  createMaterial: async (materialData: {
+    id: string
+    fileUrl: string
+    type: MaterialType
+    script: string
+    translation: string
+    unitId: string
+  }): Promise<ApiResponse<Material>> => {
     try {
       const response = await axios.post('/materials', materialData, {
         headers: getAuthHeaders()
@@ -82,7 +77,14 @@ export const MaterialService = {
   },
 
   // Cập nhật tài liệu
-  updateMaterial: async (materialId: string, materialData: UpdateMaterialRequest): Promise<ApiResponse<Material>> => {
+  updateMaterial: async (materialId: string, materialData: {
+    id: string
+    fileUrl: string
+    type: MaterialType
+    script: string
+    translation: string
+    unitId: string
+  }): Promise<ApiResponse<Material>> => {
     try {
       const response = await axios.put(`/materials/${materialId}`, materialData, {
         headers: getAuthHeaders()
