@@ -84,7 +84,7 @@ export const CourseStats: React.FC<CourseStatsProps> = ({ refreshTrigger = 0 }) 
       textColor: "text-green-600"
     },
     {
-      title: "Không hoạt động",
+      title: "Tạm dừng",
       value: stats.inactiveCourses,
       icon: FileText,
       color: "bg-yellow-500",

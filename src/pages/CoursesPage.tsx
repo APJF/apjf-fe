@@ -248,7 +248,7 @@ const CoursesPage: React.FC = () => {
   
   // Filter and search states
   const [searchTerm, setSearchTerm] = useState("")
-  const [sortBy, setSortBy] = useState<"averageRating" | "duration" | "title" | "level">("averageRating")
+  const [sortBy, setSortBy] = useState<"averageRating" | "duration" | "title" | "level" | "id">("id")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [filterLevel, setFilterLevel] = useState<string>("all")
   const [filterTopic, setFilterTopic] = useState<string>("all")
@@ -316,6 +316,10 @@ const CoursesPage: React.FC = () => {
           bValue = levelOrder[b.level] || 0
           break
         }
+        case "id":
+          aValue = a.id
+          bValue = b.id
+          break
         default:
           return 0
       }
@@ -590,6 +594,8 @@ const CoursesPage: React.FC = () => {
                     }}
                     className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none"
                   >
+                    <option value="id-desc">Mới nhất</option>
+                    <option value="id-asc">Cũ nhất</option>
                     <option value="averageRating-desc">Đánh giá: Cao đến thấp</option>
                     <option value="averageRating-asc">Đánh giá: Thấp đến cao</option>
                     <option value="duration-asc">Thời lượng: Ngắn đến dài</option>

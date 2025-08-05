@@ -8,6 +8,7 @@ import { Input } from '../components/ui/Input'
 import { Label } from '../components/ui/Label'
 import { Textarea } from '../components/ui/Textarea'
 import { Badge } from '../components/ui/Badge'
+import { SearchableSelect } from '../components/ui/SearchableSelect'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
 import { CourseService } from '../services/courseService'
 import type { CreateChapterRequest } from '../types/course'
@@ -27,6 +28,7 @@ const StaffCreateChapterPage: React.FC = () => {
 
   const [course, setCourse] = useState<StaffCourseDetail | null>(locationState.course || null)
   const [chapterCount, setChapterCount] = useState<number>(0)
+  const [availableChapters, setAvailableChapters] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -62,6 +64,11 @@ const StaffCreateChapterPage: React.FC = () => {
         }
         setCourse(courseDetail)
         setChapterCount(chaptersData.data?.length || 0)
+        
+        // Set available chapters for prerequisite selection
+        if (chaptersData.success && chaptersData.data) {
+          setAvailableChapters(chaptersData.data)
+        }
       } else {
         setError("Không tìm thấy khóa học")
       }
@@ -82,7 +89,19 @@ const StaffCreateChapterPage: React.FC = () => {
     if (!course) {
       fetchCourseData()
     } else {
-      setChapterCount(course.chapters?.length || 0)
+      // Always fetch fresh chapter data from API instead of using cached course.chapters
+      const fetchChapters = async () => {
+        try {
+          const chaptersData = await CourseService.getChaptersByCourseId(courseId)
+          if (chaptersData.success && chaptersData.data) {
+            setChapterCount(chaptersData.data.length)
+            setAvailableChapters(chaptersData.data)
+          }
+        } catch (error) {
+          console.error('Error fetching chapters:', error)
+        }
+      }
+      fetchChapters()
     }
   }, [courseId, course, fetchCourseData])
 
@@ -302,7 +321,7 @@ const StaffCreateChapterPage: React.FC = () => {
                       <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-indigo-500/10"></div>
                       {course.image && !course.image.includes('undefined') ? (
                         <img 
-                          src={course.image || '/img/NhatBan.webp'}
+                          src={course.image}
                           alt="Course" 
                           className="w-full h-full object-cover rounded-lg relative z-10"
                           onError={(e) => {
@@ -450,14 +469,23 @@ const StaffCreateChapterPage: React.FC = () => {
                           <Hash className="h-3 w-3 text-blue-600" />
                         </div>
                       </Label>
-                      <Input
-                        id="prerequisiteChapter"
-                        value={formData.prerequisiteChapterId}
-                        onChange={(e) => handleInputChange("prerequisiteChapterId", e.target.value)}
-                        placeholder="Ví dụ: CHAP00 (để trống nếu không có)"
-                        className="border-blue-300 focus:border-blue-500 focus:ring-blue-500 text-base py-3 bg-white/80 backdrop-blur-sm"
-                      />
-                      <p className="text-blue-600 text-xs">Nhập mã chương tiên quyết nếu chương này cần học trước. Để trống nếu là chương đầu tiên.</p>
+                      <div className="relative z-50">
+                        <SearchableSelect
+                          value={formData.prerequisiteChapterId}
+                          onChange={(value) => handleInputChange('prerequisiteChapterId', value)}
+                          options={availableChapters.map(chapter => ({
+                            id: chapter.id,
+                            title: chapter.title,
+                            subtitle: `Mã: ${chapter.id} • Trạng thái: ${chapter.status === 'ACTIVE' ? 'Hoạt động' : 'Không hoạt động'}`
+                          }))}
+                          placeholder="Chọn hoặc tìm kiếm chương tiên quyết..."
+                          emptyText="Không có chương tiên quyết"
+                          className="bg-white"
+                        />
+                      </div>
+                      <p className="text-blue-600 text-xs">
+                        💡 Chọn chương mà học viên cần hoàn thành trước khi học chương này. Để trống nếu là chương đầu tiên.
+                      </p>
                     </div>
 
                     {/* Action Buttons */}

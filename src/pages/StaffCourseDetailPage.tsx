@@ -9,8 +9,64 @@ import { StaffNavigation } from '../components/layout/StaffNavigation'
 import { CourseService } from '../services/courseService' // Sử dụng CourseService thay vì StaffCourseService
 import { StaffCourseService } from '../services/staffCourseService'
 import { StaffExamService } from '../services/staffExamService'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import type { Course, Chapter } from '../types/course' // Sử dụng Course và Chapter types
 import type { ExamSummary } from '../types/exam'
+
+// Function to sort chapters by prerequisite order
+function sortChaptersByPrerequisite(chapters: Chapter[]): Chapter[] {
+  const chapterMap = new Map<string, Chapter>();
+  const sortedChapters: Chapter[] = [];
+  const visited = new Set<string>();
+  const inProgress = new Set<string>();
+
+  // Tạo map để dễ lookup
+  chapters.forEach(chapter => {
+    chapterMap.set(chapter.id, chapter);
+  });
+
+  // Hàm đệ quy để sắp xếp theo thứ tự prerequisite
+  function visit(chapterId: string): void {
+    if (visited.has(chapterId) || inProgress.has(chapterId)) {
+      return; // Tránh vòng lặp vô hạn
+    }
+
+    const chapter = chapterMap.get(chapterId);
+    if (!chapter) {
+      return;
+    }
+
+    inProgress.add(chapterId);
+
+    // Nếu có prerequisite, xử lý prerequisite trước
+    if (chapter.prerequisiteChapterId && chapterMap.has(chapter.prerequisiteChapterId)) {
+      visit(chapter.prerequisiteChapterId);
+    }
+
+    inProgress.delete(chapterId);
+    
+    if (!visited.has(chapterId)) {
+      visited.add(chapterId);
+      sortedChapters.push(chapter);
+    }
+  }
+
+  // Bắt đầu với các chapter không có prerequisite
+  chapters.forEach(chapter => {
+    if (!chapter.prerequisiteChapterId) {
+      visit(chapter.id);
+    }
+  });
+
+  // Thêm các chapter còn lại (có prerequisite)
+  chapters.forEach(chapter => {
+    if (!visited.has(chapter.id)) {
+      visit(chapter.id);
+    }
+  });
+
+  return sortedChapters;
+}
 
 // Hàm lấy màu sắc theo status
 const getStatusColor = (status: string) => {
@@ -30,11 +86,11 @@ const getStatusColor = (status: string) => {
 const getStatusText = (status: string) => {
   switch (status) {
     case 'INACTIVE':
-      return 'Chưa kích hoạt'
+      return 'Tạm dừng'
     case 'REJECTED':
       return 'Từ chối'
     case 'ACTIVE':
-      return 'Đã kích hoạt'
+      return 'Đang hoạt động'
     default:
       return status
   }
@@ -54,6 +110,8 @@ export const StaffCourseDetailPage: React.FC = () => {
   const [imageError, setImageError] = useState(false)
   const [imageLoading, setImageLoading] = useState(true)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [showDeactivateDialog, setShowDeactivateDialog] = useState(false)
+  const [isDeactivating, setIsDeactivating] = useState(false)
 
   const fetchCourseData = useCallback(async () => {
     if (!courseId) return
@@ -76,15 +134,22 @@ export const StaffCourseDetailPage: React.FC = () => {
       if (courseRes.success) {
         setCourse(courseRes.data);
         console.log('✅ Course data set:', courseRes.data);
+        console.log('🖼️ Course image from API:', {
+          image: courseRes.data?.image,
+          imageType: typeof courseRes.data?.image,
+          imageExists: !!courseRes.data?.image,
+          imageValue: courseRes.data?.image
+        });
       } else {
         console.error('❌ Course fetch failed:', courseRes.message);
         setError(courseRes.message || "Không thể tải thông tin khóa học");
       }
 
       if (chaptersRes.success) {
-        // Chuyển đổi từ Chapter[] sang Chapter[] (có thể cần format khác)
-        setChapters(chaptersRes.data || []);
-        console.log('✅ Chapters data set:', chaptersRes.data);
+        // Sắp xếp chapters theo thứ tự prerequisite
+        const sortedChapters = sortChaptersByPrerequisite(chaptersRes.data || []);
+        setChapters(sortedChapters);
+        console.log('✅ Chapters data set and sorted:', sortedChapters);
       } else {
         console.error('❌ Chapters fetch failed:', chaptersRes.message);
         setChapters([]);
@@ -167,28 +232,23 @@ export const StaffCourseDetailPage: React.FC = () => {
   const handleDeactivateCourse = async () => {
     if (!courseId || !course) return
 
-    const confirmDeactivate = window.confirm(
-      `Bạn có chắc chắn muốn hủy kích hoạt khóa học "${course.title}"?\n\nHành động này sẽ khiến khóa học không còn hiển thị cho người dùng.`
-    )
-
-    if (!confirmDeactivate) return
-
     try {
-      setIsLoading(true)
+      setIsDeactivating(true)
       const result = await StaffCourseService.deactivateCourse(courseId)
       
       if (result.success) {
-        setSuccessMessage('Đã hủy kích hoạt khóa học thành công!')
+        setSuccessMessage('Đã tạm dừng hoạt động khóa học thành công!')
+        setShowDeactivateDialog(false)
         // Refresh course data to show updated status
         await fetchCourseData()
       } else {
-        setError(result.message || 'Có lỗi xảy ra khi hủy kích hoạt khóa học')
+        setError(result.message || 'Có lỗi xảy ra khi tạm dừng hoạt động khóa học')
       }
     } catch (error) {
       console.error('Error deactivating course:', error)
-      setError('Có lỗi xảy ra khi hủy kích hoạt khóa học')
+      setError('Có lỗi xảy ra khi tạm dừng hoạt động khóa học')
     } finally {
-      setIsLoading(false)
+      setIsDeactivating(false)
     }
   }
 
@@ -285,17 +345,21 @@ export const StaffCourseDetailPage: React.FC = () => {
               {/* Course Image */}
               <div className="lg:col-span-1">
                 <div className="relative rounded-xl overflow-hidden shadow-lg">
-                  {!imageError ? (
+                  {!imageError && course.image ? (
                     <img
-                      src={course.image || '/img/NhatBan.webp'}
+                      src={course.image}
                       alt={course.title}
                       className={`w-full h-64 object-cover transition-opacity duration-300 ${
                         imageLoading ? 'opacity-0' : 'opacity-100'
                       }`}
-                      onLoad={() => setImageLoading(false)}
+                      onLoad={() => {
+                        console.log('✅ Course image loaded successfully');
+                        setImageLoading(false);
+                      }}
                       onError={() => {
-                        setImageError(true)
-                        setImageLoading(false)
+                        console.error('❌ Course image failed to load:', course.image);
+                        setImageError(true);
+                        setImageLoading(false);
                       }}
                     />
                   ) : (
@@ -436,10 +500,10 @@ export const StaffCourseDetailPage: React.FC = () => {
                     <Button
                       variant="outline"
                       className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
-                      onClick={handleDeactivateCourse}
+                      onClick={() => setShowDeactivateDialog(true)}
                     >
                       <XCircle className="h-4 w-4 mr-2" />
-                      Hủy kích hoạt khóa học
+                      Tạm dừng hoạt động
                     </Button>
                   )}
                 </CardContent>
@@ -505,7 +569,7 @@ export const StaffCourseDetailPage: React.FC = () => {
                                   {exam.questionCount || 0} câu hỏi
                                 </span>
                                 <Badge className={exam.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
-                                  {exam.status === 'ACTIVE' ? 'Đã kích hoạt' : 'Chưa kích hoạt'}
+                                  {exam.status === 'ACTIVE' ? 'Đang hoạt động' : 'Tạm dừng'}
                                 </Badge>
                               </div>
                             </div>
@@ -665,6 +729,19 @@ export const StaffCourseDetailPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Confirm Deactivate Dialog */}
+        <ConfirmDialog
+          isOpen={showDeactivateDialog}
+          onClose={() => setShowDeactivateDialog(false)}
+          onConfirm={handleDeactivateCourse}
+          title="Tạm dừng hoạt động khóa học"
+          description={`Bạn có chắc chắn muốn tạm dừng hoạt động khóa học "${course?.title}"?\n\nHành động này sẽ khiến khóa học không còn hiển thị cho người dùng.`}
+          confirmText="Tạm dừng"
+          cancelText="Hủy"
+          variant="danger"
+          isLoading={isDeactivating}
+        />
       </div>
     </StaffNavigation>
   )

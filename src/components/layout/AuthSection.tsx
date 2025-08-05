@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, LogOut, Settings, BookOpen, ChevronDown, History, Shield, Users } from 'lucide-react';
+import { User, LogOut, Settings, BookOpen, ChevronDown, History, Shield, Users, Crown } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { getAvatarText } from '../../utils/avatarUtils';
 
@@ -25,19 +25,52 @@ export const AuthSection: React.FC = () => {
     if (user?.avatar) {
       console.log('AuthSection: User avatar URL:', user.avatar);
     }
+    
+    // Debug roles/authorities
+    if (user) {
+      console.log('AuthSection: User roles:', user.roles);
+      console.log('AuthSection: User authorities:', user.authorities);
+      console.log('AuthSection: hasStaffRole:', hasStaffRole());
+      console.log('AuthSection: hasManagerRole:', hasManagerRole());
+      console.log('AuthSection: hasAdminRole:', hasAdminRole());
+    }
   }, [user]); // Track user changes including avatar
 
-  // Function để check Staff role
+  // Function để check Staff role - sử dụng authorities từ user profile
   const hasStaffRole = () => {
     if (!user?.roles) return false;
-    return user.roles.some(role => role && ['ROLE_STAFF', 'ROLE_ADMIN'].includes(role));
+    return user.roles.some(role => 
+      role && ['ROLE_STAFF', 'ROLE_ADMIN'].includes(role)
+    );
   };
 
-  // Function để check Manager role
+  // Function để check Manager role - sử dụng authorities từ user profile
   const hasManagerRole = () => {
     if (!user?.roles) return false;
-    return user.roles.some(role => role && ['ROLE_MANAGER', 'ROLE_ADMIN'].includes(role));
+    return user.roles.some(role => 
+      role && ['ROLE_MANAGER', 'ROLE_ADMIN'].includes(role)
+    );
   };
+
+  // Function để check Admin role
+  const hasAdminRole = () => {
+    if (!user?.roles) return false;
+    return user.roles.some(role => 
+      role && role === 'ROLE_ADMIN'
+    );
+  };
+
+  // Debug roles sau khi user thay đổi
+  useEffect(() => {
+    if (user) {
+      console.log('🔍 AuthSection Debug:');
+      console.log('- User roles:', user.roles);
+      console.log('- User authorities:', user.authorities);
+      console.log('- hasStaffRole:', hasStaffRole());
+      console.log('- hasManagerRole:', hasManagerRole());
+      console.log('- hasAdminRole:', hasAdminRole());
+    }
+  }, [user]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -187,6 +220,18 @@ export const AuthSection: React.FC = () => {
                 >
                   <Users className="w-4 h-4" />
                   Manager Dashboard
+                </Link>
+              )}
+
+              {/* Admin Dashboard Link - chỉ hiển thị cho ROLE_ADMIN */}
+              {hasAdminRole() && (
+                <Link
+                  to="/admin/dashboard"
+                  className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+                  onClick={() => setIsDropdownOpen(false)}
+                >
+                  <Crown className="w-4 h-4" />
+                  Admin Dashboard
                 </Link>
               )}
 

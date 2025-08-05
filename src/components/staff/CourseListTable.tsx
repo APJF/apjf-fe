@@ -13,7 +13,7 @@ import {
   AlertCircle
 } from "lucide-react"
 import { CourseService } from "../../services/courseService"
-import type { Course, CourseFilters } from "../../types/course"
+import type { Course } from "../../types/course"
 
 interface CourseListTableProps {
   onCreateCourse?: () => void
@@ -24,10 +24,12 @@ export const CourseListTable: React.FC<CourseListTableProps> = ({
   onCreateCourse, 
   refreshTrigger 
 }) => {
-  const [courses, setCourses] = useState<Course[]>([])
+  const [allCourses, setAllCourses] = useState<Course[]>([]) // Store all courses from API
+  const [displayedCourses, setDisplayedCourses] = useState<Course[]>([]) // Courses to display in table
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("") // Debounced search term
   const [selectedLevel, setSelectedLevel] = useState<string>("all")
   const [selectedStatus, setSelectedStatus] = useState<string>("all")
   
@@ -45,8 +47,8 @@ export const CourseListTable: React.FC<CourseListTableProps> = ({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "ACTIVE": return "bg-red-500 text-white border-red-600"
-      case "INACTIVE": return "bg-red-200 text-red-900 border-red-300"
+      case "ACTIVE": return "bg-red-200 text-red-900 border-red-300" // Đổi màu với INACTIVE
+      case "INACTIVE": return "bg-red-500 text-white border-red-600" // Đổi màu với ACTIVE
       case "DRAFT": return "bg-gray-100 text-gray-800 border-gray-300"
       default: return "bg-gray-100 text-gray-800 border-gray-300"
     }
@@ -58,74 +60,126 @@ export const CourseListTable: React.FC<CourseListTableProps> = ({
   const itemsPerPage = 12
   const navigate = useNavigate()
 
-  // Fetch courses from API
-  const fetchCourses = useCallback(async (page = 0) => {
+  // Fetch all courses from API (get all data, then filter client-side)
+  const fetchAllCourses = useCallback(async () => {
     setIsLoading(true)
     setError(null)
+    
+    // Add minimum loading time to prevent flashing
+    const startTime = Date.now()
+    
     try {
-      const filters: CourseFilters = {
-        page,
-        size: itemsPerPage,
-        searchTitle: searchTerm.trim() || undefined,
-        level: selectedLevel !== "all" ? selectedLevel : undefined
-        // sortBy: "createdAt", // Sắp xếp theo thời gian tạo
-        // sortDirection: sortOrder // desc: mới nhất, asc: cũ nhất
-      }
-
-      const response = await CourseService.getAllCoursesForStaff(filters)
+      // Fetch all courses without filters - let client-side handle filtering
+      const response = await CourseService.getAllCoursesForStaff({})
       
       if (response.success && response.data) {
-        // API returns simple array, so we need to handle pagination locally
-        const courses = response.data
-        const startIndex = (currentPage - 1) * itemsPerPage
-        const endIndex = startIndex + itemsPerPage
-        const paginatedCourses = courses.slice(startIndex, endIndex)
-        
-        setCourses(paginatedCourses)
-        setTotalPages(Math.ceil(courses.length / itemsPerPage))
-        setTotalElements(courses.length)
+        // Sắp xếp courses theo thứ tự ngược lại (mới nhất trước)
+        const sortedCourses = [...response.data].sort((a, b) => b.id.localeCompare(a.id))
+        setAllCourses(sortedCourses)
       } else {
         throw new Error(response.message || "Không thể tải danh sách khóa học")
       }
     } catch (err) {
       console.error("Error fetching courses:", err)
       setError(err instanceof Error ? err.message : "Đã có lỗi xảy ra khi tải dữ liệu")
-      setCourses([])
+      setAllCourses([])
     } finally {
-      setIsLoading(false)
+      // Ensure minimum 300ms loading time for better UX
+      const elapsedTime = Date.now() - startTime
+      const remainingTime = Math.max(0, 300 - elapsedTime)
+      setTimeout(() => setIsLoading(false), remainingTime)
     }
-  }, [searchTerm, selectedLevel, currentPage, itemsPerPage])
+  }, []) // Remove dependencies to avoid unnecessary re-fetching
 
-  // Initial load and when filters change
+  // Debounce search term
   useEffect(() => {
-    fetchCourses(0)
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm)
+    }, 300) // 300ms delay
+
+    return () => clearTimeout(timer)
+  }, [searchTerm])
+
+  // Initial load and when refreshTrigger changes - only fetch data, don't reset page
+  useEffect(() => {
+    fetchAllCourses()
+  }, [fetchAllCourses, refreshTrigger])
+
+  // Reset to page 1 when filters change (but don't re-fetch data)
+  useEffect(() => {
     setCurrentPage(1)
-  }, [fetchCourses, refreshTrigger]) // added refreshTrigger
+  }, [debouncedSearchTerm, selectedLevel]) // Use debounced search term
 
-  // When page changes
+  // Client-side filtering and pagination
+  const filteredCourses = useMemo(() => {
+    let filtered = allCourses
+    
+    console.log('🔍 Filtering Debug:')
+    console.log('- All courses count:', allCourses.length)
+    console.log('- Search term:', debouncedSearchTerm)
+    console.log('- Selected level:', selectedLevel)
+    console.log('- Selected status:', selectedStatus)
+    
+    // Filter by search term (title or ID)
+    if (debouncedSearchTerm.trim()) {
+      const searchLower = debouncedSearchTerm.toLowerCase().trim()
+      filtered = filtered.filter(course => 
+        course.title.toLowerCase().includes(searchLower) ||
+        course.id.toString().includes(searchLower)
+      )
+      console.log('- After search filter:', filtered.length)
+    }
+    
+    // Filter by level
+    if (selectedLevel !== "all") {
+      filtered = filtered.filter(course => course.level === selectedLevel)
+      console.log('- After level filter:', filtered.length)
+    }
+    
+    // Filter by status (client-side)
+    if (selectedStatus !== "all") {
+      filtered = filtered.filter(course => course.status === selectedStatus)
+      console.log('- After status filter:', filtered.length)
+    }
+    
+    console.log('- Final filtered count:', filtered.length)
+    return filtered
+  }, [allCourses, debouncedSearchTerm, selectedLevel, selectedStatus]) // Use debounced search term
+
+  // Calculate pagination
+  const paginatedCourses = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const endIndex = startIndex + itemsPerPage
+    return filteredCourses.slice(startIndex, endIndex)
+  }, [filteredCourses, currentPage, itemsPerPage])
+
+  // Update pagination info when filteredCourses changes
   useEffect(() => {
-    fetchCourses(currentPage - 1)
-  }, [fetchCourses, currentPage])
+    setTotalElements(filteredCourses.length)
+    setTotalPages(Math.ceil(filteredCourses.length / itemsPerPage))
+    setDisplayedCourses(paginatedCourses)
+  }, [filteredCourses, paginatedCourses, itemsPerPage])
 
   // Get unique levels and statuses for filters
   const uniqueLevels = useMemo(() => {
-    return Array.from(new Set(courses.map(course => course.level).filter(Boolean)))
-  }, [courses])
+  // Lấy danh sách các mức độ duy nhất
+  const levels = Array.from(new Set(allCourses.map(course => course.level).filter(Boolean)))
+  // Sắp xếp theo thứ tự N1, N2, N3, N4, N5
+  return levels.sort((a, b) => {
+    const levelA = parseInt(a.replace('N', '')) // Lấy số từ "N1", "N2", ...
+    const levelB = parseInt(b.replace('N', '')) // Lấy số từ "N1", "N2", ...
+    return levelA - levelB // Sắp xếp tăng dần (N1 < N2 < N3 < N4 < N5)
+  })
+}, [allCourses])
 
   const uniqueStatuses = useMemo(() => {
-    return Array.from(new Set(courses.map(course => course.status).filter(Boolean)))
-  }, [courses])
-
-  // Filter courses for table display (client-side filtering for status)
-  const filteredCourses = useMemo(() => {
-    if (selectedStatus === "all") return courses
-    return courses.filter(course => course.status === selectedStatus)
-  }, [courses, selectedStatus])
+    return Array.from(new Set(allCourses.map(course => course.status).filter(Boolean)))
+  }, [allCourses])
 
   const getStatusText = (status: string) => {
     switch (status) {
       case "ACTIVE": return "Hoạt động"
-      case "INACTIVE": return "Không hoạt động"
+      case "INACTIVE": return "Tạm dừng" // Đổi từ "Không hoạt động" thành "Tạm dừng"
       case "ARCHIVED": return "Đã lưu trữ"
       default: return status
     }
@@ -152,7 +206,7 @@ export const CourseListTable: React.FC<CourseListTableProps> = ({
       )
     }
 
-    if (filteredCourses.length === 0) {
+    if (displayedCourses.length === 0 && !isLoading) {
       return (
         <div className="px-6 py-16 text-center">
           <div className="text-gray-500">
@@ -168,7 +222,7 @@ export const CourseListTable: React.FC<CourseListTableProps> = ({
       )
     }
 
-    return filteredCourses.map((course, index) => (
+    return displayedCourses.map((course, index) => (
       <div key={course.id} className="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-gray-50 transition-colors items-center">
         <div className="col-span-1 text-sm font-medium text-gray-900">
           {((currentPage - 1) * itemsPerPage) + index + 1}
@@ -275,17 +329,16 @@ export const CourseListTable: React.FC<CourseListTableProps> = ({
             </select>
           </div>
 
-          {/* Time Order Filter */}
-          {/* <div>
-            <select
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value as "desc" | "asc")}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          {/* Create Course Button */}
+          <div>
+            <Button 
+              onClick={handleCreateCourse}
+              className="w-full flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700"
             >
-              <option value="desc">Mới nhất trước</option>
-              <option value="asc">Cũ nhất trước</option>
-            </select>
-          </div> */}
+              <Plus className="h-4 w-4" />
+              Tạo khóa học mới
+            </Button>
+          </div>
         </div>
         
         <div className="mt-4 text-right">
@@ -304,7 +357,7 @@ export const CourseListTable: React.FC<CourseListTableProps> = ({
               <h3 className="text-sm font-medium text-red-800">Có lỗi xảy ra</h3>
               <p className="text-sm text-red-700 mt-1">{error}</p>
               <Button 
-                onClick={() => fetchCourses(currentPage - 1)} 
+                onClick={() => fetchAllCourses()} 
                 variant="outline" 
                 size="sm" 
                 className="mt-2"

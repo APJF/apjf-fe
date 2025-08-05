@@ -10,6 +10,7 @@ import { Textarea } from '../components/ui/Textarea'
 import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
 import { StaffChapterService, type UpdateChapterRequest, type Chapter } from '../services/staffChapterService'
+import { CourseService } from '../services/courseService'
 import { SearchableSelect } from '../components/ui/SearchableSelect'
 import type { ChapterDetail, StaffCourseDetail } from '../types/staffCourse'
 
@@ -96,7 +97,7 @@ const StaffUpdateChapterPage: React.FC = () => {
     try {
       const courseId = chapter?.courseId || course?.id
       if (courseId) {
-        const response = await StaffChapterService.getAllChaptersByCourse(courseId)
+        const response = await CourseService.getChaptersByCourseId(courseId)
         if (response.success && response.data) {
           // Filter out current chapter
           const filtered = response.data.filter(c => c.id !== chapterId)
@@ -171,7 +172,7 @@ const StaffUpdateChapterPage: React.FC = () => {
       
       if (response.success && response.data) {
         // Navigate back to chapter detail with updated data and success message
-        navigate(`/staff/chapters/${chapterId}`, {
+        navigate(`/staff/courses/${chapter?.courseId}/chapters/${chapterId}`, {
           replace: true,
           state: { 
             chapter: response.data,
@@ -469,7 +470,7 @@ const StaffUpdateChapterPage: React.FC = () => {
                         options={availableChapters.map(chapter => ({
                           id: chapter.id,
                           title: chapter.title,
-                          subtitle: `Trạng thái: ${chapter.status === 'ACTIVE' ? 'Đã kích hoạt' : 'Chưa kích hoạt'}`
+                          subtitle: `Mã: ${chapter.id} • Trạng thái: ${chapter.status === 'ACTIVE' ? 'Hoạt động' : 'Không hoạt động'}`
                         }))}
                         placeholder="Chọn hoặc tìm kiếm chương tiên quyết..."
                         emptyText="Không có chương tiên quyết"

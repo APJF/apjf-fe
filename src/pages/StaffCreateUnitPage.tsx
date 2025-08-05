@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import { Alert } from '../components/ui/Alert'
-import { AlertCircle, ArrowLeft, BookOpen, Hash, Info, Plus, FileText } from 'lucide-react'
+import { AlertCircle, ArrowLeft, BookOpen, Hash, Info, Plus, FileText, ChevronDown, ChevronRight, X } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Input } from '../components/ui/Input'
@@ -9,7 +9,9 @@ import { Label } from '../components/ui/Label'
 import { Textarea } from '../components/ui/Textarea'
 import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
+import { SearchableSelect } from '../components/ui/SearchableSelect'
 import { CourseService } from '../services/courseService'
+import { StaffUnitService, type Unit as StaffUnit } from '../services/staffUnitService'
 import type { CreateUnitRequest, Chapter, Course } from '../types/course'
 import { useToast } from '../hooks/useToast'
 
@@ -18,14 +20,33 @@ interface LocationState {
   chapter?: Chapter
 }
 
-// Simplified material interface for form (we'll create materials separately)
+// Enhanced material interface based on user example
 interface MaterialFormData {
   id: number
-  type: string
+  skillType: string // Phân loại kỹ năng (Nghe, Nói, Đọc, Viết, Ngữ pháp, Từ vựng)
+  materialType: string // Loại tài liệu (Video, Audio, PDF, Link, Text)
+  title: string
   description: string
   fileUrl: string
-  expanded: boolean
+  isExpanded: boolean
 }
+
+const SKILL_TYPES = [
+  'Nghe',
+  'Nói', 
+  'Đọc',
+  'Viết',
+  'Ngữ pháp',
+  'Từ vựng'
+]
+
+const MATERIAL_TYPES = [
+  'Video',
+  'Audio',
+  'PDF',
+  'Link',
+  'Text'
+]
 
 const StaffCreateUnitPage: React.FC = () => {
   const navigate = useNavigate()
@@ -36,6 +57,7 @@ const StaffCreateUnitPage: React.FC = () => {
 
   const [course, setCourse] = useState<Course | null>(locationState.course || null)
   const [chapter, setChapter] = useState<Chapter | null>(locationState.chapter || null)
+  const [units, setUnits] = useState<StaffUnit[]>([]) // For prerequisite selection
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingData, setIsLoadingData] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -50,26 +72,46 @@ const StaffCreateUnitPage: React.FC = () => {
   const [materials, setMaterials] = useState<MaterialFormData[]>([
     {
       id: 1,
-      type: '',
+      skillType: '',
+      materialType: '',
+      title: '',
       description: '',
       fileUrl: '',
-      expanded: true
+      isExpanded: true
     }
   ])
 
-  // Simple add material function
+  // Add material function with correct interface
   const addMaterial = () => {
     const newId = Math.max(...materials.map(m => m.id)) + 1
     setMaterials(prev => [
       ...prev,
       {
         id: newId,
-        type: '',
+        skillType: '',
+        materialType: '',
+        title: '',
         description: '',
         fileUrl: '',
-        expanded: true
+        isExpanded: true
       }
     ])
+  }
+
+  // Remove material function
+  const removeMaterial = (id: number) => {
+    if (materials.length > 1) {
+      setMaterials(prev => prev.filter(m => m.id !== id))
+    }
+  }
+
+  // Update material function
+  const updateMaterial = (id: number, field: keyof MaterialFormData, value: string | boolean) => {
+    setMaterials(prev => prev.map(material => 
+      material.id === id 
+        ? { ...material, [field]: value }
+        : material
+    ))
   }
 
   // Fetch data if not provided through location state
@@ -106,6 +148,23 @@ const StaffCreateUnitPage: React.FC = () => {
 
     fetchData()
   }, [courseId, chapterId, course, chapter])
+
+  // Fetch units for prerequisite selection when chapter is available
+  useEffect(() => {
+    const fetchUnits = async () => {
+      if (!chapter || !chapterId) return
+
+      try {
+        const response = await StaffUnitService.getUnitsByChapter(chapterId)
+        setUnits(response.data || [])
+      } catch (error) {
+        console.error('Error fetching units:', error)
+        setUnits([])
+      }
+    }
+
+    fetchUnits()
+  }, [chapter, chapterId])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -304,7 +363,7 @@ const StaffCreateUnitPage: React.FC = () => {
                       <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-indigo-500/10"></div>
                       {course.image && !course.image.includes('undefined') ? (
                         <img 
-                          src={course.image || '/img/NhatBan.webp'}
+                          src={course.image}
                           alt="Course" 
                           className="w-full h-full object-cover rounded-lg relative z-10"
                           onError={(e) => {
@@ -338,7 +397,7 @@ const StaffCreateUnitPage: React.FC = () => {
 
                     <div className="bg-green-50 rounded-lg p-3 border border-green-200">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-green-700 font-medium text-xs">MỨC ĐỘ</span>
+                        <span className="text-green-700 font-medium text-xs">TRÌNH ĐỘ</span>
                         <Badge className="bg-green-600 text-white text-xs">{course.level}</Badge>
                       </div>
                     </div>
@@ -469,15 +528,20 @@ const StaffCreateUnitPage: React.FC = () => {
                           <Hash className="h-3 w-3 text-blue-600" />
                         </div>
                       </Label>
-                      <Input
-                        id="prerequisiteUnit"
+                      <SearchableSelect
                         value={formData.prerequisiteUnitId}
-                        onChange={(e) => handleInputChange("prerequisiteUnitId", e.target.value)}
-                        placeholder="Ví dụ: UNIT00 (để trống nếu không có)"
-                        className="border-blue-300 focus:border-blue-500 focus:ring-blue-500 text-base py-3 bg-white/80 backdrop-blur-sm"
+                        onChange={(value: string) => handleInputChange("prerequisiteUnitId", value)}
+                        placeholder="Chọn bài học tiên quyết..."
+                        emptyText="Không tìm thấy bài học nào"
+                        options={units.map(unit => ({
+                          id: unit.id,
+                          title: unit.title,
+                          subtitle: unit.description || undefined
+                        }))}
+                        className="w-full"
                       />
                       <p className="text-blue-600 text-xs">
-                        Nhập mã bài học tiên quyết nếu bài học này cần học trước. Để trống nếu là bài học đầu tiên.
+                        Chọn bài học mà học viên cần hoàn thành trước khi học bài này. Để trống nếu là bài học đầu tiên.
                       </p>
                     </div>
                   </CardContent>
@@ -489,7 +553,7 @@ const StaffCreateUnitPage: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-xl font-semibold flex items-center gap-2">
                         <FileText className="h-6 w-6" />
-                        Tài liệu học tập (Tùy chọn)
+                        Tài liệu học tập
                       </CardTitle>
                       <Button
                         type="button"
@@ -504,17 +568,160 @@ const StaffCreateUnitPage: React.FC = () => {
                     </div>
                   </CardHeader>
                   <CardContent className="p-8">
-                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 mb-6">
+                    <div className="space-y-6">
+                      {materials.map((material, index) => (
+                        <div key={material.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                          {/* Material Header */}
+                          <button 
+                            type="button"
+                            className="w-full bg-gray-50 p-4 cursor-pointer hover:bg-gray-100 transition-colors text-left"
+                            onClick={() => updateMaterial(material.id, 'isExpanded', !material.isExpanded)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                {material.isExpanded ? (
+                                  <ChevronDown className="h-5 w-5 text-gray-600" />
+                                ) : (
+                                  <ChevronRight className="h-5 w-5 text-gray-600" />
+                                )}
+                                <div>
+                                  <h4 className="font-medium text-gray-900">
+                                    Tài liệu {index + 1}
+                                    {material.title && `: ${material.title}`}
+                                  </h4>
+                                  <p className="text-sm text-gray-500">
+                                    {material.skillType && material.materialType 
+                                      ? `${material.skillType} - ${material.materialType}`
+                                      : 'Chưa được cấu hình'
+                                    }
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {materials.length > 1 && (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      removeMaterial(material.id)
+                                    }}
+                                    className="text-red-600 border-red-300 hover:bg-red-50"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </button>
+
+                          {/* Material Content - Collapsible */}
+                          {material.isExpanded && (
+                            <div className="p-6 space-y-4">
+                              {/* Skill Type and Material Type */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <Label htmlFor={`skillType-${material.id}`} className="text-sm font-medium text-gray-700">
+                                    Phân loại kỹ năng <span className="text-red-500">*</span>
+                                  </Label>
+                                  <select
+                                    id={`skillType-${material.id}`}
+                                    value={material.skillType}
+                                    onChange={(e) => updateMaterial(material.id, 'skillType', e.target.value)}
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+                                  >
+                                    <option value="">Chọn kỹ năng</option>
+                                    {SKILL_TYPES.map(type => (
+                                      <option key={type} value={type}>{type}</option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                <div>
+                                  <Label htmlFor={`materialType-${material.id}`} className="text-sm font-medium text-gray-700">
+                                    Loại tài liệu <span className="text-red-500">*</span>
+                                  </Label>
+                                  <select
+                                    id={`materialType-${material.id}`}
+                                    value={material.materialType}
+                                    onChange={(e) => updateMaterial(material.id, 'materialType', e.target.value)}
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+                                  >
+                                    <option value="">Chọn loại tài liệu</option>
+                                    {MATERIAL_TYPES.map(type => (
+                                      <option key={type} value={type}>{type}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+
+                              {/* Title */}
+                              <div>
+                                <Label htmlFor={`title-${material.id}`} className="text-sm font-medium text-gray-700">
+                                  Tiêu đề tài liệu <span className="text-red-500">*</span>
+                                </Label>
+                                <Input
+                                  id={`title-${material.id}`}
+                                  value={material.title}
+                                  onChange={(e) => updateMaterial(material.id, 'title', e.target.value)}
+                                  placeholder="Nhập tiêu đề tài liệu"
+                                  className="mt-1"
+                                />
+                              </div>
+
+                              {/* Description */}
+                              <div>
+                                <Label htmlFor={`description-${material.id}`} className="text-sm font-medium text-gray-700">
+                                  Mô tả tài liệu
+                                </Label>
+                                <Textarea
+                                  id={`description-${material.id}`}
+                                  value={material.description}
+                                  onChange={(e) => updateMaterial(material.id, 'description', e.target.value)}
+                                  placeholder="Mô tả ngắn gọn về tài liệu này"
+                                  rows={3}
+                                  className="mt-1 resize-none"
+                                />
+                              </div>
+
+                              {/* File URL */}
+                              <div>
+                                <Label htmlFor={`fileUrl-${material.id}`} className="text-sm font-medium text-gray-700">
+                                  Đường dẫn tài liệu <span className="text-red-500">*</span>
+                                </Label>
+                                <Input
+                                  id={`fileUrl-${material.id}`}
+                                  value={material.fileUrl}
+                                  onChange={(e) => updateMaterial(material.id, 'fileUrl', e.target.value)}
+                                  placeholder="https://example.com/material.pdf"
+                                  type="url"
+                                  className="mt-1"
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Nhập URL của tài liệu (video, audio, PDF, hoặc link bài viết)
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Materials Info */}
+                    <div className="bg-purple-50 rounded-lg p-4 border border-purple-200 mt-6">
                       <div className="flex items-start gap-3">
-                        <div className="bg-blue-100 p-1 rounded-full mt-0.5">
-                          <Info className="h-4 w-4 text-blue-600" />
+                        <div className="bg-purple-100 p-1 rounded-full mt-0.5">
+                          <Info className="h-4 w-4 text-purple-600" />
                         </div>
                         <div>
-                          <p className="text-blue-800 text-sm font-medium mb-1">Chức năng đang phát triển</p>
-                          <p className="text-blue-700 text-xs leading-relaxed">
-                            Tính năng quản lý tài liệu sẽ được hoàn thiện trong phiên bản tiếp theo. 
-                            Hiện tại bạn có thể tạo bài học trước, sau đó thêm tài liệu riêng biệt.
-                          </p>
+                          <p className="text-purple-800 text-sm font-medium mb-1">Hướng dẫn tạo tài liệu</p>
+                          <ul className="text-purple-700 text-xs space-y-1">
+                            <li>• Phân loại kỹ năng: Nghe, Nói, Đọc, Viết, Ngữ pháp, Từ vựng</li>
+                            <li>• Loại tài liệu: Video, Audio, PDF, Link, Text</li>
+                            <li>• Đảm bảo URL tài liệu có thể truy cập được</li>
+                            <li>• Mỗi bài học nên có ít nhất một tài liệu</li>
+                          </ul>
                         </div>
                       </div>
                     </div>

@@ -45,7 +45,7 @@ export const MaterialService = {
   // Lấy danh sách tài liệu theo unitId
   getMaterialsByUnit: async (unitId: string): Promise<ApiResponse<Material[]>> => {
     try {
-      const response = await axios.get(`/materials/unit/${unitId}`, {
+      const response = await axios.get(`/units/${unitId}/materials`, {
         headers: getAuthHeaders()
       })
       return response.data

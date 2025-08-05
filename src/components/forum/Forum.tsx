@@ -7,7 +7,7 @@ import { Input } from "../ui/Input"
 import { Textarea } from "../ui/Textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/Avatar"
 import { Separator } from "../ui/Separator"
-import { MessageSquare, Flag, Send, Plus, MoreHorizontal, AlertTriangle, Pen, Trash, Edit, Trash2 } from "lucide-react"
+import { MessageSquare, Flag, Send, MoreHorizontal, AlertTriangle, Edit, Trash2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/DropdownMenu"
 import {
   Dialog,
@@ -19,6 +19,7 @@ import {
   DialogTrigger,
 } from "../ui/Dialog"
 import { postApi, commentApi } from "../../services/forumService"
+import { reportApi } from "../../services/reportService"
 import { useAuth } from "../../hooks/useAuth"
 
 interface Comment {
@@ -134,32 +135,24 @@ export default function ForumPage() {
 
   const reportContent = async () => {
     if (!reportTarget || !reportReason.trim()) {
-
       return
     }
 
     try {
-      const response = await fetch("/api/reports", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          targetType: reportTarget.type,
-          targetId: reportTarget.id,
-          reason: reportReason,
-        }),
+      await reportApi.createReport({
+        targetType: reportTarget.type,
+        targetId: reportTarget.id,
+        reason: reportReason,
       })
 
-      if (response.ok) {
-        setIsReportOpen(false)
-        setReportReason("")
-        setReportTarget(null)
-
-      }
+      setIsReportOpen(false)
+      setReportReason("")
+      setReportTarget(null)
+      
+      // Show success message
+      console.log("Report submitted successfully")
     } catch (error) {
       console.error("Error reporting content:", error)
-
     }
   }
 
@@ -529,8 +522,9 @@ export default function ForumPage() {
                       placeholder="Viết bình luận..."
                       value={newComment[post.id] || ""}
                       onChange={(e) => setNewComment((prev) => ({ ...prev, [post.id]: e.target.value }))}
-                      onKeyPress={(e) => {
-                        if (e.key === "Enter") {
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault()
                           addComment(post.id)
                         }
                       }}

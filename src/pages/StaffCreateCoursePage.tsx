@@ -9,12 +9,17 @@ import { Label } from '../components/ui/Label'
 import { Textarea } from '../components/ui/Textarea'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
 import { CourseService } from '../services/courseService'
+import { StaffCourseService, type Course } from '../services/staffCourseService'
+import { SearchableSelect } from '../components/ui/SearchableSelect'
 import type { CreateCourseRequest } from '../types/course'
 import { useAuth } from '../hooks/useAuth'
+import { useToast } from '../hooks/useToast'
+import api from '../api/axios'
 
 const StaffCreateCoursePage: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { showToast } = useToast()
 
   const [formData, setFormData] = useState({
     id: '',
@@ -27,6 +32,8 @@ const StaffCreateCoursePage: React.FC = () => {
     prerequisiteCourseId: ''
   })
 
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [availableCourses, setAvailableCourses] = useState<Course[]>([])
   const [dragActive, setDragActive] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -54,6 +61,22 @@ const StaffCreateCoursePage: React.FC = () => {
     }
   }, [user])
 
+  // Fetch available courses for prerequisite selection
+  useEffect(() => {
+    const fetchAvailableCourses = async () => {
+      try {
+        const response = await StaffCourseService.getAllCoursesForSelection()
+        if (response.success && response.data) {
+          setAvailableCourses(response.data)
+        }
+      } catch (err) {
+        console.error('Error fetching available courses:', err)
+      }
+    }
+
+    fetchAvailableCourses()
+  }, [])
+
   const levels = [
     { value: 'N5', label: 'N5' },
     { value: 'N4', label: 'N4' },
@@ -74,8 +97,8 @@ const StaffCreateCoursePage: React.FC = () => {
   }
 
   const handleFileSelect = (file: File) => {
-    if (file.size > 10 * 1024 * 1024) {
-      setError('Kích thước file không được vượt quá 10MB')
+    if (file.size > 800 * 1024) { // 800KB limit
+      setError('Kích thước file không được vượt quá 800KB')
       return
     }
     
@@ -85,7 +108,9 @@ const StaffCreateCoursePage: React.FC = () => {
     }
 
     setError(null)
+    setSelectedFile(file)
 
+    // Preview image for UI
     const reader = new FileReader()
     reader.onload = (e) => {
       setFormData(prev => ({ ...prev, image: e.target?.result as string }))
@@ -116,10 +141,40 @@ const StaffCreateCoursePage: React.FC = () => {
 
   const handleRemoveImage = () => {
     setFormData(prev => ({ ...prev, image: '' }))
+    setSelectedFile(null)
   }
 
   const handleBack = () => {
     navigate('/staff/courses')
+  }
+
+  const uploadCourseImage = async (file: File): Promise<string> => {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const response = await api.post('/courses/upload', formData, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          'Content-Type': 'multipart/form-data',
+        }
+      })
+
+      if (response.data.success && response.data.data) {
+        return response.data.data // Trả về course_image_6ddd7d93-785a-4307-949e-81d1c184c0ca
+      } else {
+        throw new Error(response.data.message || 'Upload ảnh thất bại')
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { message?: string } } }
+        if (axiosError.response?.data?.message) {
+          throw new Error(axiosError.response.data.message)
+        }
+      }
+      throw new Error('Upload ảnh thất bại')
+    }
   }
 
   const isFormValid = formData.id.trim() &&
@@ -136,33 +191,34 @@ const StaffCreateCoursePage: React.FC = () => {
       return
     }
 
-    // Kiểm tra authentication trước khi gửi request
-    const token = localStorage.getItem('accessToken')
-    const user = JSON.parse(localStorage.getItem('userInfo') || localStorage.getItem('user') || '{}')
-    
-    console.log('🔍 Debug Auth Info:', {
-      hasToken: !!token,
-      tokenPreview: token ? `${token.substring(0, 20)}...` : 'No token',
-      user: user,
-      userRoles: user?.roles || 'No roles'
-    })
-    
-    if (!token) {
-      setError('Vui lòng đăng nhập lại để tiếp tục')
-      return
-    }
-
     setIsLoading(true)
     setError(null)
 
     try {
+      let imageFilename = ''
+
+      // Upload ảnh trước nếu có file được chọn
+      if (selectedFile) {
+        try {
+          showToast("warning", "Đang tải ảnh lên...")
+          imageFilename = await uploadCourseImage(selectedFile)
+          showToast("success", "Tải ảnh thành công!")
+        } catch (uploadError) {
+          console.error('Error uploading image:', uploadError)
+          const uploadErrorMessage = uploadError instanceof Error ? uploadError.message : 'Có lỗi xảy ra khi tải ảnh lên'
+          setError(`Lỗi tải ảnh: ${uploadErrorMessage}`)
+          showToast("error", uploadErrorMessage)
+          return
+        }
+      }
+
       const courseData: CreateCourseRequest = {
         id: formData.id.trim(),
         title: formData.title.trim(),
         description: formData.description.trim(),
         duration: parseInt(formData.duration) || 0,
         level: formData.level,
-        image: formData.image || '',
+        image: imageFilename || '',
         requirement: formData.requirement.trim() || '',
         status: 'INACTIVE',
         prerequisiteCourseId: formData.prerequisiteCourseId || '',
@@ -319,13 +375,23 @@ const StaffCreateCoursePage: React.FC = () => {
                   <Label htmlFor="prerequisite" className="text-sm font-medium">
                     Khóa học tiên quyết
                   </Label>
-                  <Input
-                    id="prerequisite"
-                    placeholder="ID khóa học tiên quyết (không bắt buộc nếu là khóa học đầu tiên)"
-                    value={formData.prerequisiteCourseId}
-                    onChange={(e) => handleInputChange('prerequisiteCourseId', e.target.value)}
-                    className="h-9"
-                  />
+                  <div className="relative z-50">
+                    <SearchableSelect
+                      value={formData.prerequisiteCourseId}
+                      onChange={(value) => handleInputChange('prerequisiteCourseId', value)}
+                      options={availableCourses.map(course => ({
+                        id: course.id,
+                        title: course.title,
+                        subtitle: `Trình độ: ${course.level} • Thời lượng: ${course.duration}h`
+                      }))}
+                      placeholder="Chọn hoặc tìm kiếm khóa học tiên quyết..."
+                      emptyText="Không có khóa học tiên quyết"
+                      className="bg-white h-9"
+                    />
+                  </div>
+                  <p className="text-blue-600 text-xs mt-5">
+                    💡 Chọn khóa học mà học viên cần hoàn thành trước khi học khóa này
+                  </p>
                 </div>
               </div>
 
@@ -372,6 +438,7 @@ const StaffCreateCoursePage: React.FC = () => {
                   onDragOver={handleDrag}
                   onDragEnter={handleDrag}
                   onDragLeave={handleDrag}
+                  onClick={() => document.getElementById('file-upload')?.click()}
                 >
                   {formData.image ? (
                     <div className="relative h-full">
@@ -384,7 +451,10 @@ const StaffCreateCoursePage: React.FC = () => {
                         type="button"
                         variant="destructive"
                         size="sm"
-                        onClick={handleRemoveImage}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleRemoveImage()
+                        }}
                         className="absolute top-1 right-1 h-6 px-2 text-xs"
                       >
                         Xóa
@@ -395,23 +465,21 @@ const StaffCreateCoursePage: React.FC = () => {
                       <Upload className="h-8 w-8 text-blue-400" />
                       <div className="text-center">
                         <p className="text-sm font-medium text-blue-700">Tải lên ảnh</p>
-                        <p className="text-xs text-blue-500">PNG, JPG (max 10MB)</p>
+                        <p className="text-xs text-blue-500">PNG, JPG (max 800KB)</p>
                       </div>
-                      <label htmlFor="file-upload" className="cursor-pointer">
-                        <span className="text-xs text-blue-600 hover:text-blue-700 font-medium">
-                          Chọn file hoặc kéo thả
-                        </span>
-                        <input
-                          id="file-upload"
-                          type="file"
-                          className="hidden"
-                          accept="image/*"
-                          onChange={handleFileInputChange}
-                        />
-                      </label>
+                      <div className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+                        Chọn file hoặc kéo thả
+                      </div>
                     </div>
                   )}
                 </button>
+                <input
+                  id="file-upload"
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={handleFileInputChange}
+                />
               </div>
 
               {/* Action Buttons - Compact */}

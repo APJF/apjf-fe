@@ -64,7 +64,7 @@ export interface UpdateCourseRequest {
   description: string
   duration: number
   level: string
-  image: string
+  image: string | null
   requirement: string
   status: 'INACTIVE' | 'ACTIVE'
   prerequisiteCourseId: string | null
@@ -87,6 +87,22 @@ const getAuthHeaders = () => {
     'Content-Type': 'application/json'
   } : {
     'Content-Type': 'application/json'
+  }
+}
+
+// Helper function để extract image filename từ URL
+const extractImageFilename = (imageUrl: string | null): string => {
+  if (!imageUrl) return ''
+  
+  try {
+    // Extract filename từ URL như: http://localhost:9000/course-image/course_image_6ddd7d93-785a-4307-949e-81d1c184c0ca?...
+    const urlParts = imageUrl.split('/')
+    const lastPart = urlParts[urlParts.length - 1]
+    const filename = lastPart.split('?')[0] // Remove query parameters
+    return filename
+  } catch (error) {
+    console.error('Error extracting image filename:', error)
+    return ''
   }
 }
 
@@ -209,12 +225,46 @@ export const StaffCourseService = {
     }
   },
 
-  // Deactivate khóa học (chuyển status về INACTIVE)
+  // Deactivate khóa học (chuyển status về INACTIVE bằng cách update)
   deactivateCourse: async (courseId: string): Promise<ApiResponse<Course>> => {
     try {
-      const response = await axios.patch(`/courses/${courseId}/deactivate`, {}, {
+      // Lấy thông tin khóa học hiện tại
+      const currentCourseResponse = await axios.get(`/courses/${courseId}`, {
         headers: getAuthHeaders()
       })
+      
+      if (!currentCourseResponse.data.success) {
+        throw new Error('Failed to get current course data')
+      }
+      
+      const currentCourse = currentCourseResponse.data.data
+      
+      // Chuẩn bị data để update, giữ nguyên tất cả giá trị cũ nhưng đổi status thành INACTIVE
+      const updateData: UpdateCourseRequest = {
+        id: currentCourse.id,
+        title: currentCourse.title,
+        description: currentCourse.description || '',
+        duration: currentCourse.duration,
+        level: currentCourse.level,
+        image: extractImageFilename(currentCourse.image), // Extract filename từ URL
+        requirement: currentCourse.requirement || '',
+        status: 'INACTIVE', // Chỉ thay đổi status
+        prerequisiteCourseId: currentCourse.prerequisiteCourseId,
+        topicIds: currentCourse.topics?.map((topic: any) => topic.id) || [],
+        examIds: currentCourse.exams?.map((exam: any) => exam.id) || []
+      }
+      
+      console.log('🔧 Deactivating course with data:', {
+        originalImage: currentCourse.image,
+        extractedImage: extractImageFilename(currentCourse.image),
+        updateData
+      })
+      
+      // Gọi API update
+      const response = await axios.put(`/courses/${courseId}`, updateData, {
+        headers: getAuthHeaders()
+      })
+      
       return response.data
     } catch (error) {
       console.error('Error deactivating course:', error)

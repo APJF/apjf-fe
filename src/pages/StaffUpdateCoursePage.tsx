@@ -13,6 +13,7 @@ import { StaffCourseService, type UpdateCourseRequest, type Course } from '../se
 import { useToast } from '../hooks/useToast'
 import { SearchableSelect } from '../components/ui/SearchableSelect'
 import type { StaffCourseDetail } from '../types/staffCourse'
+import api from '../api/axios'
 
 interface LocationState {
   course?: StaffCourseDetail
@@ -141,11 +142,21 @@ const StaffUpdateCoursePage: React.FC = () => {
   }, [])
 
   const handleFileSelect = useCallback((file: File) => {
+    // Kiểm tra kích thước file (800KB limit giống như trang tạo course)
+    if (file.size > 800 * 1024) {
+      setError('Kích thước file không được vượt quá 800KB')
+      showToast("error", "Kích thước file không được vượt quá 800KB")
+      return
+    }
+
+    // Kiểm tra loại file
     if (file && (file.type === "image/jpeg" || file.type === "image/png" || file.type === "image/gif")) {
+      setError(null) // Clear any previous errors
       setSelectedFile(file)
       const imageUrl = URL.createObjectURL(file)
       setFormData(prev => ({ ...prev, image: imageUrl }))
     } else {
+      setError('Vui lòng chọn file ảnh hợp lệ (JPG, PNG, GIF)')
       showToast("error", "Vui lòng chọn file ảnh (JPG, PNG, GIF)")
     }
   }, [showToast])
@@ -177,6 +188,34 @@ const StaffUpdateCoursePage: React.FC = () => {
     }
   }, [handleFileSelect])
 
+  const handleRemoveImage = useCallback(() => {
+    setFormData(prev => ({ ...prev, image: '' }))
+    setSelectedFile(null)
+    setError(null) // Clear any image-related errors
+  }, [])
+
+  // Helper function to extract object name from signed URL
+  const extractImageObjectName = (imageUrl: string): string | null => {
+    if (!imageUrl) return null
+    
+    // If it's a blob URL (for new uploads), return as is
+    if (imageUrl.startsWith('blob:')) return imageUrl
+    
+    // Extract object name from signed URL
+    // Example: https://s3.amazonaws.com/bucket/course_image_xxx?signature -> course_image_xxx
+    const match = imageUrl.match(/course_image_[a-f0-9\-]{36}/)
+    const extracted = match ? match[0] : null
+    
+    console.log('🔍 Image URL processing:', {
+      originalUrl: imageUrl,
+      extractedObjectName: extracted,
+      isBlob: imageUrl.startsWith('blob:'),
+      matchFound: !!match
+    })
+    
+    return extracted
+  }
+
   const handleBack = useCallback(() => {
     if (course) {
       navigate(`/staff/courses/${course.id}`, { 
@@ -197,6 +236,35 @@ const StaffUpdateCoursePage: React.FC = () => {
     }
   }
 
+  const uploadCourseImage = async (file: File): Promise<string> => {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const response = await api.post('/courses/upload', formData, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          'Content-Type': 'multipart/form-data',
+        }
+      })
+
+      if (response.data.success && response.data.data) {
+        return response.data.data // Trả về course_image_ce85e137-274b-4b3e-b5cc-6db37e2d8d5c
+      } else {
+        throw new Error(response.data.message || 'Upload ảnh thất bại')
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { message?: string } } }
+        if (axiosError.response?.data?.message) {
+          throw new Error(axiosError.response.data.message)
+        }
+      }
+      throw new Error('Upload ảnh thất bại')
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -214,22 +282,108 @@ const StaffUpdateCoursePage: React.FC = () => {
     setError(null)
 
     try {
+      let imageUrl = formData.image
+
+      // Upload ảnh mới nếu người dùng đã chọn file
+      if (selectedFile) {
+        try {
+          showToast("warning", "Đang tải ảnh lên...")
+          imageUrl = await uploadCourseImage(selectedFile)
+          showToast("success", "Tải ảnh thành công!")
+        } catch (uploadError) {
+          console.error('Error uploading image:', uploadError)
+          const uploadErrorMessage = uploadError instanceof Error ? uploadError.message : 'Có lỗi xảy ra khi tải ảnh lên'
+          setError(`Lỗi tải ảnh: ${uploadErrorMessage}`)
+          showToast("error", uploadErrorMessage)
+          return
+        }
+      }
+
+      // Extract object name from image URL for database storage
+      const imageObjectName = extractImageObjectName(imageUrl)
+
       const topicIds = course?.topics.map(topic => topic.id) || [];
       const examIds = course?.exams.map(exam => exam.id) || [];
 
+      // Validate and truncate text fields to prevent database errors
+      const description = formData.description.trim();
+      const requirement = formData.requirement.trim();
+      const title = formData.title.trim();
+
+      if (description.length > 255) {
+        setError('Mô tả khóa học không được vượt quá 255 ký tự');
+        showToast("error", 'Mô tả khóa học quá dài');
+        return;
+      }
+
+      if (requirement.length > 255) {
+        setError('Yêu cầu đầu vào không được vượt quá 255 ký tự');
+        showToast("error", 'Yêu cầu đầu vào quá dài');
+        return;
+      }
+
+      if (title.length > 255) {
+        setError('Tiêu đề khóa học không được vượt quá 255 ký tự');
+        showToast("error", 'Tiêu đề khóa học quá dài');
+        return;
+      }
+
       const updateData: UpdateCourseRequest = {
         id: course?.id || formData.id.trim(),
-        title: formData.title.trim(),
-        description: formData.description.trim(),
+        title: title,
+        description: description,
         duration: parseFloat(formData.duration),
         level: formData.level,
-        image: formData.image || '',
-        requirement: formData.requirement.trim() || '',
+        image: imageObjectName, // Can be string or null
+        requirement: requirement || '',
         status: course?.status === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE',
         prerequisiteCourseId: formData.prerequisiteCourseId.trim() || null,
         topicIds: topicIds.map(id => id.toString()),
         examIds: examIds
       }
+
+      console.log('📤 Update course payload:', updateData)
+      console.log('📋 Field length validation:', {
+        title: title.length,
+        description: description.length,
+        requirement: requirement.length,
+        image: imageObjectName ? imageObjectName.length : 0,
+        originalImageUrl: imageUrl,
+        extractedObjectName: imageObjectName,
+        duration: {
+          original: formData.duration,
+          parsed: parseFloat(formData.duration),
+          isValid: !isNaN(parseFloat(formData.duration))
+        }
+      })
+
+      // Additional validation for all string fields
+      if (imageObjectName && imageObjectName.length > 255) {
+        setError('Tên object ảnh quá dài (> 255 ký tự)');
+        showToast("error", 'Tên object ảnh quá dài');
+        return;
+      }
+
+      if (formData.level.length > 10) {
+        setError('Level quá dài');
+        showToast("error", 'Level không hợp lệ');
+        return;
+      }
+
+      console.log('📊 Final payload validation:', {
+        ...updateData,
+        fieldLengths: {
+          id: updateData.id.length,
+          title: updateData.title.length,
+          description: updateData.description.length,
+          image: updateData.image ? updateData.image.length : 0,
+          requirement: updateData.requirement.length,
+          level: updateData.level.length,
+          prerequisiteCourseId: (updateData.prerequisiteCourseId || '').length,
+          topicIds: updateData.topicIds.length,
+          examIds: updateData.examIds.length
+        }
+      })
 
       const response = await StaffCourseService.updateCourse(courseId, updateData)
       
@@ -254,9 +408,33 @@ const StaffUpdateCoursePage: React.FC = () => {
       let errorMessage = 'Có lỗi xảy ra khi cập nhật khóa học. Vui lòng thử lại.'
       
       if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: { message?: string } } }
-        if (axiosError.response?.data?.message) {
+        const axiosError = error as { 
+          response?: { 
+            status?: number
+            data?: { message?: string; errors?: any }
+          }
+          message?: string
+        }
+        
+        console.log('🔍 Full error details:', {
+          status: axiosError.response?.status,
+          data: axiosError.response?.data,
+          message: axiosError.message
+        })
+        
+        if (axiosError.response?.status === 400) {
+          const errorData = axiosError.response.data
+          if (errorData?.message) {
+            errorMessage = `Lỗi validation (400): ${errorData.message}`
+          } else if (errorData?.errors) {
+            errorMessage = `Lỗi validation (400): ${JSON.stringify(errorData.errors)}`
+          } else {
+            errorMessage = 'Lỗi validation (400): Dữ liệu không hợp lệ'
+          }
+        } else if (axiosError.response?.data?.message) {
           errorMessage = axiosError.response.data.message
+        } else if (axiosError.message) {
+          errorMessage = axiosError.message
         }
       }
       setError(errorMessage)
@@ -377,7 +555,7 @@ const StaffUpdateCoursePage: React.FC = () => {
                       <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-indigo-500/10"></div>
                       {course.image && !course.image.includes('undefined') ? (
                         <img 
-                          src={course.image || '/img/NhatBan.webp'}
+                          src={course.image}
                           alt="Course" 
                           className="w-full h-full object-cover rounded-lg relative z-10"
                           onError={(e) => {
@@ -520,8 +698,12 @@ const StaffUpdateCoursePage: React.FC = () => {
                         onChange={(e) => handleInputChange("title", e.target.value)}
                         placeholder="Ví dụ: Kana Basics"
                         className="border-blue-300 focus:border-blue-500 focus:ring-blue-500 text-base py-3 bg-white/80 backdrop-blur-sm"
+                        maxLength={255}
                         required
                       />
+                      <p className={`text-xs mt-1 ${formData.title.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+                        {formData.title.length}/255 ký tự
+                      </p>
                     </div>
 
                     {/* Course Description */}
@@ -539,8 +721,12 @@ const StaffUpdateCoursePage: React.FC = () => {
                         placeholder="Mô tả chi tiết về nội dung, mục tiêu và đối tượng học viên của khóa học..."
                         rows={4}
                         className="border-blue-300 focus:border-blue-500 focus:ring-blue-500 resize-none text-base bg-white/80 backdrop-blur-sm"
+                        maxLength={255}
                         required
                       />
+                      <p className={`text-xs mt-1 ${formData.description.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+                        {formData.description.length}/255 ký tự
+                      </p>
                     </div>
 
                     {/* Duration */}
@@ -587,7 +773,11 @@ const StaffUpdateCoursePage: React.FC = () => {
                         placeholder="Nhập yêu cầu đầu vào cho khóa học (nếu có)"
                         rows={2}
                         className="border-blue-300 focus:border-blue-500 focus:ring-blue-500 resize-none text-base bg-white/80 backdrop-blur-sm"
+                        maxLength={255}
                       />
+                      <p className={`text-xs mt-1 ${formData.requirement.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+                        {formData.requirement.length}/255 ký tự
+                      </p>
                     </div>
 
                     {/* Prerequisite Course - SearchableSelect */}
@@ -636,7 +826,7 @@ const StaffUpdateCoursePage: React.FC = () => {
                         <div className="space-y-4">
                           <div className="w-32 h-32 mx-auto rounded-lg overflow-hidden border border-blue-200">
                             <img
-                              src={formData.image || "/img/NhatBan.webp"}
+                              src={selectedFile ? formData.image : (course.image || '')}
                               alt="Course preview"
                               className="w-full h-full object-cover"
                             />
@@ -653,8 +843,7 @@ const StaffUpdateCoursePage: React.FC = () => {
                             size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setSelectedFile(null)
-                              setFormData(prev => ({ ...prev, image: "" }))
+                              handleRemoveImage()
                             }}
                             className="text-red-600 border-red-300 hover:bg-red-50"
                           >

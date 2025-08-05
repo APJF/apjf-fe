@@ -53,7 +53,7 @@ export const postApi = {
 
   createPost: async (postData: {
     content: string;
-    userId?: string;
+    userId?: string | number;
   }) => {
     const response = await apiInstance.post('/posts', postData);
     return response.data;
@@ -81,7 +81,7 @@ export const commentApi = {
 
   createComment: async (commentData: {
     content: string;
-    userId?: string;
+    userId?: string | number;
     postId: number;
   }) => {
     const response = await apiInstance.post('/comments', commentData);
@@ -90,7 +90,7 @@ export const commentApi = {
 
   updateComment: async (commentId: string, commentData: {
     content: string;
-    userId?: string;
+    userId?: string | number;
     postId: string;
   }) => {
     const response = await apiInstance.put(`/comments/${commentId}`, commentData);

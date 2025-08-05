@@ -2,7 +2,6 @@ import { useState, useEffect } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { StaffNavigation } from "../components/layout/StaffNavigation"
 import { CourseStats } from "../components/staff/CourseStats"
-import { CourseActions } from "../components/staff/CourseActions"
 import { CourseListTable } from "../components/staff/CourseListTable"
 import { Alert } from "../components/ui/Alert"
 import { CheckCircle } from "lucide-react"
@@ -31,18 +30,8 @@ export const StaffCoursesPage: React.FC = () => {
     }
   }, [location.state, navigate, location.pathname])
 
-  const handleRefresh = () => {
-    setRefreshTrigger(prev => prev + 1)
-  }
-
   const handleCreateCourse = () => {
     navigate('/staff/create-course')
-  }
-
-
-  const handleExportCourses = () => {
-    // NOTE: Export functionality to be implemented in future update
-    console.log('Export courses functionality to be implemented')
   }
 
   return (
@@ -64,13 +53,6 @@ export const StaffCoursesPage: React.FC = () => {
 
         {/* Course Statistics */}
         <CourseStats refreshTrigger={refreshTrigger} />
-
-        {/* Course Actions */}
-        <CourseActions 
-          onRefresh={handleRefresh}
-          onCreateCourse={handleCreateCourse}
-          onExportCourses={handleExportCourses}
-        />
 
         {/* Course List Table */}
         <CourseListTable 

@@ -35,6 +35,26 @@ export interface AuthResponse {
   timestamp?: number
 }
 
+// New interface for login response (chỉ có tokens)
+export interface LoginResponse {
+  success: boolean
+  message: string
+  data?: {
+    accessToken: string
+    refreshToken: string
+    tokenType?: string
+  }
+  timestamp?: number
+}
+
+// Generic response for operations with user data
+export interface UserAuthResponse {
+  success: boolean
+  message: string
+  data?: UserProfile | null
+  timestamp?: number
+}
+
 export interface SendOtpData {
   email: string
   type: 'registration' | 'reset_password'
@@ -50,11 +70,11 @@ export interface UserProfile {
   id: number // Changed from string to number to match API
   username: string
   email: string
-  phone: string
-  avatar: string
-  enabled: boolean
-  authorities: string[]
-  roles?: string[] // Add roles field for consistency
+  phone?: string // Make optional since API might not always return this
+  avatar?: string // Make optional 
+  enabled?: boolean // Make optional
+  authorities: string[] // This is the main field from API
+  roles?: string[] // Keep this for backward compatibility
 }
 
 export interface UserProfileResponse {
@@ -84,65 +104,103 @@ class AuthService {
   /**
    * Đăng nhập người dùng
    */
-  async login(credentials: LoginData): Promise<AuthResponse> {
+  async login(credentials: LoginData): Promise<UserAuthResponse> {
     try {
-      const response = await api.post<AuthResponse>("/auth/login", credentials)
+      console.log('🔐 Starting login process');
+      const response = await api.post<LoginResponse>("/auth/login", credentials)
 
       if (response.data.success && response.data.data) {
-        const { userInfo, accessToken, refreshToken } = response.data.data
+        // Login response chỉ chứa tokens, không có userInfo nữa
+        const { accessToken, refreshToken } = response.data.data
         
         // Lưu tokens trước
         localStorage.setItem("accessToken", accessToken)
         localStorage.setItem("refreshToken", refreshToken)
+        console.log('✅ Tokens saved successfully');
         
-        // Sau khi login thành công, gọi getProfile để lấy thông tin đầy đủ (bao gồm avatar)
+        // Gọi getProfile để lấy thông tin user sau khi có token
         try {
+          console.log('📋 Fetching user profile...');
           const profileResponse = await this.getProfile();
+          
           if (profileResponse.success && profileResponse.data) {
-            // Merge thông tin từ login với profile (ưu tiên profile cho avatar)
-            const completeUserInfo = {
-              ...userInfo,
-              ...profileResponse.data,
-              // Ensure we keep the roles from login response
-              roles: userInfo.roles
+            // Lưu thông tin user từ profile API
+            const profileData = profileResponse.data;
+            
+            // Map authorities to roles for backward compatibility
+            const userInfo = {
+              id: profileData.id,
+              email: profileData.email,
+              username: profileData.username,
+              avatar: profileData.avatar || '',
+              roles: profileData.authorities || [] // Map authorities to roles
             };
             
-            // Lưu thông tin user đầy đủ
-            localStorage.setItem("userInfo", JSON.stringify(completeUserInfo))
-            
-            // Dispatch custom event với thông tin đầy đủ
-            window.dispatchEvent(new CustomEvent('authStateChanged', {
-              detail: { user: completeUserInfo, isAuthenticated: true }
-            }));
-            
-            console.log('✅ Login successful with complete profile data including avatar');
-          } else {
-            // Fallback: nếu getProfile thất bại, dùng userInfo từ login
             localStorage.setItem("userInfo", JSON.stringify(userInfo))
+            
+            // Dispatch custom event với thông tin user
             window.dispatchEvent(new CustomEvent('authStateChanged', {
               detail: { user: userInfo, isAuthenticated: true }
             }));
-            console.warn('⚠️ Profile fetch failed, using basic user info from login');
+            
+            console.log('✅ Login successful with user profile:', userInfo.username);
+            
+            // Return success response với user data
+            return {
+              success: true,
+              message: response.data.message || "Đăng nhập thành công",
+              data: profileData, // Return original profile data
+              timestamp: Date.now()
+            };
+          } else {
+            console.error('❌ Profile fetch failed after login:', profileResponse.message);
+            // Clear tokens nếu không lấy được profile
+            localStorage.removeItem("accessToken");
+            localStorage.removeItem("refreshToken");
+            
+            return {
+              success: false,
+              message: "Đăng nhập thành công nhưng không thể tải thông tin người dùng",
+              timestamp: Date.now()
+            };
           }
         } catch (profileError) {
-          // Fallback: nếu getProfile lỗi, dùng userInfo từ login
-          console.error('Profile fetch error after login:', profileError);
-          localStorage.setItem("userInfo", JSON.stringify(userInfo))
-          window.dispatchEvent(new CustomEvent('authStateChanged', {
-            detail: { user: userInfo, isAuthenticated: true }
-          }));
+          console.error('❌ Profile fetch error after login:', profileError);
+          // Clear tokens nếu lỗi
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("refreshToken");
+          
+          return {
+            success: false,
+            message: "Đăng nhập thành công nhưng có lỗi khi tải thông tin người dùng",
+            timestamp: Date.now()
+          };
         }
       }
 
-      return response.data
+      console.log('❌ Login failed:', response.data.message);
+      return {
+        success: false,
+        message: response.data.message || "Đăng nhập thất bại",
+        timestamp: Date.now()
+      }
     } catch (error) {
+      console.error('❌ Login error:', error);
       if (error && typeof error === "object" && "response" in error) {
-        const axiosError = error as { response?: { data?: AuthResponse } }
+        const axiosError = error as { response?: { data?: any } }
         if (axiosError.response?.data) {
-          return axiosError.response.data
+          return {
+            success: false,
+            message: axiosError.response.data.message || "Đăng nhập thất bại",
+            timestamp: Date.now()
+          }
         }
       }
-      throw error
+      return {
+        success: false,
+        message: "Có lỗi xảy ra khi đăng nhập",
+        timestamp: Date.now()
+      }
     }
   }
 
@@ -360,8 +418,9 @@ class AuthService {
             ...currentUser,
             username: profileResponse.data.username,
             email: profileResponse.data.email,
-            phone: profileResponse.data.phone,
-            avatar: profileResponse.data.avatar
+            phone: profileResponse.data.phone || '',
+            avatar: profileResponse.data.avatar || currentUser.avatar,
+            roles: profileResponse.data.authorities || currentUser.roles // Map authorities to roles
           };
           
           this.updateUserInLocalStorage(updatedUser);
@@ -435,7 +494,7 @@ class AuthService {
       const updateData = {
         username: currentProfile.username,
         email: currentProfile.email,
-        phone: currentProfile.phone,
+        phone: currentProfile.phone || '', // Provide default empty string
         avatar: avatarObjectName
       };
       

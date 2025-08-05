@@ -8,6 +8,61 @@ import { LearningPathSidebar } from "../components/course/LearningPathSidebar";
 import { CourseService } from "../services/courseService";
 import type { Course, Chapter } from "../types/course";
 
+// Function to sort chapters by prerequisite order
+function sortChaptersByPrerequisite(chapters: Chapter[]): Chapter[] {
+  const chapterMap = new Map<string, Chapter>();
+  const sortedChapters: Chapter[] = [];
+  const visited = new Set<string>();
+  const inProgress = new Set<string>();
+
+  // Tạo map để dễ lookup
+  chapters.forEach(chapter => {
+    chapterMap.set(chapter.id, chapter);
+  });
+
+  // Hàm đệ quy để sắp xếp theo thứ tự prerequisite
+  function visit(chapterId: string): void {
+    if (visited.has(chapterId) || inProgress.has(chapterId)) {
+      return; // Tránh vòng lặp vô hạn
+    }
+
+    const chapter = chapterMap.get(chapterId);
+    if (!chapter) {
+      return;
+    }
+
+    inProgress.add(chapterId);
+
+    // Nếu có prerequisite, xử lý prerequisite trước
+    if (chapter.prerequisiteChapterId && chapterMap.has(chapter.prerequisiteChapterId)) {
+      visit(chapter.prerequisiteChapterId);
+    }
+
+    inProgress.delete(chapterId);
+    
+    if (!visited.has(chapterId)) {
+      visited.add(chapterId);
+      sortedChapters.push(chapter);
+    }
+  }
+
+  // Bắt đầu với các chapter không có prerequisite
+  chapters.forEach(chapter => {
+    if (!chapter.prerequisiteChapterId) {
+      visit(chapter.id);
+    }
+  });
+
+  // Thêm các chapter còn lại (có prerequisite)
+  chapters.forEach(chapter => {
+    if (!visited.has(chapter.id)) {
+      visit(chapter.id);
+    }
+  });
+
+  return sortedChapters;
+}
+
 export default function CourseDetailPage() {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
@@ -53,7 +108,9 @@ export default function CourseDetailPage() {
       }
       
       if (chaptersRes.success) {
-        setChapters(chaptersRes.data);
+        // Sắp xếp chapters theo thứ tự prerequisite
+        const sortedChapters = sortChaptersByPrerequisite(chaptersRes.data);
+        setChapters(sortedChapters);
       } else {
         // Chapters không thành công không phải lỗi critical, chỉ log warning
         console.warn('Failed to load chapters:', chaptersRes.message);

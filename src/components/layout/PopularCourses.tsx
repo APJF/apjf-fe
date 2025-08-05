@@ -16,7 +16,7 @@ const convertAPICourse = (course: APICourse): PopularCourseUI => {
     students: Math.floor(Math.random() * 10000) + 1000,
     rating: course.averageRating || 4.0,
     price: "Free",
-    image: course.image || "/img/NhatBan.webp",
+    image: course.image || "",
     features: [
       "JLPT Preparation",
       "Interactive Exercises",
