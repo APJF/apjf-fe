@@ -103,30 +103,57 @@ export const StaffChapterDetailPage: React.FC = () => {
     setError(null)
 
     try {
-      const [chapterResponse, unitsResponse] = await Promise.all([
-        StaffChapterService.getChapterDetail(chapterId),
-        CourseService.getUnitsByChapterId(chapterId)
-      ])
-      
+      // Fetch chapter details
+      const chapterResponse = await StaffChapterService.getChapterDetail(chapterId)
       console.log('🔍 Chapter response:', chapterResponse)
-      console.log('🔍 Units response:', unitsResponse)
+      
+      // Fetch units using the correct API endpoint  
+      let unitsData: any[] = []
+      try {
+        const unitsResponse = await CourseService.getUnitsByChapterId(chapterId)
+        console.log('🔍 Units response from CourseService:', unitsResponse)
+        
+        if (unitsResponse.success && unitsResponse.data) {
+          unitsData = unitsResponse.data
+        }
+      } catch (unitsError) {
+        console.warn('CourseService failed, trying direct API...')
+        // Fallback to direct API call
+        try {
+          const response = await fetch(`http://localhost:8080/api/chapters/${chapterId}/units`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+              'Content-Type': 'application/json'
+            }
+          })
+          const result = await response.json()
+          console.log('🔍 Units response from direct API:', result)
+          
+          if (result.success && result.data) {
+            unitsData = result.data
+          }
+        } catch (directError) {
+          console.error('Both units API calls failed:', { unitsError, directError })
+        }
+      }
       
       if (chapterResponse.success && chapterResponse.data) {
         // Create ChapterDetail with units
         const chapterData: ChapterDetail = {
           ...chapterResponse.data,
           description: chapterResponse.data.description || '',
-          units: unitsResponse.success ? 
-            sortUnitsByPrerequisite(unitsResponse.data.map((unit: { id: string; title: string; description: string; status: string; prerequisiteUnitId: string | null }) => ({
+          units: unitsData.length > 0 ? 
+            sortUnitsByPrerequisite(unitsData.map((unit: { id: string; title: string; description: string; status: string; prerequisiteUnitId: string | null }) => ({
               ...unit,
               description: unit.description || '',
               status: (unit.status === 'REJECTED' ? 'INACTIVE' : unit.status) as 'INACTIVE' | 'ACTIVE' | 'ARCHIVED',
               chapterId: chapterResponse.data.id,
               exams: []
-            })) || []) : []
+            }))) : []
         }
         
         console.log('📦 Final chapter data with units:', chapterData)
+        console.log('📊 Units count:', chapterData.units?.length || 0)
         setChapter(chapterData)
       } else {
         setError("Không tìm thấy thông tin chương")
@@ -146,13 +173,9 @@ export const StaffChapterDetailPage: React.FC = () => {
       return
     }
 
-    // Nếu đã có dữ liệu từ location state thì không cần fetch
-    if (locationState.chapter && !locationState.refreshData) {
-      return
-    }
-
+    // Luôn fetch data để đảm bảo có units đầy đủ
     fetchChapterData()
-  }, [chapterId, locationState.chapter, locationState.refreshData, fetchChapterData])
+  }, [chapterId, fetchChapterData])
 
   // Handle success message cleanup
   useEffect(() => {
@@ -200,7 +223,20 @@ export const StaffChapterDetailPage: React.FC = () => {
 
     try {
       setIsLoading(true)
-      const result = await StaffChapterService.deactivateChapter(chapterId)
+      
+      // Tạo payload với tất cả thông tin cũ nhưng status chuyển thành INACTIVE
+      const updatePayload = {
+        id: chapter.id,
+        title: chapter.title,
+        description: chapter.description || '',
+        status: 'INACTIVE' as const,
+        courseId: courseId!,
+        prerequisiteChapterId: chapter.prerequisiteChapterId,
+        exams: chapter.exams || []
+      }
+      
+      console.log('🔄 Deactivating chapter with payload:', updatePayload)
+      const result = await StaffChapterService.updateChapter(chapterId, updatePayload)
       
       if (result.success) {
         setSuccessMessage('Đã hủy kích hoạt chương thành công!')

@@ -145,7 +145,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   }
 
   return (
-    <div ref={dropdownRef} className={`relative z-10 ${className}`}>
+    <div ref={dropdownRef} className={`relative ${className}`}>
       {/* Main Input */}
       <div className={`
         w-full border rounded-md bg-white flex items-center
@@ -213,7 +213,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-xl max-h-60 overflow-auto">
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-xl max-h-60 overflow-auto">
           {/* Empty option */}
           <button
             type="button"

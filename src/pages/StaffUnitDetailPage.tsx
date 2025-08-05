@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import { Alert } from '../components/ui/Alert'
-import { AlertCircle, BookOpen, ArrowLeft, FileText, ExternalLink, Music, Edit, Plus, CheckCircle, XCircle } from 'lucide-react'
+import { AlertCircle, BookOpen, ArrowLeft, FileText, ExternalLink, Music, Edit, Plus, CheckCircle, XCircle, Hash, Eye, Info } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
@@ -10,7 +10,9 @@ import { StaffUnitService, type UnitDetail } from '../services/staffUnitService'
 import { StaffCourseService } from '../services/staffCourseService'
 import { StaffChapterService } from '../services/staffChapterService'
 import { MaterialService, type Material } from '../services/materialService'
+import { StaffExamService } from '../services/staffExamService'
 import type { StaffCourseDetail, ChapterDetail } from '../types/staffCourse'
+import type { ExamSummary } from '../types/exam'
 
 interface LocationState {
   unit?: UnitDetail
@@ -36,6 +38,7 @@ export const StaffUnitDetailPage: React.FC = () => {
   const [chapter, setChapter] = useState<ChapterDetail | null>(locationState.chapter || null)
   const [course, setCourse] = useState<StaffCourseDetail | null>(locationState.course || null)
   const [materials, setMaterials] = useState<Material[]>([])
+  const [exams, setExams] = useState<ExamSummary[]>([])
   const [isLoading, setIsLoading] = useState(!unit || !chapter || !course)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(
@@ -53,8 +56,9 @@ export const StaffUnitDetailPage: React.FC = () => {
       fetchUnitData()
     } else {
       setIsLoading(false)
-      // Fetch materials even if we have unit data
+      // Fetch materials và exams even if we have unit data
       fetchMaterials()
+      fetchExams()
     }
     
     // Clear refreshData flag after processing to prevent infinite loop
@@ -86,6 +90,18 @@ export const StaffUnitDetailPage: React.FC = () => {
     }
   }
 
+  const fetchExams = async () => {
+    if (!unitId) return
+
+    try {
+      const examsData = await StaffExamService.getExamsByScope('unit', unitId)
+      setExams(examsData)
+    } catch (error) {
+      console.error('Error fetching exams:', error)
+      setExams([])
+    }
+  }
+
   const fetchUnitData = async () => {
     if (!courseId || !chapterId || !unitId) return
 
@@ -93,10 +109,11 @@ export const StaffUnitDetailPage: React.FC = () => {
     setError(null)
 
     try {
-      // Fetch unit detail and materials in parallel
-      const [unitResponse, materialsResponse] = await Promise.all([
+      // Fetch unit detail, materials, và exams in parallel
+      const [unitResponse, materialsResponse, examsData] = await Promise.all([
         StaffUnitService.getUnitDetail(unitId),
-        MaterialService.getMaterialsByUnit(unitId)
+        MaterialService.getMaterialsByUnit(unitId),
+        StaffExamService.getExamsByScope('unit', unitId)
       ])
 
       if (unitResponse.success && unitResponse.data) {
@@ -118,6 +135,9 @@ export const StaffUnitDetailPage: React.FC = () => {
         })
         setMaterials(sortedMaterials)
       }
+
+      // Set exams data
+      setExams(examsData)
 
       // If we don't have course/chapter info, fetch them
       if (!course || !chapter) {        
@@ -383,8 +403,8 @@ export const StaffUnitDetailPage: React.FC = () => {
               </div>
               
               <div className="space-y-2">
-                <h2 className="text-2xl font-bold text-blue-900">{unit.title}</h2>
-                <p className="text-blue-700 leading-relaxed">{unit.description}</p>
+                {/* <h2 className="text-2xl font-bold text-blue-900">{unit.title}</h2>
+                <p className="text-blue-700 leading-relaxed">{unit.description}</p> */}
               </div>
             </div>
           </div>
@@ -392,34 +412,131 @@ export const StaffUnitDetailPage: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             {/* Left Sidebar - Course & Chapter Info */}
             <div className="space-y-6">
-              <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <CardTitle className="text-xl flex items-center gap-2">
-                    <BookOpen className="h-5 w-5 text-blue-600" />
-                    Thông tin khóa học
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <span className="text-blue-600 font-medium text-sm">Khóa học</span>
-                    <div className="text-base font-semibold text-blue-900 mt-1">{course.title}</div>
+              <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm">
+                <CardContent className="p-8">
+                  {/* Info Header */}
+                  <div className="mb-8">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-2 rounded-lg">
+                        <Info className="h-6 w-6 text-white" />
+                      </div>
+                      <h2 className="text-xl font-bold text-blue-900">Thông tin</h2>
+                    </div>
+                    <div className="w-16 h-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full"></div>
                   </div>
-                  <div>
-                    <span className="text-blue-600 font-medium text-sm">Chương</span>
-                    <div className="text-base font-semibold text-blue-900 mt-1">{chapter.title}</div>
+
+                  {/* Course Image */}
+                  <div className="mb-6">
+                    <div className="w-full h-32 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl border-2 border-blue-200 flex items-center justify-center relative overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-indigo-500/10"></div>
+                      {course.image && !course.image.includes('undefined') ? (
+                        <img 
+                          src={course.image}
+                          alt="Course" 
+                          className="w-full h-full object-cover rounded-lg relative z-10"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none'
+                          }}
+                        />
+                      ) : (
+                        <div className="relative z-10 text-center">
+                          <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-2 shadow-lg">
+                            <BookOpen className="h-6 w-6 text-white" />
+                          </div>
+                          <p className="text-blue-600 font-medium text-xs">Ảnh khóa học</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-blue-600 font-medium text-sm">Trình độ</span>
-                    <div className="text-sm text-blue-800 mt-1">{course.level}</div>
+
+                  {/* Course Details */}
+                  <div className="space-y-4 mb-8">
+                    <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-blue-600 font-medium text-xs">ID KHÓA HỌC</span>
+                        <Badge className="bg-blue-600 text-white font-mono text-xs">{course.id}</Badge>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-blue-600 font-medium text-xs mb-1">TÊN KHÓA HỌC</div>
+                      <h3 className="text-blue-900 font-bold text-sm leading-tight">{course.title}</h3>
+                    </div>
+
+                    <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-green-700 font-medium text-xs">TRÌNH ĐỘ</span>
+                        <Badge className="bg-green-600 text-white text-xs">{course.level}</Badge>
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Chapter Info */}
+                  <div className="border-t border-blue-100 pt-6 mb-6">
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Hash className="h-4 w-4 text-purple-600" />
+                        <span className="text-purple-600 font-medium text-xs">CHƯƠNG</span>
+                      </div>
+                      <Badge className="bg-purple-600 text-white text-xs mb-2">{chapter.id}</Badge>
+                    </div>
+
+                    <div className="mb-4">
+                      <div className="text-purple-600 font-medium text-xs mb-1">TÊN CHƯƠNG</div>
+                      <h4 className="text-purple-900 font-bold text-sm leading-tight">{chapter.title}</h4>
+                    </div>
+                  </div>
+
+                  {/* Unit Info */}
+                  <div className="border-t border-purple-100 pt-6">
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <BookOpen className="h-4 w-4 text-orange-600" />
+                        <span className="text-orange-600 font-medium text-xs">BÀI HỌC</span>
+                      </div>
+                      <Badge className="bg-orange-600 text-white text-xs mb-2">{unit.id}</Badge>
+                    </div>
+
+                    <div className="mb-4">
+                      <div className="text-orange-600 font-medium text-xs mb-1">TÊN BÀI HỌC</div>
+                      <h4 className="text-orange-900 font-bold text-sm leading-tight">{unit.title}</h4>
+                    </div>
+
+                    <div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
+                      <div className="flex items-center justify-between">
+                        <span className="text-amber-700 font-medium text-xs">SỐ TÀI LIỆU</span>
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-amber-600" />
+                          <span className="text-xl font-bold text-amber-800">{materials.length}</span>
+                          <span className="text-amber-600 text-xs">tài liệu</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Info Note */}
+                  {/* <div className="bg-cyan-50 rounded-lg p-4 border border-cyan-200 mt-6">
+                    <div className="flex items-start gap-3">
+                      <div className="bg-cyan-100 p-1 rounded-full mt-0.5">
+                        <Info className="h-4 w-4 text-cyan-600" />
+                      </div>
+                      <div>
+                        <p className="text-cyan-800 text-sm font-medium mb-1">Thông tin bài học</p>
+                        <p className="text-cyan-700 text-xs leading-relaxed">
+                          Quản lý tài liệu học tập và bài kiểm tra cho bài học này.
+                        </p>
+                      </div>
+                    </div>
+                  </div> */}
                 </CardContent>
               </Card>
 
+              {/* Quick Actions */}
               <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
                 <CardHeader>
                   <CardTitle className="text-xl flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-green-600" />
-                    Thao tác
+                    <Edit className="h-5 w-5 text-green-600" />
+                    Thao tác nhanh
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -442,7 +559,7 @@ export const StaffUnitDetailPage: React.FC = () => {
                     })}
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Tạo Exam
+                    Tạo bài kiểm tra
                   </Button>
                   
                   {unit.status === 'ACTIVE' && (
@@ -519,9 +636,23 @@ export const StaffUnitDetailPage: React.FC = () => {
                                 {getMaterialIcon(material.type)}
                               </div>
                               <div>
-                                <div className="font-semibold text-gray-900 text-lg">
+                                {/* Material description - commented out as API doesn't use this field */}
+                                {/* <div className="font-semibold text-gray-900 text-lg">
                                   {material.description}
-                                </div>
+                                </div> */}
+                                
+                                {/* Display script and translation instead */}
+                                {(material.script || material.translation) && (
+                                  <div className="font-semibold text-gray-900 text-lg mb-2">
+                                    {material.script && (
+                                      <div className="text-blue-900">{material.script}</div>
+                                    )}
+                                    {material.translation && (
+                                      <div className="text-green-700 text-sm">{material.translation}</div>
+                                    )}
+                                  </div>
+                                )}
+                                
                                 <div className="flex items-center gap-2 mt-2">
                                   <span className="px-2 py-1 bg-white rounded-full text-xs font-medium text-gray-600 border">
                                     {getMaterialTypeLabel(material.type)}
@@ -556,9 +687,108 @@ export const StaffUnitDetailPage: React.FC = () => {
                         <FileText className="h-16 w-16 mx-auto text-green-300 mb-4" />
                         <p className="text-green-600 font-medium mb-2">Chưa có tài liệu nào</p>
                         <p className="text-sm text-green-500 mb-6">Thêm tài liệu đầu tiên cho bài học này</p>
-                        <Button className="bg-green-600 hover:bg-green-700 text-white">
+                        <Button 
+                          onClick={handleEditUnit}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                        >
                           <FileText className="h-4 w-4 mr-2" />
                           Thêm tài liệu
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Unit Exams */}
+              <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-xl flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5 text-purple-600" />
+                      Danh sách bài kiểm tra ({exams.length})
+                    </CardTitle>
+                    <Button 
+                      variant="outline"
+                      className="text-purple-600 border-purple-300 hover:bg-purple-50"
+                      onClick={() => navigate('/staff/create-exam', { 
+                        state: { 
+                          scope: 'unit', 
+                          scopeId: unit.id, 
+                          scopeName: unit.title 
+                        } 
+                      })}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Tạo bài kiểm tra
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className={`space-y-4 ${exams.length > 4 ? 'max-h-80 overflow-y-auto pr-2' : ''}`}>
+                    {exams.length > 0 ? (
+                      exams.map((exam, index) => (
+                        <div 
+                          key={exam.id} 
+                          className="p-4 bg-white rounded-lg border border-purple-100 shadow-sm hover:shadow-md transition-shadow"
+                        >
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-sm font-medium">
+                                  {index + 1}
+                                </div>
+                                <h4 className="font-semibold text-purple-900 text-lg">{exam.title}</h4>
+                                <Badge className={`${
+                                  exam.status === 'ACTIVE' 
+                                    ? 'bg-green-100 text-green-800 border-green-300' 
+                                    : 'bg-yellow-100 text-yellow-800 border-yellow-300'
+                                }`}>
+                                  {exam.status === 'ACTIVE' ? 'Hoạt động' : 'Chưa kích hoạt'}
+                                </Badge>
+                              </div>
+                              <p className="text-purple-700 text-sm mb-2 ml-11">{exam.description}</p>
+                              <div className="text-xs text-purple-500 ml-11 space-y-1">
+                                <div>Mã bài kiểm tra: {exam.id}</div>
+                                <div>Thời gian: {exam.duration} phút</div>
+                                <div>Số câu hỏi: {exam.questionCount}</div>
+                                <div>Độ khó: {exam.difficulty}</div>
+                                <div>Điểm tối đa: {exam.totalPoints}</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => navigate(`/staff/exams/${exam.id}`)}
+                                className="text-purple-600 border-purple-300 hover:bg-purple-50"
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                Xem chi tiết
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-12">
+                        <AlertCircle className="h-16 w-16 mx-auto text-purple-300 mb-4" />
+                        <p className="text-purple-600 font-medium mb-2">Chưa có bài kiểm tra nào</p>
+                        <p className="text-sm text-purple-500 mb-6">
+                          Thêm bài kiểm tra đầu tiên cho bài học này
+                        </p>
+                        <Button 
+                          onClick={() => navigate('/staff/create-exam', { 
+                            state: { 
+                              scope: 'unit', 
+                              scopeId: unit.id, 
+                              scopeName: unit.title 
+                            } 
+                          })}
+                          className="bg-purple-600 hover:bg-purple-700 text-white"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Tạo bài kiểm tra
                         </Button>
                       </div>
                     )}

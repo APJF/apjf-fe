@@ -13,6 +13,7 @@ import { StaffUnitService, type Unit } from '../services/staffUnitService'
 import { MaterialService, type Material, type MaterialType } from '../services/materialService'
 import { SearchableSelect } from '../components/ui/SearchableSelect'
 import type { StaffCourseDetail, ChapterDetail, UnitDetail } from '../types/staffCourse'
+import api from '../api/axios'
 
 interface LocationState {
   unit?: UnitDetail
@@ -33,6 +34,8 @@ interface MaterialFormData extends Material {
   isUpdated?: boolean
   isDeleted?: boolean
   originalData?: Material
+  selectedFile?: File | null
+  title?: string // For display purposes
 }
 
 const StaffUpdateUnitPage: React.FC = () => {
@@ -138,19 +141,46 @@ const StaffUpdateUnitPage: React.FC = () => {
   const fetchAvailableUnits = async () => {
     if (!chapterId && !chapter?.id) return
 
+    const currentChapterId = chapterId || chapter?.id
+    if (!currentChapterId) return
+
+    console.log('Fetching units for chapter:', currentChapterId)
+
     try {
-      const currentChapterId = chapterId || chapter?.id
-      if (currentChapterId) {
-        const response = await StaffUnitService.getAllUnitsByChapter(currentChapterId)
-        if (response.success && response.data) {
-          // Filter out current unit
-          const filtered = response.data.filter(u => u.id !== unitId)
-          setAvailableUnits(filtered)
+      // Sử dụng API chính: /chapters/{chapterId}/units
+      const response = await api.get(`/chapters/${currentChapterId}/units`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          'Content-Type': 'application/json'
         }
+      })
+      
+      if (response.data.success && response.data.data) {
+        const filtered = response.data.data.filter((u: any) => u.id !== unitId)
+        setAvailableUnits(filtered)
+        console.log('Successfully fetched units:', filtered.length)
+        return
       }
-    } catch (error) {
-      console.error('Error fetching available units:', error)
+    } catch (primaryError) {
+      console.warn('Primary API /chapters/{chapterId}/units failed, trying fallback API...')
+      
+      // Thử API fallback cũ nếu API mới thất bại
+      try {
+        const fallbackResponse = await StaffUnitService.getAllUnitsByChapter(currentChapterId)
+        if (fallbackResponse.success && fallbackResponse.data) {
+          const filtered = fallbackResponse.data.filter(u => u.id !== unitId)
+          setAvailableUnits(filtered)
+          console.log('Fallback API succeeded, fetched units:', filtered.length)
+          return
+        }
+      } catch (fallbackError) {
+        console.error('Both APIs failed:', { primaryError, fallbackError })
+      }
     }
+
+    // Nếu cả hai API đều thất bại
+    console.warn('No units found for chapter:', currentChapterId)
+    setAvailableUnits([])
   }
 
   const initializeFormData = (unitData: UnitDetail) => {
@@ -187,13 +217,51 @@ const StaffUpdateUnitPage: React.FC = () => {
   const addMaterial = () => {
     const newMaterial: MaterialFormData = {
       id: `new_${Date.now()}`,
-      description: '',
+      title: '',
       fileUrl: '',
       type: 'GRAMMAR' as MaterialType,
+      script: '',
+      translation: '',
+      unitId: unitId || '',
       expanded: true,
-      isNew: true
+      isNew: true,
+      selectedFile: null
     }
     setMaterials(prev => [...prev, newMaterial])
+  }
+
+  // Upload material file function
+  const uploadMaterialFile = async (file: File): Promise<string> => {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const response = await api.post('/materials/upload', formData, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          'Content-Type': 'multipart/form-data',
+        }
+      })
+
+      if (response.data.success && response.data.data) {
+        return response.data.data // Trả về filename
+      } else {
+        throw new Error(response.data.message || 'Upload file thất bại')
+      }
+    } catch (error) {
+      console.error('Error uploading material file:', error)
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { message?: string } } }
+        if (axiosError.response?.data?.message) {
+          const errorMessage = axiosError.response.data.message
+          if (errorMessage.includes('size') || errorMessage.includes('large') || errorMessage.includes('KB') || errorMessage.includes('MB')) {
+            throw new Error(`File quá lớn. Vui lòng chọn file dưới 800KB.`)
+          }
+          throw new Error(errorMessage)
+        }
+      }
+      throw new Error('Upload file thất bại')
+    }
   }
 
   const removeMaterial = (materialId: string) => {
@@ -253,13 +321,134 @@ const StaffUpdateUnitPage: React.FC = () => {
   }
 
   const isFormValid = useMemo(() => {
-    const hasValidBasicInfo = formData.title.trim() && formData.description.trim();
+    const hasValidBasicInfo = formData.title?.trim() && formData.description?.trim();
     const hasValidMaterials = materials
       .filter(m => !m.isDeleted)
-      .every(m => m.type && m.description.trim() && m.fileUrl.trim());
+      .every(m => m.type && (m.script?.trim() || m.translation?.trim()) && m.fileUrl?.trim());
     
     return hasValidBasicInfo && hasValidMaterials;
   }, [formData.title, formData.description, materials]);
+
+  // Helper function để cập nhật unit
+  const updateUnit = async () => {
+    const status: "ACTIVE" | "INACTIVE" = unit?.status === "ACTIVE" ? "ACTIVE" : "INACTIVE";
+    const unitData = {
+      id: unit?.id || formData.id.trim(),
+      title: formData.title.trim(),
+      description: formData.description.trim(),
+      status,
+      chapterId: chapter?.id || chapterId,
+      prerequisiteUnitId: formData.prerequisiteUnitId.trim() || null
+    }
+
+    console.log('📤 Updating unit with data:', unitData)
+    
+    const unitResponse = await api.put(`/units/${unitId}`, unitData, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    if (!unitResponse.data.success) {
+      throw new Error(unitResponse.data.message || 'Cập nhật bài học thất bại')
+    }
+
+    console.log('✅ Unit updated successfully')
+    return unitResponse
+  }
+
+  // Helper function để xử lý material mới
+  const processNewMaterial = async (material: MaterialFormData): Promise<any> => {
+    console.log('🆕 Creating new material:', material.id)
+    
+    let finalFileUrl = ''
+    
+    if (material.selectedFile) {
+      finalFileUrl = await uploadMaterialFile(material.selectedFile)
+      console.log(`✅ File uploaded: ${finalFileUrl}`)
+    } else if (material.fileUrl) {
+      finalFileUrl = material.fileUrl
+    } else {
+      throw new Error('Chưa chọn file hoặc nhập URL cho tài liệu mới')
+    }
+
+    const createRequest = {
+      id: `${unitId}_${Date.now()}`,
+      fileUrl: finalFileUrl,
+      type: material.type,
+      script: material.script?.trim() || "",
+      translation: material.translation?.trim() || "",
+      unitId: unitId
+    }
+
+    return api.post('/materials', createRequest, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+        'Content-Type': 'application/json'
+      }
+    })
+  }
+
+  // Helper function để xử lý material cập nhật
+  const processUpdatedMaterial = async (material: MaterialFormData): Promise<any> => {
+    console.log('🔄 Updating existing material:', material.id)
+    
+    let finalFileUrl = material.fileUrl || ''
+    
+    if (material.selectedFile) {
+      finalFileUrl = await uploadMaterialFile(material.selectedFile)
+      console.log(`✅ New file uploaded: ${finalFileUrl}`)
+    }
+
+    const updateRequest = {
+      id: material.id,
+      fileUrl: finalFileUrl,
+      type: material.type,
+      script: material.script?.trim() || "",
+      translation: material.translation?.trim() || "",
+      unitId: unitId
+    }
+
+    return api.put(`/materials/${material.id}`, updateRequest, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+        'Content-Type': 'application/json'
+      }
+    })
+  }
+
+  // Helper function để xử lý tất cả materials
+  const processMaterials = async () => {
+    const materialPromises: Promise<any>[] = []
+    
+    console.log('📋 Processing materials:', materials.map(m => ({
+      id: m.id,
+      isNew: m.isNew,
+      isUpdated: m.isUpdated,
+      isDeleted: m.isDeleted,
+      hasFile: !!m.selectedFile
+    })))
+    
+    for (const material of materials) {
+      if (material.isDeleted) {
+        console.log('⏭️ Skipping delete for material:', material.id)
+        continue
+      }
+
+      if (material.isNew && !material.isDeleted) {
+        materialPromises.push(processNewMaterial(material))
+      } else if (material.isUpdated && material.originalData && !material.isDeleted && material.id) {
+        materialPromises.push(processUpdatedMaterial(material))
+      }
+    }
+
+    if (materialPromises.length > 0) {
+      console.log(`⏳ Processing ${materialPromises.length} material operations...`)
+      await Promise.all(materialPromises)
+      console.log('✅ All material operations completed')
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -279,86 +468,37 @@ const StaffUpdateUnitPage: React.FC = () => {
 
     try {
       // 1. Cập nhật unit
-      const status: "ACTIVE" | "INACTIVE" = unit?.status === "ACTIVE" ? "ACTIVE" : "INACTIVE";
-      const unitData = {
-        id: unit?.id || formData.id.trim(),
-        title: formData.title.trim(),
-        description: formData.description.trim(),
-        status,
-        chapterId: chapter?.id || chapterId,
-        prerequisiteUnitId: formData.prerequisiteUnitId.trim() || null,
-        examIds: unit?.exams?.map(exam => exam.id) || []
-      }
+      const unitResponse = await updateUnit()
 
-      const unitResponse = await StaffUnitService.updateUnit(unitId, unitData)
-      
-      if (unitResponse.success && unitResponse.data) {
-        // 2. Xử lý materials
-        const materialPromises: Promise<any>[] = []
-        
-        console.log('Materials to process:', materials.map(m => ({
-          id: m.id,
-          isNew: m.isNew,
-          isUpdated: m.isUpdated,
-          isDeleted: m.isDeleted,
-          hasOriginalData: !!m.originalData
-        })))
-        
-        materials.forEach(material => {
-          if (material.isDeleted && material.originalData && material.id && !material.id.startsWith('new_')) {
-            // Xóa material đã có trong DB
-            console.log('Deleting material:', material.id)
-            materialPromises.push(
-              MaterialService.deleteMaterial(material.id)
-            )
-          } else if (material.isNew && !material.isDeleted) {
-            // Tạo material mới (chỉ khi không bị xóa)
-            materialPromises.push(
-              MaterialService.createMaterial({
-                id: `${unitId}_${Date.now()}`,
-                description: material.description.trim(),
-                fileUrl: material.fileUrl.trim(),
-                type: material.type
-              })
-            )
-          } else if (material.isUpdated && material.originalData && !material.isDeleted && material.id) {
-            // Cập nhật material đã có (chỉ khi không bị xóa)
-            materialPromises.push(
-              MaterialService.updateMaterial(material.id, {
-                id: material.id,
-                description: material.description.trim(),
-                fileUrl: material.fileUrl.trim(),
-                type: material.type
-              })
-            )
-          }
-        })
+      // 2. Xử lý materials
+      await processMaterials()
 
-        await Promise.all(materialPromises)
-        
-        console.log('All material operations completed successfully')
+      // Đợi một chút để backend xử lý
+      await new Promise(resolve => setTimeout(resolve, 1000))
 
-        // Wait a moment for backend processing
-        await new Promise(resolve => setTimeout(resolve, 1000))
-
-        // Navigate back to unit detail with success message
-        navigate(`/staff/courses/${courseId}/chapters/${chapterId}/units/${unitId}`, {
-          replace: true,
-          state: { 
-            course,
-            chapter,
-            unit: unitResponse.data,
-            message: 'Cập nhật bài học thành công!',
-            refreshData: true,
-            timestamp: Date.now()
-          }
-        })
-      } else {
-        setError(unitResponse.message || 'Cập nhật bài học thất bại')
-      }
+      // Navigate back với success message
+      navigate(`/staff/courses/${courseId}/chapters/${chapterId}/units/${unitId}`, {
+        replace: true,
+        state: { 
+          course,
+          chapter,
+          unit: unitResponse.data.data,
+          message: 'Cập nhật bài học thành công!',
+          refreshData: true,
+          timestamp: Date.now()
+        }
+      })
     } catch (error) {
-      console.error('Error updating unit:', error)
-      setError('Có lỗi xảy ra khi cập nhật bài học. Vui lòng thử lại.')
+      console.error('❌ Error updating unit:', error)
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status: number, data?: unknown } }
+        const errorData = axiosError.response?.data as { message?: string }
+        const errorMsg = errorData?.message || 'Lỗi không xác định'
+        setError(`Lỗi cập nhật (${axiosError.response?.status}): ${errorMsg}`)
+      } else {
+        const errorMessage = error instanceof Error ? error.message : 'Có lỗi xảy ra khi cập nhật bài học'
+        setError(errorMessage)
+      }
     } finally {
       setIsLoading(false)
     }
@@ -459,65 +599,111 @@ const StaffUpdateUnitPage: React.FC = () => {
                       <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-2 rounded-lg">
                         <Info className="h-6 w-6 text-white" />
                       </div>
-                      <h2 className="text-xl font-bold text-blue-900">Thông tin hiện tại</h2>
+                      <h2 className="text-xl font-bold text-blue-900">Thông tin</h2>
                     </div>
                     <div className="w-16 h-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full"></div>
                   </div>
 
-                  {/* Course & Chapter Info */}
-                  {course && (
-                    <div className="space-y-4 mb-8">
-                      <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-blue-600 font-medium text-xs">KHÓA HỌC</span>
-                          <Badge className="bg-blue-600 text-white text-xs">{course.level}</Badge>
+                  {/* Course Image */}
+                  <div className="mb-6">
+                    <div className="w-full h-32 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-xl border-2 border-blue-200 flex items-center justify-center relative overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-indigo-500/10"></div>
+                      {course?.image && !course.image.includes('undefined') ? (
+                        <img 
+                          src={course.image}
+                          alt="Course" 
+                          className="w-full h-full object-cover rounded-lg relative z-10"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none'
+                          }}
+                        />
+                      ) : (
+                        <div className="relative z-10 text-center">
+                          <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-2 shadow-lg">
+                            <BookOpen className="h-6 w-6 text-white" />
+                          </div>
+                          <p className="text-blue-600 font-medium text-xs">Ảnh khóa học</p>
                         </div>
-                        <h3 className="text-blue-900 font-bold text-sm leading-tight">{course.title}</h3>
-                      </div>
+                      )}
                     </div>
-                  )}
+                  </div>
 
-                  {chapter && (
-                    <div className="space-y-4 mb-8">
-                      <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-purple-600 font-medium text-xs">CHƯƠNG</span>
-                          <Badge className="bg-purple-600 text-white font-mono text-xs">{chapter.id}</Badge>
-                        </div>
-                        <h3 className="text-purple-900 font-bold text-sm leading-tight">{chapter.title}</h3>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Unit Details */}
+                  {/* Course Details */}
                   <div className="space-y-4 mb-8">
-                    <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                    <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-green-600 font-medium text-xs">MÃ BÀI HỌC</span>
-                        <Badge className="bg-green-600 text-white font-mono text-xs">{unit.id}</Badge>
+                        <span className="text-blue-600 font-medium text-xs">ID KHÓA HỌC</span>
+                        <Badge className="bg-blue-600 text-white font-mono text-xs">{course?.id}</Badge>
                       </div>
                     </div>
 
                     <div>
-                      <div className="text-green-600 font-medium text-xs mb-1">TÊN BÀI HỌC</div>
-                      <h3 className="text-green-900 font-bold text-sm leading-tight">{unit.title}</h3>
+                      <div className="text-blue-600 font-medium text-xs mb-1">TÊN KHÓA HỌC</div>
+                      <h3 className="text-blue-900 font-bold text-sm leading-tight">{course?.title}</h3>
+                    </div>
+
+                    <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-green-700 font-medium text-xs">TRÌNH ĐỘ</span>
+                        <Badge className="bg-green-600 text-white text-xs">{course?.level}</Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Chapter Info */}
+                  <div className="border-t border-blue-100 pt-6 mb-6">
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Hash className="h-4 w-4 text-purple-600" />
+                        <span className="text-purple-600 font-medium text-xs">CHƯƠNG</span>
+                      </div>
+                      <Badge className="bg-purple-600 text-white text-xs mb-2">{chapter?.id}</Badge>
+                    </div>
+
+                    <div className="mb-4">
+                      <div className="text-purple-600 font-medium text-xs mb-1">TÊN CHƯƠNG</div>
+                      <h4 className="text-purple-900 font-bold text-sm leading-tight">{chapter?.title}</h4>
+                    </div>
+                  </div>
+
+                  {/* Unit Info */}
+                  <div className="border-t border-purple-100 pt-6">
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <BookOpen className="h-4 w-4 text-orange-600" />
+                        <span className="text-orange-600 font-medium text-xs">BÀI HỌC</span>
+                      </div>
+                      <Badge className="bg-orange-600 text-white text-xs mb-2">{unit?.id}</Badge>
+                    </div>
+
+                    <div className="mb-4">
+                      <div className="text-orange-600 font-medium text-xs mb-1">TÊN BÀI HỌC</div>
+                      <h4 className="text-orange-900 font-bold text-sm leading-tight">{unit?.title}</h4>
+                    </div>
+
+                    <div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
+                      <div className="flex items-center justify-between">
+                        <span className="text-amber-700 font-medium text-xs">SỐ TÀI LIỆU</span>
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-amber-600" />
+                          <span className="text-xl font-bold text-amber-800">{materials.filter(m => !m.isDeleted).length}</span>
+                          <span className="text-amber-600 text-xs">tài liệu</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
                   {/* Info Note */}
-                  <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
+                  <div className="bg-cyan-50 rounded-lg p-4 border border-cyan-200 mt-6">
                     <div className="flex items-start gap-3">
-                      <div className="bg-amber-100 p-1 rounded-full mt-0.5">
-                        <Info className="h-4 w-4 text-amber-600" />
+                      <div className="bg-cyan-100 p-1 rounded-full mt-0.5">
+                        <Info className="h-4 w-4 text-cyan-600" />
                       </div>
                       <div>
-                        <p className="text-amber-800 text-sm font-medium mb-1">Lưu ý khi chỉnh sửa</p>
-                        <ul className="text-amber-700 text-xs leading-relaxed list-disc ml-4 space-y-1">
-                          <li>Mã bài học (ID) không thể thay đổi sau khi tạo</li>
-                          <li>Có thể cập nhật bài học tiên quyết</li>
-                          <li>Thay đổi sẽ được lưu với trạng thái hiện tại</li>
-                          <li>Có thể thêm mới hoặc chỉnh sửa tài liệu học</li>
-                        </ul>
+                        <p className="text-cyan-800 text-sm font-medium mb-1">Chỉnh sửa bài học</p>
+                        <p className="text-cyan-700 text-xs leading-relaxed">
+                          Cập nhật thông tin và quản lý tài liệu học tập cho bài học này.
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -558,24 +744,36 @@ const StaffUpdateUnitPage: React.FC = () => {
                       </div>
 
                       {/* Prerequisite Unit - SearchableSelect */}
-                      <div className="space-y-3 relative z-20">
+                      <div className="space-y-3 relative z-50">
                         <Label htmlFor="prerequisite" className="text-green-800 font-semibold text-base">
                           Bài học tiên quyết
                         </Label>
-                        <SearchableSelect
-                          value={formData.prerequisiteUnitId}
-                          onChange={(value) => handleInputChange("prerequisiteUnitId", value)}
-                          options={availableUnits.map(unit => ({
-                            id: unit.id,
-                            title: unit.title,
-                            subtitle: `Trạng thái: ${unit.status === 'ACTIVE' ? 'Đã kích hoạt' : 'Chưa kích hoạt'}`
-                          }))}
-                          placeholder="Chọn hoặc tìm kiếm bài học tiên quyết..."
-                          emptyText="Không có bài học tiên quyết"
-                          className="bg-white/80 backdrop-blur-sm"
-                        />
+                        {availableUnits.length > 0 ? (
+                          <SearchableSelect
+                            value={formData.prerequisiteUnitId}
+                            onChange={(value) => handleInputChange("prerequisiteUnitId", value)}
+                            options={availableUnits.map(unit => ({
+                              id: unit.id,
+                              title: unit.title,
+                              subtitle: `Trạng thái: ${unit.status === 'ACTIVE' ? 'Đã kích hoạt' : 'Chưa kích hoạt'}`
+                            }))}
+                            placeholder="Chọn hoặc tìm kiếm bài học tiên quyết..."
+                            emptyText="Không có bài học tiên quyết"
+                            className="bg-white/80 backdrop-blur-sm"
+                          />
+                        ) : (
+                          <Input
+                            value={formData.prerequisiteUnitId}
+                            onChange={(e) => handleInputChange("prerequisiteUnitId", e.target.value)}
+                            placeholder="Nhập ID bài học tiên quyết (tùy chọn)"
+                            className="bg-white/80 backdrop-blur-sm border-yellow-300 focus:border-yellow-500"
+                          />
+                        )}
                         <p className="text-green-600 text-xs mt-1">
-                          💡 Chọn bài học mà học viên cần hoàn thành trước khi học bài này
+                          💡 {availableUnits.length > 0 
+                            ? "Chọn bài học mà học viên cần hoàn thành trước khi học bài này"
+                            : "Nhập ID bài học tiên quyết nếu có (lỗi tải danh sách bài học)"
+                          }
                         </p>
                       </div>
                     </div>
@@ -677,11 +875,6 @@ const StaffUpdateUnitPage: React.FC = () => {
                                   {material.isNew && <span className="text-green-600 text-xs ml-2">(Mới)</span>}
                                   {material.isUpdated && <span className="text-orange-600 text-xs ml-2">(Đã sửa)</span>}
                                 </h3>
-                                {material.description && (
-                                  <p className="text-sm text-purple-600 mt-1 line-clamp-1">
-                                    {material.description}
-                                  </p>
-                                )}
                               </div>
                             </button>
                             
@@ -747,18 +940,30 @@ const StaffUpdateUnitPage: React.FC = () => {
                                 </select>
                               </div>
 
-                              {/* Material Description */}
-                              <div className="space-y-2">
-                                <Label className="text-purple-800 font-medium">
-                                  Mô tả tài liệu <span className="text-red-500">*</span>
-                                </Label>
-                                <Input
-                                  value={material.description}
-                                  onChange={(e) => material.id && handleMaterialChange(material.id, "description", e.target.value)}
-                                  placeholder="Ví dụ: Bảng Hiragana cơ bản"
-                                  className="border-purple-300 focus:border-purple-500 focus:ring-purple-500"
-                                  required
-                                />
+                              {/* Material Script and Translation */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label className="text-purple-800 font-medium">
+                                    Script (Tiếng Nhật)
+                                  </Label>
+                                  <Input
+                                    value={material.script || ''}
+                                    onChange={(e) => material.id && handleMaterialChange(material.id, "script", e.target.value)}
+                                    placeholder="Ví dụ: こんにちは"
+                                    className="border-purple-300 focus:border-purple-500 focus:ring-purple-500"
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label className="text-purple-800 font-medium">
+                                    Translation (Tiếng Việt)
+                                  </Label>
+                                  <Input
+                                    value={material.translation || ''}
+                                    onChange={(e) => material.id && handleMaterialChange(material.id, "translation", e.target.value)}
+                                    placeholder="Ví dụ: Xin chào"
+                                    className="border-purple-300 focus:border-purple-500 focus:ring-purple-500"
+                                  />
+                                </div>
                               </div>
 
                               {/* Material URL */}
