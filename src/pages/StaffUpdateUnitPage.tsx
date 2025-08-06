@@ -42,14 +42,32 @@ interface UpdateUnitFormData {
   prerequisiteUnitId: string
 }
 
-interface MaterialFormData extends Material {
-  expanded: boolean
+interface MaterialFormData {
+  id: string
+  materialId?: string // Để track material đã tồn tại
+  skillType: string
+  script?: string
+  translation?: string
+  selectedFile?: File | null
+  isExpanded: boolean
   isNew?: boolean
   isUpdated?: boolean
   isDeleted?: boolean
   originalData?: Material
-  selectedFile?: File | null
-  title?: string // For display purposes, not part of the Material type
+  fileUrl?: string // Để compatibility với code hiện tại
+  type?: MaterialType // Để compatibility với code hiện tại
+}
+
+// Mapping skill types to material types - giống StaffCreateUnitPage
+const SKILL_TYPES = ['Nghe', 'Kanji', 'Đọc', 'Viết', 'Ngữ pháp', 'Từ vựng']
+
+const SKILL_TYPE_TO_MATERIAL_TYPE: Record<string, MaterialType> = {
+  'Nghe': 'LISTENING',
+  'Kanji': 'KANJI', 
+  'Đọc': 'READING',
+  'Viết': 'WRITING',
+  'Ngữ pháp': 'GRAMMAR',
+  'Từ vựng': 'VOCAB'
 }
 
 const StaffUpdateUnitPage: React.FC = () => {
@@ -77,15 +95,6 @@ const StaffUpdateUnitPage: React.FC = () => {
   })
 
   const [materials, setMaterials] = useState<MaterialFormData[]>([])
-
-  const materialTypes = [
-    { value: 'KANJI', label: 'Kanji' },
-    { value: 'GRAMMAR', label: 'Ngữ pháp' },
-    { value: 'VOCAB', label: 'Từ vựng' },
-    { value: 'LISTENING', label: 'Nghe' },
-    { value: 'READING', label: 'Đọc' },
-    { value: 'WRITING', label: 'Viết' }
-  ]
 
   useEffect(() => {
     if (!courseId || !chapterId || !unitId) {
@@ -139,17 +148,55 @@ const StaffUpdateUnitPage: React.FC = () => {
     if (!unitId) return
 
     try {
+      console.log('🔍 Fetching materials for unit:', unitId)
       const response = await MaterialService.getMaterialsByUnit(unitId)
       if (response.success && response.data) {
-        setMaterials(response.data.map((material: Material) => ({
-          ...material,
-          expanded: false,
-          originalData: { ...material }
+        console.log('📋 Raw materials from API:', response.data)
+        const mappedMaterials = response.data.map((material: Material) => ({
+          id: `existing_${material.id}`, // Unique frontend ID
+          materialId: material.id, // Real API material ID
+          skillType: getSkillTypeFromMaterialType(material.type),
+          script: material.script || '',
+          translation: material.translation || '',
+          selectedFile: null,
+          isExpanded: false,
+          isNew: false, // Existing material from DB
+          isUpdated: false,
+          isDeleted: false,
+          originalData: { ...material }, // Store original data for comparison
+          fileUrl: material.fileUrl,
+          type: material.type
+        }))
+        console.log('📋 Mapped materials:', mappedMaterials.map(m => ({
+          frontendId: m.id,
+          materialId: m.materialId,
+          skillType: m.skillType,
+          isNew: m.isNew,
+          hasOriginalData: !!m.originalData
         })))
+        setMaterials(mappedMaterials)
+        console.log('✅ Materials state updated')
+      } else {
+        console.warn('❌ No materials found or API failed:', response)
+        setMaterials([])
       }
     } catch (error) {
-      console.error('Error fetching materials:', error)
+      console.error('❌ Error fetching materials:', error)
+      setMaterials([])
     }
+  }
+
+  // Helper function để convert MaterialType về skill type
+  const getSkillTypeFromMaterialType = (materialType: MaterialType): string => {
+    const mapping: Record<MaterialType, string> = {
+      'LISTENING': 'Nghe',
+      'KANJI': 'Kanji',
+      'READING': 'Đọc', 
+      'WRITING': 'Viết',
+      'GRAMMAR': 'Ngữ pháp',
+      'VOCAB': 'Từ vựng'
+    }
+    return mapping[materialType] || 'Ngữ pháp'
   }
 
   const fetchAvailableUnits = async () => {
@@ -210,36 +257,23 @@ const StaffUpdateUnitPage: React.FC = () => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
-  const handleMaterialChange = (materialId: string, field: keyof Material, value: string) => {
-    if (!materialId) return;
-    
-    setMaterials(prev =>
-      prev.map(material => {
-        if (material.id === materialId) {
-          const updatedMaterial = { ...material, [field]: value }
-          // Mark as updated if different from original
-          if (material.originalData && JSON.stringify(updatedMaterial) !== JSON.stringify({...material.originalData, expanded: material.expanded, originalData: material.originalData})) {
-            updatedMaterial.isUpdated = true
-          }
-          return updatedMaterial
-        }
-        return material
-      })
-    )
-  }
-
   const addMaterial = () => {
+    const timestamp = Date.now()
+    const randomId = Math.random().toString(36).substring(2, 9)
     const newMaterial: MaterialFormData = {
-      id: `new_${Date.now()}`,
-      description: '', // Add missing required property
-      fileUrl: '',
-      type: 'GRAMMAR' as MaterialType,
+      id: `new_${timestamp}_${randomId}`, // Unique frontend ID
+      materialId: undefined, // Will be generated by backend on save
+      skillType: 'Ngữ pháp',
       script: '',
       translation: '',
-      unitId: unitId || '',
-      expanded: true,
+      selectedFile: null,
+      isExpanded: true,
       isNew: true,
-      selectedFile: null
+      isUpdated: false,
+      isDeleted: false,
+      originalData: undefined, // No original data for new materials
+      fileUrl: '',
+      type: 'GRAMMAR' as MaterialType
     }
     setMaterials(prev => [...prev, newMaterial])
   }
@@ -278,47 +312,93 @@ const StaffUpdateUnitPage: React.FC = () => {
     }
   }
 
-  const removeMaterial = (materialId: string) => {
-    if (!materialId) return;
+  const removeMaterial = (frontendId: string) => {
+    if (!frontendId) return;
     
-    console.log('Removing material:', materialId)
+    console.log('🗑️ Removing material with frontend ID:', frontendId)
     setMaterials(prev => {
-      const updated = prev.map(material => {
-        if (material.id === materialId) {
-          if (material.isNew) {
-            // Nếu là material mới chưa save, xóa hoàn toàn
-            console.log('Removing new material completely:', materialId)
-            return null
-          } else {
-            // Nếu là material đã có trong DB, đánh dấu để xóa
-            console.log('Marking existing material for deletion:', materialId, {
-              hasOriginalData: !!material.originalData,
-              originalId: material.originalData?.id
-            })
-            return { ...material, isDeleted: true, expanded: false }
-          }
-        }
-        return material
-      }).filter(Boolean) as MaterialFormData[]
-      
-      console.log('Updated materials after removal:', updated.map(m => ({
-        id: m.id,
-        isNew: m.isNew,
-        isDeleted: m.isDeleted,
-        hasOriginalData: !!m.originalData
-      })))
-      
-      return updated
+      const materialToRemove = prev.find(m => m.id === frontendId)
+      if (!materialToRemove) {
+        console.warn('⚠️ Material not found:', frontendId)
+        return prev
+      }
+
+      console.log('📋 Material to remove:', {
+        frontendId: materialToRemove.id,
+        materialId: materialToRemove.materialId,
+        isNew: materialToRemove.isNew,
+        hasOriginalData: !!materialToRemove.originalData
+      })
+
+      if (materialToRemove.isNew) {
+        // New material: remove completely from UI
+        console.log('🆕 Removing new material completely from UI')
+        return prev.filter(m => m.id !== frontendId)
+      } else {
+        // Existing material: mark for deletion (will be deleted via API)
+        console.log('📝 Marking existing material for deletion')
+        return prev.map(m => 
+          m.id === frontendId 
+            ? { ...m, isDeleted: true, isExpanded: false }
+            : m
+        )
+      }
     })
   }
 
-  const toggleMaterial = (materialId: string) => {
-    if (!materialId) return;
+  // Helper functions để cập nhật materials
+  const updateMaterialSkillType = (frontendId: string, newSkillType: string) => {
+    setMaterials(prev =>
+      prev.map(m => 
+        m.id === frontendId 
+          ? { 
+              ...m, 
+              skillType: newSkillType,
+              type: SKILL_TYPE_TO_MATERIAL_TYPE[newSkillType] || 'GRAMMAR',
+              isUpdated: !m.isNew // Only mark as updated if it's an existing material
+            }
+          : m
+      )
+    );
+  }
+
+  const updateMaterialScript = (frontendId: string, script: string) => {
+    setMaterials(prev =>
+      prev.map(m => 
+        m.id === frontendId 
+          ? { ...m, script, isUpdated: !m.isNew }
+          : m
+      )
+    );
+  }
+
+  const updateMaterialTranslation = (frontendId: string, translation: string) => {
+    setMaterials(prev =>
+      prev.map(m => 
+        m.id === frontendId 
+          ? { ...m, translation, isUpdated: !m.isNew }
+          : m
+      )
+    );
+  }
+
+  const updateMaterialFile = (frontendId: string, file: File) => {
+    setMaterials(prev =>
+      prev.map(m => 
+        m.id === frontendId 
+          ? { ...m, selectedFile: file, isUpdated: !m.isNew }
+          : m
+      )
+    );
+  }
+
+  const toggleMaterial = (frontendId: string) => {
+    if (!frontendId) return;
     
     setMaterials(prev =>
       prev.map(material =>
-        material.id === materialId 
-          ? { ...material, expanded: !material.expanded }
+        material.id === frontendId 
+          ? { ...material, isExpanded: !material.isExpanded }
           : material
       )
     )
@@ -336,11 +416,18 @@ const StaffUpdateUnitPage: React.FC = () => {
 
   const isFormValid = useMemo(() => {
     const hasValidBasicInfo = formData.title?.trim() && formData.description?.trim();
-    const hasValidMaterials = materials
-      .filter(m => !m.isDeleted)
-      .every(m => m.type && (m.script?.trim() || m.translation?.trim()) && m.fileUrl?.trim());
     
-    return hasValidBasicInfo && hasValidMaterials;
+    const activeMaterials = materials.filter(m => !m.isDeleted);
+    const hasValidMaterials = activeMaterials.every(m => {
+      // Kiểm tra các trường bắt buộc
+      const hasSkillType = m.skillType?.trim();
+      const hasFile = m.fileUrl?.trim() || m.selectedFile;
+      
+      // Script và translation không bắt buộc cho kỹ năng nghe
+      return hasSkillType && hasFile;
+    });
+    
+    return hasValidBasicInfo && hasValidMaterials && activeMaterials.length > 0;
   }, [formData.title, formData.description, materials]);
 
   // Helper function để cập nhật unit
@@ -372,9 +459,22 @@ const StaffUpdateUnitPage: React.FC = () => {
     return unitResponse
   }
 
+  // Helper function để extract filename từ S3 URL
+  const extractFilenameFromUrl = (url: string): string => {
+    try {
+      // Extract phần giữa dấu / cuối cùng và dấu ? đầu tiên
+      const urlParts = url.split('/')
+      const lastPart = urlParts[urlParts.length - 1]
+      return lastPart.split('?')[0] // Lấy phần trước dấu ?
+    } catch (error) {
+      console.error('Error extracting filename from URL:', error)
+      return url // Fallback trả về URL gốc
+    }
+  }
+
   // Helper function để xử lý material mới
   const processNewMaterial = async (material: MaterialFormData): Promise<AxiosResponse> => {
-    console.log('🆕 Creating new material:', material.id)
+    console.log('🆕 Creating new material for frontend ID:', material.id)
     
     let finalFileUrl = ''
     
@@ -388,14 +488,15 @@ const StaffUpdateUnitPage: React.FC = () => {
     }
 
     const createRequest = {
-      id: `${unitId}_${Date.now()}`,
+      // Let backend generate the ID automatically
       fileUrl: finalFileUrl,
-      type: material.type,
-      description: material.description,
+      type: SKILL_TYPE_TO_MATERIAL_TYPE[material.skillType] || 'GRAMMAR',
       script: material.script?.trim() || "",
       translation: material.translation?.trim() || "",
       unitId: unitId
     }
+
+    console.log('📝 Create request:', createRequest)
 
     return api.post('/materials', createRequest, {
       headers: {
@@ -407,26 +508,41 @@ const StaffUpdateUnitPage: React.FC = () => {
 
   // Helper function để xử lý material cập nhật
   const processUpdatedMaterial = async (material: MaterialFormData): Promise<AxiosResponse> => {
-    console.log('🔄 Updating existing material:', material.id)
+    console.log('🔄 Updating existing material:', material.materialId)
+    
+    // Kiểm tra materialId có hợp lệ không
+    if (!material.materialId || !material.originalData) {
+      throw new Error(`Material ID không hợp lệ hoặc thiếu dữ liệu gốc: ${material.materialId}`)
+    }
     
     let finalFileUrl = material.fileUrl || ''
     
     if (material.selectedFile) {
+      console.log('📤 Uploading new file for material update...')
       finalFileUrl = await uploadMaterialFile(material.selectedFile)
       console.log(`✅ New file uploaded: ${finalFileUrl}`)
+    } else if (material.fileUrl) {
+      // Nếu không có file mới, sử dụng filename từ originalData hoặc extract từ URL
+      if (material.originalData.fileUrl) {
+        finalFileUrl = extractFilenameFromUrl(material.originalData.fileUrl)
+      } else {
+        finalFileUrl = extractFilenameFromUrl(material.fileUrl)
+      }
+      console.log(`📎 Using existing file: ${finalFileUrl}`)
     }
 
     const updateRequest = {
-      id: material.id,
+      id: material.materialId,
       fileUrl: finalFileUrl,
-      type: material.type,
-      description: material.description,
+      type: SKILL_TYPE_TO_MATERIAL_TYPE[material.skillType] || 'GRAMMAR',
       script: material.script?.trim() || "",
       translation: material.translation?.trim() || "",
       unitId: unitId
     }
 
-    return api.put(`/materials/${material.id}`, updateRequest, {
+    console.log('📝 Update request:', updateRequest)
+
+    return api.put(`/materials/${material.materialId}`, updateRequest, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
         'Content-Type': 'application/json'
@@ -434,35 +550,91 @@ const StaffUpdateUnitPage: React.FC = () => {
     })
   }
 
-  // Helper function để xử lý tất cả materials
+  // Helper function để xử lý tất cả materials với validation
   const processMaterials = async () => {
-    const materialPromises: Promise<AxiosResponse>[] = []
+    const operations: Array<{ type: string; promise: Promise<any>; materialInfo: any }> = []
     
     console.log('📋 Processing materials:', materials.map(m => ({
-      id: m.id,
+      frontendId: m.id,
+      materialId: m.materialId,
       isNew: m.isNew,
       isUpdated: m.isUpdated,
       isDeleted: m.isDeleted,
-      hasFile: !!m.selectedFile
+      hasFile: !!m.selectedFile,
+      hasOriginalData: !!m.originalData
     })))
     
     for (const material of materials) {
-      if (material.isDeleted) {
-        console.log('⏭️ Skipping delete for material:', material.id)
-        continue
-      }
-
-      if (material.isNew && !material.isDeleted) {
-        materialPromises.push(processNewMaterial(material))
-      } else if (material.isUpdated && material.originalData && !material.isDeleted && material.id) {
-        materialPromises.push(processUpdatedMaterial(material))
+      if (material.isDeleted && material.materialId && material.originalData) {
+        // Case 2: Delete existing material
+        console.log('🗑️ Deleting existing material:', material.materialId)
+        operations.push({
+          type: 'DELETE',
+          materialInfo: { frontendId: material.id, materialId: material.materialId },
+          promise: MaterialService.deleteMaterial(material.materialId).catch(error => {
+            console.error(`❌ Failed to delete material ${material.materialId}:`, error)
+            // If material already deleted or not found, consider as success
+            if (error?.response?.status === 404) {
+              console.log(`ℹ️ Material ${material.materialId} already deleted or not found`)
+              return { success: true, message: 'Already deleted' }
+            }
+            throw error
+          })
+        })
+      } else if (material.isNew && !material.isDeleted) {
+        // Case 1: Create new material
+        console.log('🆕 Creating new material for frontend ID:', material.id)
+        operations.push({
+          type: 'CREATE',
+          materialInfo: { frontendId: material.id },
+          promise: processNewMaterial(material)
+        })
+      } else if (material.isUpdated && material.materialId && !material.isDeleted && material.originalData) {
+        // Case 3: Update existing material
+        console.log('🔄 Updating existing material:', material.materialId)
+        operations.push({
+          type: 'UPDATE',
+          materialInfo: { frontendId: material.id, materialId: material.materialId },
+          promise: processUpdatedMaterial(material).catch(error => {
+            console.error(`❌ Failed to update material ${material.materialId}:`, error)
+            // If material not found, try to create new
+            if (error?.response?.status === 404) {
+              console.log(`ℹ️ Material ${material.materialId} not found, trying to create new`)
+              return processNewMaterial(material)
+            }
+            throw error
+          })
+        })
       }
     }
 
-    if (materialPromises.length > 0) {
-      console.log(`⏳ Processing ${materialPromises.length} material operations...`)
-      await Promise.all(materialPromises)
-      console.log('✅ All material operations completed')
+    if (operations.length > 0) {
+      console.log(`⏳ Processing ${operations.length} material operations...`)
+      const results = await Promise.allSettled(operations.map(op => op.promise))
+      
+      // Count successful and failed operations
+      let successCount = 0
+      let failureCount = 0
+      
+      results.forEach((result, index) => {
+        const operation = operations[index]
+        if (result.status === 'rejected') {
+          console.error(`❌ ${operation.type} operation failed for ${operation.materialInfo.frontendId}:`, result.reason)
+          failureCount++
+        } else {
+          console.log(`✅ ${operation.type} operation succeeded for ${operation.materialInfo.frontendId}`)
+          successCount++
+        }
+      })
+      
+      console.log(`📊 Material operations completed: ${successCount} success, ${failureCount} failed`)
+      
+      // Only throw error if all operations failed
+      if (failureCount > 0 && successCount === 0) {
+        throw new Error(`Tất cả ${failureCount} operations đều thất bại`)
+      }
+    } else {
+      console.log('ℹ️ No material operations needed')
     }
   }
 
@@ -484,15 +656,20 @@ const StaffUpdateUnitPage: React.FC = () => {
 
     try {
       // 1. Cập nhật unit
+      console.log('📤 Step 1: Updating unit...')
       const unitResponse = await updateUnit()
+      console.log('✅ Unit updated successfully')
 
       // 2. Xử lý materials
+      console.log('📤 Step 2: Processing materials...')
       await processMaterials()
+      console.log('✅ Materials processed successfully')
 
-      // Đợi một chút để backend xử lý
+      // 3. Đợi một chút để backend xử lý
       await new Promise(resolve => setTimeout(resolve, 1000))
 
-      // Navigate back với success message
+      // 4. Navigate back với success message
+      console.log('🎉 All operations completed, navigating back...')
       navigate(`/staff/courses/${courseId}/chapters/${chapterId}/units/${unitId}`, {
         replace: true,
         state: { 
@@ -506,6 +683,11 @@ const StaffUpdateUnitPage: React.FC = () => {
       })
     } catch (error) {
       console.error('❌ Error updating unit:', error)
+      
+      // Làm mới dữ liệu materials để tránh mất data
+      console.log('🔄 Refreshing materials data after error...')
+      await fetchMaterials()
+      
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as { response?: { status: number; data?: { message?: string } } }
         const errorMsg = axiosError.response?.data?.message || 'Lỗi không xác định'
@@ -717,7 +899,7 @@ const StaffUpdateUnitPage: React.FC = () => {
                       <div>
                         <p className="text-cyan-800 text-sm font-medium mb-1">Chỉnh sửa bài học</p>
                         <p className="text-cyan-700 text-xs leading-relaxed">
-                          Cập nhật thông tin và quản lý tài liệu học tập cho bài học này.
+                          Cập nhật thông tin và quản lý tài liệu học tập cho bài học này. Mã tài liệu phải là duy nhất.
                         </p>
                       </div>
                     </div>
@@ -865,7 +1047,7 @@ const StaffUpdateUnitPage: React.FC = () => {
                                 type="button"
                                 onClick={() => material.id && toggleMaterial(material.id)}
                                 className="flex items-center gap-3 flex-1 text-left hover:bg-purple-50/50 transition-colors rounded-lg p-2 -m-2"
-                                aria-expanded={material.expanded}
+                                aria-expanded={material.isExpanded}
                                 aria-controls={`material-content-${material.id}`}
                                 aria-label={`Toggle material ${index + 1} details`}
                               >
@@ -886,7 +1068,7 @@ const StaffUpdateUnitPage: React.FC = () => {
                               <div className="text-left">
                                 <h3 className="font-semibold text-purple-900">
                                   Tài liệu {index + 1}
-                                  {material.type && ` - ${materialTypes.find(t => t.value === material.type)?.label}`}
+                                  {material.skillType && ` (${material.skillType})`}
                                   {material.isNew && <span className="text-green-600 text-xs ml-2">(Mới)</span>}
                                   {material.isUpdated && <span className="text-orange-600 text-xs ml-2">(Đã sửa)</span>}
                                 </h3>
@@ -916,10 +1098,10 @@ const StaffUpdateUnitPage: React.FC = () => {
                                   type="button"
                                   onClick={() => material.id && toggleMaterial(material.id)}
                                   className="p-1 rounded hover:bg-purple-100 transition-colors"
-                                  aria-expanded={material.expanded}
-                                  aria-label={`${material.expanded ? 'Collapse' : 'Expand'} material ${index + 1}`}
+                                  aria-expanded={material.isExpanded}
+                                  aria-label={`${material.isExpanded ? 'Collapse' : 'Expand'} material ${index + 1}`}
                                 >
-                                {material.expanded ? (
+                                {material.isExpanded ? (
                                   <ChevronDown className="h-5 w-5 text-purple-400" />
                                 ) : (
                                   <ChevronRight className="h-5 w-5 text-purple-400" />
@@ -929,72 +1111,109 @@ const StaffUpdateUnitPage: React.FC = () => {
                           </div>
 
                           {/* Material Content */}
-                          {material.expanded && (
+                          {material.isExpanded && (
                             <section 
                               className="border-t border-purple-200 bg-purple-50/30 p-6 space-y-4"
                               id={`material-content-${material.id}`}
                               aria-labelledby={`material-header-${material.id}`}
                             >
-                              {/* Material Type */}
+                              {/* Skill Type */}
                               <div className="space-y-2">
                                 <Label className="text-purple-800 font-medium">
-                                  Loại tài liệu <span className="text-red-500">*</span>
+                                  Loại kỹ năng <span className="text-red-500">*</span>
                                 </Label>
                                 <select
-                                  value={material.type}
-                                  onChange={(e) => material.id && handleMaterialChange(material.id, "type", e.target.value)}
+                                  value={material.skillType}
+                                  onChange={(e) => {
+                                    if (material.id) {
+                                      updateMaterialSkillType(material.id, e.target.value);
+                                    }
+                                  }}
                                   className="w-full px-3 py-2 border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
                                   required
                                 >
-                                  <option value="">Chọn loại tài liệu</option>
-                                  {materialTypes.map((type) => (
-                                    <option key={type.value} value={type.value}>
-                                      {type.label}
+                                  <option value="">Chọn loại kỹ năng</option>
+                                  {SKILL_TYPES.map((skillType) => (
+                                    <option key={skillType} value={skillType}>
+                                      {skillType}
                                     </option>
                                   ))}
                                 </select>
                               </div>
 
-                              {/* Material Script and Translation */}
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                  <Label className="text-purple-800 font-medium">
-                                    Script (Tiếng Nhật)
-                                  </Label>
-                                  <Input
-                                    value={material.script || ''}
-                                    onChange={(e) => material.id && handleMaterialChange(material.id, "script", e.target.value)}
-                                    placeholder="Ví dụ: こんにちは"
-                                    className="border-purple-300 focus:border-purple-500 focus:ring-purple-500"
-                                  />
+                              {/* Script and Translation - Only for Listening materials */}
+                              {material.skillType === 'Nghe' && (
+                                <div className="space-y-4">
+                                  <div className="space-y-2">
+                                    <Label className="text-purple-800 font-medium">
+                                      Script (Tiếng Nhật) <span className="text-gray-500 text-sm">(Tùy chọn)</span>
+                                    </Label>
+                                    <Textarea
+                                      value={material.script || ''}
+                                      onChange={(e) => {
+                                        if (material.id) {
+                                          updateMaterialScript(material.id, e.target.value);
+                                        }
+                                      }}
+                                      placeholder="Nhập script tiếng Nhật"
+                                      className="border-purple-300 focus:border-purple-500 focus:ring-purple-500 min-h-[100px]"
+                                      rows={4}
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label className="text-purple-800 font-medium">
+                                      Translation (Tiếng Việt) <span className="text-gray-500 text-sm">(Tùy chọn)</span>
+                                    </Label>
+                                    <Textarea
+                                      value={material.translation || ''}
+                                      onChange={(e) => {
+                                        if (material.id) {
+                                          updateMaterialTranslation(material.id, e.target.value);
+                                        }
+                                      }}
+                                      placeholder="Nhập bản dịch tiếng Việt"
+                                      className="border-purple-300 focus:border-purple-500 focus:ring-purple-500 min-h-[100px]"
+                                      rows={4}
+                                    />
+                                  </div>
                                 </div>
-                                <div className="space-y-2">
-                                  <Label className="text-purple-800 font-medium">
-                                    Translation (Tiếng Việt)
-                                  </Label>
-                                  <Input
-                                    value={material.translation || ''}
-                                    onChange={(e) => material.id && handleMaterialChange(material.id, "translation", e.target.value)}
-                                    placeholder="Ví dụ: Xin chào"
-                                    className="border-purple-300 focus:border-purple-500 focus:ring-purple-500"
-                                  />
-                                </div>
-                              </div>
+                              )}
 
-                              {/* Material URL */}
+                              {/* File Upload */}
                               <div className="space-y-2">
                                 <Label className="text-purple-800 font-medium">
-                                  URL tài liệu <span className="text-red-500">*</span>
+                                  Tệp tài liệu <span className="text-red-500">*</span>
                                 </Label>
-                                <Input
-                                  value={material.fileUrl}
-                                  onChange={(e) => material.id && handleMaterialChange(material.id, "fileUrl", e.target.value)}
-                                  placeholder="https://example.com/material.pdf hoặc /docs/material.pdf"
-                                  className="border-purple-300 focus:border-purple-500 focus:ring-purple-500"
-                                  required
+                                
+                                {/* Current file display */}
+                                {material.fileUrl && !material.selectedFile && (
+                                  <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                                    <p className="text-green-700 text-sm">
+                                      📁 Tệp hiện tại: {material.fileUrl.split('/').pop()}
+                                    </p>
+                                  </div>
+                                )}
+
+                                <input
+                                  type="file"
+                                  accept="audio/*,video/*,image/*,.pdf,.doc,.docx,.txt"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file && material.id) {
+                                      updateMaterialFile(material.id, file);
+                                    }
+                                  }}
+                                  className="w-full px-3 py-2 border border-purple-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
                                 />
+                                
+                                {material.selectedFile && (
+                                  <p className="text-sm text-purple-600">
+                                    ✅ Tệp mới đã chọn: {material.selectedFile.name}
+                                  </p>
+                                )}
+                                
                                 <p className="text-purple-600 text-xs">
-                                  Nhập URL đầy đủ hoặc đường dẫn tương đối đến tài liệu
+                                  Chấp nhận: Audio, Video, Ảnh, PDF, Word, Text (Tối đa 800KB)
                                 </p>
                               </div>
                             </section>

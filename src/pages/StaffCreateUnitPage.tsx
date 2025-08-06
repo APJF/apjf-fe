@@ -25,10 +25,8 @@ interface LocationState {
 // Enhanced material interface based on user example
 interface MaterialFormData {
   id: number
-  materialId: string // ID cho material khi tạo
+  materialId?: string // ID cho material khi tạo
   skillType: string // Phân loại kỹ năng (Nghe, Nói, Đọc, Viết, Ngữ pháp, Từ vựng)
-  title: string
-  description: string
   script: string // Script cho LISTENING
   translation: string // Translation cho LISTENING
   selectedFile: File | null // File được chọn để upload
@@ -78,10 +76,7 @@ const StaffCreateUnitPage: React.FC = () => {
   const [materials, setMaterials] = useState<MaterialFormData[]>([
     {
       id: 1,
-      materialId: '',
       skillType: '',
-      title: '',
-      description: '',
       script: '',
       translation: '',
       selectedFile: null,
@@ -96,10 +91,7 @@ const StaffCreateUnitPage: React.FC = () => {
       ...prev,
       {
         id: newId,
-        materialId: '',
         skillType: '',
-        title: '',
-        description: '',
         script: '',
         translation: '',
         selectedFile: null,
@@ -243,19 +235,66 @@ const StaffCreateUnitPage: React.FC = () => {
     }
   }
 
+  // Helper function để kiểm tra materials hợp lệ
+  const getValidMaterials = () => {
+    return materials.filter(material => 
+      material.skillType && 
+      material.selectedFile
+    )
+  }
+
   const isFormValid = formData.id.trim() &&
                      formData.title.trim() && 
-                     formData.description.trim()
-                     // Remove material validation for now since we'll simplify this
+                     formData.description.trim() &&
+                     getValidMaterials().length > 0
 
   const validateSubmitForm = (): boolean => {
     if (!isFormValid) {
-      setError('Vui lòng điền đầy đủ thông tin bắt buộc')
+      setError('Vui lòng điền đầy đủ thông tin bắt buộc và thêm ít nhất một tài liệu học tập')
       return false
     }
 
     if (!chapterId) {
       setError("Không tìm thấy ID chương")
+      return false
+    }
+
+    return validateMaterials()
+  }
+
+  const validateMaterials = (): boolean => {
+    const validMaterials = getValidMaterials()
+
+    if (validMaterials.length === 0) {
+      setError('Vui lòng thêm ít nhất một tài liệu học tập hợp lệ (có phân loại kỹ năng và file)')
+      return false
+    }
+
+    // Kiểm tra từng material
+    for (const material of validMaterials) {
+      if (!validateSingleMaterial(material)) {
+        return false
+      }
+    }
+
+    return true
+  }
+
+  const validateSingleMaterial = (material: MaterialFormData): boolean => {
+    if (!material.skillType) {
+      setError('Vui lòng chọn phân loại kỹ năng cho tất cả tài liệu')
+      return false
+    }
+    
+    if (!material.selectedFile) {
+      setError('Vui lòng chọn file cho tất cả tài liệu')
+      return false
+    }
+
+    // Kiểm tra kích thước file
+    const maxSize = 800 * 1024 // 800KB
+    if (material.selectedFile.size > maxSize) {
+      setError(`File "${material.selectedFile.name}" có kích thước ${(material.selectedFile.size / 1024).toFixed(1)}KB. Vui lòng chọn file dưới 800KB.`)
       return false
     }
 
@@ -275,11 +314,7 @@ const StaffCreateUnitPage: React.FC = () => {
   }
 
   const handleSubmitSuccess = () => {
-    const materialCount = materials.filter(m => 
-      m.title.trim() && 
-      m.skillType && 
-      m.selectedFile
-    ).length
+    const materialCount = getValidMaterials().length
     
     const successMessage = materialCount > 0 
       ? `Tạo bài học và ${materialCount} tài liệu thành công!`
@@ -330,32 +365,28 @@ const StaffCreateUnitPage: React.FC = () => {
 
   // Helper function để tạo materials
   const createMaterialsForUnit = async (unitId: string) => {
-    const validMaterials = materials.filter(material => 
-      material.title.trim() && 
-      material.skillType && 
-      material.selectedFile
-    )
+    const validMaterials = getValidMaterials()
 
-    console.log(`� Found ${validMaterials.length} valid materials to process`)
+    console.log(`📋 Found ${validMaterials.length} valid materials to process`)
 
     for (let i = 0; i < validMaterials.length; i++) {
       const material = validMaterials[i]
-      showToast("warning", `Đang xử lý tài liệu ${i + 1}/${validMaterials.length}: ${material.title}`)
+      showToast("warning", `Đang xử lý tài liệu ${i + 1}/${validMaterials.length}: ${material.skillType}`)
 
       let finalFileUrl = ''
 
       // Upload file
       if (!material.selectedFile) {
-        throw new Error(`Chưa chọn file cho tài liệu "${material.title}"`)
+        throw new Error(`Chưa chọn file cho tài liệu ${material.skillType}`)
       }
 
       try {
-        console.log(`📤 Uploading file for material: ${material.title}`)
+        console.log(`📤 Uploading file for material: ${material.skillType}`)
         finalFileUrl = await uploadMaterialFile(material.selectedFile)
         console.log(`✅ File uploaded successfully: ${finalFileUrl}`)
       } catch (uploadError) {
-        console.error(`❌ File upload failed for ${material.title}:`, uploadError)
-        throw new Error(`Lỗi upload file cho tài liệu "${material.title}": ${uploadError}`)
+        console.error(`❌ File upload failed for ${material.skillType}:`, uploadError)
+        throw new Error(`Lỗi upload file cho tài liệu ${material.skillType}: ${uploadError}`)
       }
 
       // Create material
@@ -370,12 +401,12 @@ const StaffCreateUnitPage: React.FC = () => {
           unitId: unitId
         }
 
-        console.log(`� Creating material:`, materialData)
+        console.log(`📝 Creating material:`, materialData)
         await MaterialService.createMaterial(materialData)
-        console.log(`✅ Material created successfully: ${material.title}`)
+        console.log(`✅ Material created successfully: ${material.skillType}`)
       } catch (createError) {
-        console.error(`❌ Material creation failed for ${material.title}:`, createError)
-        throw new Error(`Lỗi tạo tài liệu "${material.title}": ${createError}`)
+        console.error(`❌ Material creation failed for ${material.skillType}:`, createError)
+        throw new Error(`Lỗi tạo tài liệu ${material.skillType}: ${createError}`)
       }
     }
   }
@@ -725,7 +756,6 @@ const StaffCreateUnitPage: React.FC = () => {
                                 <div>
                                   <h4 className="font-medium text-gray-900">
                                     Tài liệu {index + 1}
-                                    {material.title && `: ${material.title}`}
                                   </h4>
                                   <p className="text-sm text-gray-500">
                                     {material.skillType 
@@ -757,46 +787,13 @@ const StaffCreateUnitPage: React.FC = () => {
                           {/* Material Content - Collapsible */}
                           {material.isExpanded && (
                             <div className="p-6 space-y-4">
-                              {/* Material ID and Title */}
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                  <Label htmlFor={`materialId-${material.id}`} className="text-sm font-medium text-gray-700">
-                                    Mã tài liệu
-                                  </Label>
-                                  <Input
-                                    id={`materialId-${material.id}`}
-                                    value={material.materialId}
-                                    onChange={(e) => updateMaterial(material.id, 'materialId', e.target.value)}
-                                    placeholder="Ví dụ: material-01"
-                                    className="mt-1"
-                                  />
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    Để trống để tự động tạo mã
-                                  </p>
-                                </div>
-
-                                <div>
-                                  <Label htmlFor={`title-${material.id}`} className="text-sm font-medium text-gray-700">
-                                    Tiêu đề tài liệu <span className="text-red-500">*</span>
-                                  </Label>
-                                  <Input
-                                    id={`title-${material.id}`}
-                                    value={material.title}
-                                    onChange={(e) => updateMaterial(material.id, 'title', e.target.value)}
-                                    placeholder="Nhập tiêu đề tài liệu"
-                                    className="mt-1"
-                                  />
-                                </div>
-                              </div>
-
                               {/* Skill Type */}
-                              <div className="grid grid-cols-1 gap-4">
-                                <div>
-                                  <Label htmlFor={`skillType-${material.id}`} className="text-sm font-medium text-gray-700">
-                                    Phân loại kỹ năng <span className="text-red-500">*</span>
-                                  </Label>
-                                  <select
-                                    id={`skillType-${material.id}`}
+                              <div className="space-y-2">
+                                <Label htmlFor={`skillType-${material.id}`} className="text-sm font-medium text-gray-700">
+                                  Phân loại kỹ năng <span className="text-red-500">*</span>
+                                </Label>
+                                <select
+                                  id={`skillType-${material.id}`}
                                     value={material.skillType}
                                     onChange={(e) => updateMaterial(material.id, 'skillType', e.target.value)}
                                     className="mt-1 block w-full rounded-lg border-2 border-purple-200 bg-white px-4 py-3 text-gray-900 shadow-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50 hover:border-purple-300 transition-colors duration-200"
@@ -807,8 +804,6 @@ const StaffCreateUnitPage: React.FC = () => {
                                     ))}
                                   </select>
                                 </div>
-
-                              </div>
 
                               {/* File Upload */}
                               <div>
@@ -851,24 +846,9 @@ const StaffCreateUnitPage: React.FC = () => {
                                 </div>
                               </div>
 
-                              {/* Description */}
-                              <div>
-                                <Label htmlFor={`description-${material.id}`} className="text-sm font-medium text-gray-700">
-                                  Mô tả tài liệu
-                                </Label>
-                                <Textarea
-                                  id={`description-${material.id}`}
-                                  value={material.description}
-                                  onChange={(e) => updateMaterial(material.id, 'description', e.target.value)}
-                                  placeholder="Mô tả ngắn gọn về tài liệu này"
-                                  rows={3}
-                                  className="mt-1 resize-none border-purple-200 focus:border-purple-500 focus:ring-purple-500"
-                                />
-                              </div>
-
                               {/* Script & Translation cho Nghe */}
                               {material.skillType === 'Nghe' && (
-                                <>
+                                <div className="space-y-4">
                                   <div>
                                     <Label htmlFor={`script-${material.id}`} className="text-sm font-medium text-gray-700">
                                       Văn bản kịch bản
@@ -896,7 +876,7 @@ const StaffCreateUnitPage: React.FC = () => {
                                       className="mt-1 border-purple-200 focus:border-purple-500 focus:ring-purple-500"
                                     />
                                   </div>
-                                </>
+                                </div>
                               )}
                             </div>
                           )}

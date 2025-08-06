@@ -252,6 +252,34 @@ export const StaffCourseDetailPage: React.FC = () => {
     }
   }
 
+  const handleActivateCourse = async () => {
+    if (!courseId || !course) return
+
+    const confirmActivate = window.confirm(
+      `Bạn có chắc chắn muốn kích hoạt lại khóa học "${course.title}"?`
+    )
+
+    if (!confirmActivate) return
+
+    try {
+      setIsDeactivating(true)
+      const result = await StaffCourseService.activateCourse(courseId)
+      
+      if (result.success) {
+        setSuccessMessage('Đã kích hoạt lại khóa học thành công!')
+        // Refresh course data to show updated status
+        await fetchCourseData()
+      } else {
+        setError(result.message || 'Có lỗi xảy ra khi kích hoạt lại khóa học')
+      }
+    } catch (error) {
+      console.error('Error activating course:', error)
+      setError('Có lỗi xảy ra khi kích hoạt lại khóa học')
+    } finally {
+      setIsDeactivating(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <StaffNavigation>
@@ -504,6 +532,18 @@ export const StaffCourseDetailPage: React.FC = () => {
                     >
                       <XCircle className="h-4 w-4 mr-2" />
                       Tạm dừng hoạt động
+                    </Button>
+                  )}
+
+                  {course.status === 'INACTIVE' && (
+                    <Button
+                      variant="outline"
+                      className="w-full border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300"
+                      onClick={handleActivateCourse}
+                      disabled={isDeactivating}
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      {isDeactivating ? 'Đang xử lý...' : 'Kích hoạt lại'}
                     </Button>
                   )}
                 </CardContent>

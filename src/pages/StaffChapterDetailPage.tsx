@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Alert } from '../components/ui/Alert'
-import { AlertCircle, BookOpen, ArrowLeft, Plus, Edit, Eye, XCircle } from 'lucide-react'
+import { AlertCircle, BookOpen, ArrowLeft, Plus, Edit, Eye, XCircle, CheckCircle } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge'
@@ -258,6 +258,47 @@ export const StaffChapterDetailPage: React.FC = () => {
     }
   }
 
+  const handleActivateChapter = async () => {
+    if (!chapterId || !chapter) return
+
+    const confirmActivate = window.confirm(
+      `Bạn có chắc chắn muốn kích hoạt lại chương "${chapter.title}"?`
+    )
+
+    if (!confirmActivate) return
+
+    try {
+      setIsLoading(true)
+      
+      // Tạo payload với tất cả thông tin cũ nhưng status chuyển thành ACTIVE
+      const updatePayload = {
+        id: chapter.id,
+        title: chapter.title,
+        description: chapter.description || '',
+        status: 'ACTIVE' as const,
+        courseId: courseId!,
+        prerequisiteChapterId: chapter.prerequisiteChapterId,
+        exams: chapter.exams || []
+      }
+      
+      console.log('🔄 Activating chapter with payload:', updatePayload)
+      const result = await StaffChapterService.updateChapter(chapterId, updatePayload)
+      
+      if (result.success) {
+        setSuccessMessage('Đã kích hoạt lại chương thành công!')
+        // Refresh chapter data to show updated status
+        await fetchChapterData()
+      } else {
+        setError(result.message || 'Có lỗi xảy ra khi kích hoạt lại chương')
+      }
+    } catch (error) {
+      console.error('Error activating chapter:', error)
+      setError('Có lỗi xảy ra khi kích hoạt lại chương')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <StaffNavigation>
@@ -458,9 +499,22 @@ export const StaffChapterDetailPage: React.FC = () => {
                       variant="outline"
                       className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
                       onClick={handleDeactivateChapter}
+                      disabled={isLoading}
                     >
                       <XCircle className="h-4 w-4 mr-2" />
-                      Hủy kích hoạt chương
+                      {isLoading ? 'Đang xử lý...' : 'Hủy kích hoạt chương'}
+                    </Button>
+                  )}
+
+                  {chapter.status === 'INACTIVE' && (
+                    <Button
+                      variant="outline"
+                      className="w-full border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300"
+                      onClick={handleActivateChapter}
+                      disabled={isLoading}
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      {isLoading ? 'Đang xử lý...' : 'Kích hoạt lại chương'}
                     </Button>
                   )}
                 </CardContent>

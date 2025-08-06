@@ -200,5 +200,52 @@ export const StaffCourseService = {
       console.error('Error deactivating course:', error)
       throw error
     }
+  },
+
+  // Activate khóa học (chuyển status về ACTIVE bằng cách update)
+  activateCourse: async (courseId: string): Promise<ApiResponse<Course>> => {
+    try {
+      // Lấy thông tin khóa học hiện tại
+      const currentCourseResponse = await axios.get(`/courses/${courseId}`, {
+        headers: getAuthHeaders()
+      })
+      
+      if (!currentCourseResponse.data.success) {
+        throw new Error('Failed to get current course data')
+      }
+      
+      const currentCourse = currentCourseResponse.data.data
+      
+      // Chuẩn bị data để update, giữ nguyên tất cả giá trị cũ nhưng đổi status thành ACTIVE
+      const updateData: UpdateCourseRequest = {
+        id: currentCourse.id,
+        title: currentCourse.title,
+        description: currentCourse.description ?? '',
+        duration: currentCourse.duration,
+        level: currentCourse.level,
+        image: extractImageFilename(currentCourse.image), // Extract filename từ URL
+        requirement: currentCourse.requirement ?? '',
+        status: 'ACTIVE', // Chỉ thay đổi status
+        prerequisiteCourseId: currentCourse.prerequisiteCourseId,
+        topicIds: currentCourse.topics?.map((topic: Topic) => topic.id.toString()) || [],
+        examIds: currentCourse.exams?.map((exam: Exam) => exam.id) || []
+      }
+      
+      console.log('🔧 Activating course with data:', {
+        originalImage: currentCourse.image,
+        extractedImage: extractImageFilename(currentCourse.image),
+        updateData
+      })
+      
+      // Gọi API update
+      const response = await axios.put(`/courses/${courseId}`, updateData, {
+        headers: getAuthHeaders()
+      })
+      
+      return response.data
+    } catch (error) {
+      console.error('Error activating course:', error)
+      throw error
+    }
   }
 }

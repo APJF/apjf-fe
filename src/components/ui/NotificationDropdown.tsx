@@ -84,7 +84,7 @@ export function NotificationDropdown({ className = '' }: Readonly<NotificationDr
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-background rounded-lg shadow-lg border z-50">
+        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-background bg-white rounded-lg shadow-lg border z-50">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b">
             <h3 className="text-lg font-semibold text-foreground">Thông báo</h3>
