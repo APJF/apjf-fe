@@ -2,6 +2,12 @@ import type { Chapter } from './chapter';
 import type { Exam } from './exam';
 import type { Topic } from './topic';
 
+// Re-export từ các file khác để dễ import
+export type { Chapter } from './chapter';
+export type { Exam } from './exam';
+export type { Topic } from './topic';
+export type { Unit } from './unit';
+
 export interface Course {
   id: string;
   title: string;
@@ -14,8 +20,10 @@ export interface Course {
   prerequisiteCourseId: string | null;
   topics: Topic[];
   averageRating?: number;
+  rating?: number; // thêm field này để tương thích
   exams: Exam[];
   chapters?: Chapter[];
+  enrollmentCount?: number; // thêm field này để tương thích
 }
 
 // API Response for Course Detail
@@ -137,3 +145,20 @@ export interface CreateCourseApiResponse {
   data: Course;
   timestamp: number;
 }
+
+// Re-export các API response types từ chapter.ts và unit.ts
+export type { 
+  ChaptersApiResponse,
+  CreateChapterRequest,
+  UpdateChapterRequest,
+  CreateChapterApiResponse,
+  ChapterDetailApiResponse
+} from './chapter';
+
+export type { 
+  UnitsApiResponse,
+  CreateUnitRequest,
+  UpdateUnitRequest,
+  CreateUnitApiResponse,
+  UnitDetail
+} from './unit';

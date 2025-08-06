@@ -70,8 +70,8 @@ export interface UserProfileResponse {
 export interface UpdateProfileData {
   email: string;
   username: string;
-  phone: string;
-  avatar: string;
+  phone?: string;
+  avatar?: string;
 }
 
 export interface UpdateProfileResponse {

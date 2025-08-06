@@ -8,7 +8,12 @@ import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
 import { StaffChapterService } from '../services/staffChapterService'
 import { CourseService } from '../services/courseService'
-import type { StaffCourseDetail, ChapterDetail, Unit } from '../types/staffCourse'
+import type { Course, Chapter } from '../types/course'
+import type { Unit } from '../types/unit'
+
+// Type aliases for compatibility
+type StaffCourseDetail = Course
+type ChapterDetail = Chapter
 
 // Hàm sắp xếp units theo thứ tự prerequisite
 const sortUnitsByPrerequisite = (units: Unit[]): Unit[] => {
@@ -108,7 +113,7 @@ export const StaffChapterDetailPage: React.FC = () => {
       console.log('🔍 Chapter response:', chapterResponse)
       
       // Fetch units using the correct API endpoint  
-      let unitsData: any[] = []
+      let unitsData: Array<{ id: string; title: string; description: string | null; status: string; prerequisiteUnitId: string | null }> = []
       try {
         const unitsResponse = await CourseService.getUnitsByChapterId(chapterId)
         console.log('🔍 Units response from CourseService:', unitsResponse)
@@ -143,7 +148,7 @@ export const StaffChapterDetailPage: React.FC = () => {
           ...chapterResponse.data,
           description: chapterResponse.data.description || '',
           units: unitsData.length > 0 ? 
-            sortUnitsByPrerequisite(unitsData.map((unit: { id: string; title: string; description: string; status: string; prerequisiteUnitId: string | null }) => ({
+            sortUnitsByPrerequisite(unitsData.map((unit: { id: string; title: string; description: string | null; status: string; prerequisiteUnitId: string | null }) => ({
               ...unit,
               description: unit.description || '',
               status: (unit.status === 'REJECTED' ? 'INACTIVE' : unit.status) as 'INACTIVE' | 'ACTIVE' | 'ARCHIVED',
@@ -188,7 +193,7 @@ export const StaffChapterDetailPage: React.FC = () => {
   }, [successMessage])
 
   const handleViewUnit = (unitId: string) => {
-    const unit = chapter?.units.find(u => u.id === unitId)
+    const unit = chapter?.units?.find((u: import('../types/unit').Unit) => u.id === unitId)
     if (unit && chapter && course) {
       navigate(`/staff/courses/${courseId}/chapters/${chapterId}/units/${unitId}`, {
         state: { course, chapter, unit }
@@ -607,7 +612,7 @@ export const StaffChapterDetailPage: React.FC = () => {
                 <CardContent>
                   <div className={`space-y-4 ${chapter.exams && chapter.exams.length > 4 ? 'max-h-80 overflow-y-auto pr-2' : ''}`}>
                     {chapter.exams && chapter.exams.length > 0 ? (
-                      chapter.exams.map((exam: any, index: number) => (
+                      chapter.exams.map((exam: import('../types/exam').Exam, index: number) => (
                         <div 
                           key={exam.id} 
                           className="p-4 bg-white rounded-lg border border-purple-100 shadow-sm hover:shadow-md transition-shadow"
@@ -619,7 +624,7 @@ export const StaffChapterDetailPage: React.FC = () => {
                                   {index + 1}
                                 </div>
                                 <h4 className="font-semibold text-purple-900 text-lg">{exam.title}</h4>
-                                {getStatusBadge(exam.status)}
+                                {getStatusBadge(exam.status || 'INACTIVE')}
                               </div>
                               <p className="text-purple-700 text-sm mb-2 ml-11">{exam.description}</p>
                               <div className="text-xs text-purple-500 ml-11">

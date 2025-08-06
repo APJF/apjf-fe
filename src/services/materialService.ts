@@ -14,6 +14,9 @@ const getAuthHeaders = () => {
 import type { Material, MaterialType } from '@/types/material'
 import type { ApiResponse } from '@/types/api'
 
+// Re-export types for easier import
+export type { Material, MaterialType } from '@/types/material'
+
 export const MaterialService = {
   // Lấy danh sách tài liệu theo unitId
   getMaterialsByUnit: async (unitId: string): Promise<ApiResponse<Material[]>> => {

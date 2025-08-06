@@ -1,11 +1,14 @@
 import type { Exam } from './exam';
 import type { Material } from './material';
 
+// Type aliases
+export type UnitStatus = 'INACTIVE' | 'ACTIVE' | 'ARCHIVED';
+
 export interface Unit {
   id: string;
   title: string;
   description: string | null;
-  status: 'INACTIVE' | 'ACTIVE';
+  status: UnitStatus;
   chapterId?: string;
   prerequisiteUnitId: string | null;
   exams?: Exam[];
@@ -28,7 +31,7 @@ export interface UnitsApiResponse {
 export interface CreateUnitRequest {
   title: string;
   description: string;
-  status: 'INACTIVE' | 'ACTIVE';
+  status: UnitStatus;
   chapterId: string;
   prerequisiteUnitId: string | null;
   examIds: string[];
@@ -39,7 +42,7 @@ export interface UpdateUnitRequest {
   id: string;
   title: string;
   description: string;
-  status: 'INACTIVE' | 'ACTIVE';
+  status: UnitStatus;
   chapterId: string;
   prerequisiteUnitId: string | null;
   examIds: string[];

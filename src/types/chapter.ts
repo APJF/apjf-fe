@@ -28,7 +28,7 @@ export interface CreateChapterRequest {
   status: 'ACTIVE' | 'INACTIVE';
   courseId: string;
   prerequisiteChapterId: string | null;
-  exams: Exam[];
+  exams?: Exam[];
 }
 
 // Update Chapter Request for staff

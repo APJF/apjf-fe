@@ -58,7 +58,7 @@ export function UnitList({
 
   return (
     <div className="pl-8 space-y-1">
-      {chapter.units.map((unit) => {
+      {chapter.units?.map((unit: import('@/types/unit').Unit) => {
         const isCompleted = completedUnits.includes(unit.id);
         const canAccess = isEnrolled;
         

@@ -40,7 +40,7 @@ interface Skill {
 interface UnitWithSkills {
   id: string;
   title: string;
-  description?: string;
+  description?: string | null;
   courseId?: number;
   isExpanded: boolean;
   isCompleted: boolean;
