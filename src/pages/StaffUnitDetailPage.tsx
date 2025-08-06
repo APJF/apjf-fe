@@ -197,25 +197,77 @@ export const StaffUnitDetailPage: React.FC = () => {
     if (!unitId || !unit) return
 
     const confirmDeactivate = window.confirm(
-      `Bạn có chắc chắn muốn hủy kích hoạt bài học "${unit.title}"?\n\nHành động này sẽ khiến bài học không còn hiển thị cho người dùng.`
+      `Bạn có chắc chắn muốn tạm dừng hoạt động bài học "${unit.title}"?\n\nHành động này sẽ khiến bài học không còn hiển thị cho người dùng.`
     )
 
     if (!confirmDeactivate) return
 
     try {
       setIsLoading(true)
-      const result = await StaffUnitService.deactivateUnit(unitId)
+      
+      // Sử dụng API update với data hiện tại, chỉ thay đổi status thành INACTIVE
+      const updateData = {
+        id: unit.id,
+        title: unit.title,
+        description: unit.description || '',
+        status: 'INACTIVE' as const,
+        chapterId: unit.chapterId || chapterId || '',
+        prerequisiteUnitId: unit.prerequisiteUnitId || null,
+        examIds: []
+      }
+
+      const result = await StaffUnitService.updateUnit(unitId, updateData)
       
       if (result.success) {
-        setSuccessMessage('Đã hủy kích hoạt bài học thành công!')
+        setSuccessMessage('Đã tạm dừng hoạt động bài học thành công!')
         // Refresh unit data to show updated status
         await fetchUnitData()
       } else {
-        setError(result.message || 'Có lỗi xảy ra khi hủy kích hoạt bài học')
+        setError(result.message || 'Có lỗi xảy ra khi tạm dừng hoạt động bài học')
       }
     } catch (error) {
       console.error('Error deactivating unit:', error)
-      setError('Có lỗi xảy ra khi hủy kích hoạt bài học')
+      setError('Có lỗi xảy ra khi tạm dừng hoạt động bài học')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleActivateUnit = async () => {
+    if (!unitId || !unit) return
+
+    const confirmActivate = window.confirm(
+      `Bạn có chắc chắn muốn kích hoạt lại bài học "${unit.title}"?`
+    )
+
+    if (!confirmActivate) return
+
+    try {
+      setIsLoading(true)
+      
+      // Sử dụng API update với data hiện tại, chỉ thay đổi status thành ACTIVE
+      const updateData = {
+        id: unit.id,
+        title: unit.title,
+        description: unit.description || '',
+        status: 'ACTIVE' as const,
+        chapterId: unit.chapterId || chapterId || '',
+        prerequisiteUnitId: unit.prerequisiteUnitId || null,
+        examIds: []
+      }
+
+      const result = await StaffUnitService.updateUnit(unitId, updateData)
+      
+      if (result.success) {
+        setSuccessMessage('Đã kích hoạt lại bài học thành công!')
+        // Refresh unit data to show updated status
+        await fetchUnitData()
+      } else {
+        setError(result.message || 'Có lỗi xảy ra khi kích hoạt lại bài học')
+      }
+    } catch (error) {
+      console.error('Error activating unit:', error)
+      setError('Có lỗi xảy ra khi kích hoạt lại bài học')
     } finally {
       setIsLoading(false)
     }
@@ -260,13 +312,26 @@ export const StaffUnitDetailPage: React.FC = () => {
   const getStatusBadgeClass = (status: string) => {
     switch (status.toUpperCase()) {
       case 'INACTIVE':
-        return 'border-yellow-300 text-yellow-700 bg-yellow-50'
+        return 'border-orange-300 text-orange-700 bg-orange-50'
       case 'REJECTED':
         return 'border-red-300 text-red-700 bg-red-50'
       case 'ACTIVE':
         return 'border-green-300 text-green-700 bg-green-50'
       default:
         return 'border-gray-300 text-gray-700 bg-gray-50'
+    }
+  }
+
+  const getStatusLabel = (status: string) => {
+    switch (status.toUpperCase()) {
+      case 'INACTIVE':
+        return 'Tạm dừng'
+      case 'REJECTED':
+        return 'Bị từ chối'
+      case 'ACTIVE':
+        return 'Đang hoạt động'
+      default:
+        return status
     }
   }
 
@@ -388,7 +453,7 @@ export const StaffUnitDetailPage: React.FC = () => {
               <div className="flex items-center gap-3">
                 <h1 className="text-3xl font-bold text-blue-900">Chi tiết bài học</h1>
                 <Badge variant="outline" className={getStatusBadgeClass(unit.status)}>
-                  {unit.status}
+                  {getStatusLabel(unit.status)}
                 </Badge>
               </div>
             </div>
@@ -565,11 +630,24 @@ export const StaffUnitDetailPage: React.FC = () => {
                   {unit.status === 'ACTIVE' && (
                     <Button
                       variant="outline"
-                      className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                      className="w-full border-orange-200 text-orange-600 hover:bg-orange-50 hover:border-orange-300"
                       onClick={handleDeactivateUnit}
+                      disabled={isLoading}
                     >
                       <XCircle className="h-4 w-4 mr-2" />
-                      Hủy kích hoạt bài học
+                      {isLoading ? 'Đang xử lý...' : 'Tạm dừng hoạt động'}
+                    </Button>
+                  )}
+
+                  {unit.status === 'INACTIVE' && (
+                    <Button
+                      variant="outline"
+                      className="w-full border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300"
+                      onClick={handleActivateUnit}
+                      disabled={isLoading}
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      {isLoading ? 'Đang xử lý...' : 'Kích hoạt lại'}
                     </Button>
                   )}
                 </CardContent>
@@ -640,19 +718,6 @@ export const StaffUnitDetailPage: React.FC = () => {
                                 {/* <div className="font-semibold text-gray-900 text-lg">
                                   {material.description}
                                 </div> */}
-                                
-                                {/* Display script and translation instead */}
-                                {(material.script || material.translation) && (
-                                  <div className="font-semibold text-gray-900 text-lg mb-2">
-                                    {material.script && (
-                                      <div className="text-blue-900">{material.script}</div>
-                                    )}
-                                    {material.translation && (
-                                      <div className="text-green-700 text-sm">{material.translation}</div>
-                                    )}
-                                  </div>
-                                )}
-                                
                                 <div className="flex items-center gap-2 mt-2">
                                   <span className="px-2 py-1 bg-white rounded-full text-xs font-medium text-gray-600 border">
                                     {getMaterialTypeLabel(material.type)}

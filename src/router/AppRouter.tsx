@@ -38,6 +38,8 @@ import { ExamResultPage } from '../pages/ExamResultPage';
 import { ExamAnswerReviewPage } from '../pages/ExamAnswerReviewPage';
 import ForumPage from "../components/forum/Forum";
 import ExamHistoryPage from '../pages/ExamHistoryPage';
+import AdminDashboardPage from "../pages/AdminDashboardPage";
+import AdminManageAccountPage from "../pages/AdminManageAccountPage";
 /**
  * Router Configuration - Cấu hình routing cho ứng dụng
  * Sử dụng React Router v6 với createBrowserRouter
@@ -301,6 +303,23 @@ const router = createBrowserRouter([
   {
     path: '/forum',
     element: <Layout><ForumPage /></Layout>,
+  },
+  // Admin Routes - Chỉ dành cho ADMIN role
+  {
+    path: '/admin/dashboard',
+    element: (
+      <ProtectedRoute requiredRoles={['ROLE_ADMIN']}>
+        <AdminDashboardPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/admin/accounts',
+    element: (
+      <ProtectedRoute requiredRoles={['ROLE_ADMIN']}>
+        <AdminManageAccountPage />
+      </ProtectedRoute>
+    ),
   },
   // Alias for backward compatibility
   {
