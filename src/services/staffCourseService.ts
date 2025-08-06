@@ -6,6 +6,9 @@ import type { Topic } from '@/types/topic'
 import type { Exam } from '@/types/exam'
 import type { Chapter } from '@/types/chapter'
 
+// Re-export types for easier import
+export type { Course, CreateCourseRequest, UpdateCourseRequest } from '@/types/course'
+
 // Helper function để lấy headers với token
 const getAuthHeaders = () => {
   const token = localStorage.getItem('access_token')
@@ -127,7 +130,7 @@ export const StaffCourseService = {
       
       // Log response details for debugging
       if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { status: number, data?: any, headers?: any } }
+        const axiosError = error as { response?: { status: number, data?: unknown, headers?: unknown } }
         console.error('📥 Response error details:', {
           status: axiosError.response?.status,
           data: axiosError.response?.data,

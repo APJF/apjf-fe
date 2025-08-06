@@ -12,7 +12,7 @@ import { StaffNavigation } from '../components/layout/StaffNavigation'
 import { SearchableSelect } from '../components/ui/SearchableSelect'
 import { CourseService } from '../services/courseService'
 import { type Unit as StaffUnit } from '../services/staffUnitService'
-import { type MaterialType } from '../services/materialService'
+import { MaterialService, type MaterialType } from '../services/materialService'
 import type { CreateUnitRequest, Chapter, Course } from '../types/course'
 import { useToast } from '../hooks/useToast'
 import api from '../api/axios'
@@ -262,14 +262,15 @@ const StaffCreateUnitPage: React.FC = () => {
     return true
   }
 
-  const createUnitData = (): CreateUnitRequest => {
+  const createUnitData = (): CreateUnitRequest & { id: string } => {
     return {
       id: formData.id.trim(),
       title: formData.title.trim(),
       description: formData.description.trim(),
       status: "INACTIVE",
       chapterId: chapterId!,
-      prerequisiteUnitId: formData.prerequisiteUnitId.trim() || null
+      prerequisiteUnitId: formData.prerequisiteUnitId.trim() || null,
+      examIds: [] // thêm examIds mặc định
     }
   }
 
@@ -327,6 +328,58 @@ const StaffCreateUnitPage: React.FC = () => {
     }
   }
 
+  // Helper function để tạo materials
+  const createMaterialsForUnit = async (unitId: string) => {
+    const validMaterials = materials.filter(material => 
+      material.title.trim() && 
+      material.skillType && 
+      material.selectedFile
+    )
+
+    console.log(`� Found ${validMaterials.length} valid materials to process`)
+
+    for (let i = 0; i < validMaterials.length; i++) {
+      const material = validMaterials[i]
+      showToast("warning", `Đang xử lý tài liệu ${i + 1}/${validMaterials.length}: ${material.title}`)
+
+      let finalFileUrl = ''
+
+      // Upload file
+      if (!material.selectedFile) {
+        throw new Error(`Chưa chọn file cho tài liệu "${material.title}"`)
+      }
+
+      try {
+        console.log(`📤 Uploading file for material: ${material.title}`)
+        finalFileUrl = await uploadMaterialFile(material.selectedFile)
+        console.log(`✅ File uploaded successfully: ${finalFileUrl}`)
+      } catch (uploadError) {
+        console.error(`❌ File upload failed for ${material.title}:`, uploadError)
+        throw new Error(`Lỗi upload file cho tài liệu "${material.title}": ${uploadError}`)
+      }
+
+      // Create material
+      try {
+        const materialType = SKILL_TYPE_TO_MATERIAL_TYPE[material.skillType] || 'VOCAB' as MaterialType
+        const materialData = {
+          id: `material_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+          fileUrl: finalFileUrl,
+          type: materialType,
+          script: material.script || '',
+          translation: material.translation || '',
+          unitId: unitId
+        }
+
+        console.log(`� Creating material:`, materialData)
+        await MaterialService.createMaterial(materialData)
+        console.log(`✅ Material created successfully: ${material.title}`)
+      } catch (createError) {
+        console.error(`❌ Material creation failed for ${material.title}:`, createError)
+        throw new Error(`Lỗi tạo tài liệu "${material.title}": ${createError}`)
+      }
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -356,80 +409,7 @@ const StaffCreateUnitPage: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 1000))
 
       // BƯỚC 3: Sau khi unit được tạo, xử lý materials
-      const validMaterials = materials.filter(material => 
-        material.title.trim() && 
-        material.skillType && 
-        material.selectedFile
-      )
-
-      console.log(`📋 Found ${validMaterials.length} valid materials to process`)
-
-      for (let i = 0; i < validMaterials.length; i++) {
-        const material = validMaterials[i]
-        showToast("warning", `Đang xử lý tài liệu ${i + 1}/${validMaterials.length}: ${material.title}`)
-
-        let finalFileUrl = ''
-
-        // Upload file (bắt buộc vì không còn fileUrl)
-        if (!material.selectedFile) {
-          throw new Error(`Chưa chọn file cho tài liệu "${material.title}"`)
-        }
-
-        try {
-          console.log(`📤 Uploading file for material: ${material.title}`)
-          finalFileUrl = await uploadMaterialFile(material.selectedFile)
-          console.log(`✅ File uploaded successfully: ${finalFileUrl}`)
-        } catch (uploadError) {
-          console.error(`❌ Error uploading file for material ${material.title}:`, uploadError)
-          const uploadErrorMessage = uploadError instanceof Error ? uploadError.message : 'Có lỗi xảy ra khi tải file lên'
-          throw new Error(`Lỗi tải file "${material.title}": ${uploadErrorMessage}`)
-        }
-
-        // Tạo material
-        try {
-          const materialType = SKILL_TYPE_TO_MATERIAL_TYPE[material.skillType] || 'VOCAB'
-          const materialId = material.materialId.trim() || `material-${Date.now()}-${i}`
-          
-          const createMaterialRequest = {
-            id: materialId,
-            fileUrl: finalFileUrl,
-            type: materialType,
-            script: material.script?.trim() || "",
-            translation: material.translation?.trim() || "",
-            unitId: unitData.id
-          }
-
-          console.log(`📤 Creating material: ${material.title}`, createMaterialRequest)
-          
-          // Kiểm tra token trước khi gửi request
-          const token = localStorage.getItem('access_token')
-          console.log('🔐 Token check:', { 
-            hasToken: !!token, 
-            tokenStart: token ? token.substring(0, 20) + '...' : 'null'
-          })
-          
-          // Sử dụng API đúng như backend đã implement  
-          // Axios interceptor sẽ tự động thêm Authorization header
-          const response = await api.post('/materials', createMaterialRequest)
-          
-          console.log('🔍 Material creation response:', response)
-          console.log('🔍 Response status:', response.status)
-          console.log('🔍 Response data:', response.data)
-          
-          if (!response.data.success) {
-            throw new Error(response.data.message || 'Tạo tài liệu thất bại')
-          }
-          
-          console.log(`✅ Material created successfully: ${material.title}`)
-        } catch (materialError) {
-          console.error(`❌ Error creating material ${material.title}:`, materialError)
-          const materialErrorMessage = materialError instanceof Error ? materialError.message : 'Có lỗi xảy ra khi tạo tài liệu'
-          throw new Error(`Lỗi tạo tài liệu "${material.title}": ${materialErrorMessage}`)
-        }
-      }
-
-      // BƯỚC 2: Tạo Unit cuối cùng (đã được di chuyển lên trước)
-      // Unit đã được tạo ở bước 2
+      await createMaterialsForUnit(unitData.id)
 
       handleSubmitSuccess()
     } catch (error) {

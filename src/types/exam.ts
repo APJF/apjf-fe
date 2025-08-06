@@ -30,6 +30,7 @@ export interface Exam {
   title: string
   description: string
   duration: number
+  durationInMinutes: number // thêm field này để tương thích
   examScopeType: string
   createdAt: string
   questions: Question[]
@@ -39,6 +40,7 @@ export interface Exam {
   unitId: string | null
   questionIds: string[]
   questionCount: number
+  status?: ExamStatus // thêm field này để tương thích
 }
 
 // Staff Exam Management Types

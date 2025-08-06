@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { useNavigate, useParams, useLocation } from "react-router-dom"
 import { ExamAnswerReview } from "../components/exam/ExamAnswerReview"
 import { ExamService } from "../services/examService"
+import { ExamDataFormatter } from "../utils/examUtils"
 import type { ExamResult } from "../types/exam"
 
 /**

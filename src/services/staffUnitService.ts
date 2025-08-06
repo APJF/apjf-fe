@@ -14,6 +14,9 @@ const getAuthHeaders = () => {
 import type { CreateUnitRequest, UpdateUnitRequest, Unit, UnitDetail } from '@/types/unit'
 import type { ApiResponse } from '@/types/api'
 
+// Re-export types for easier import
+export type { CreateUnitRequest, UpdateUnitRequest, Unit, UnitDetail } from '@/types/unit'
+
 export const StaffUnitService = {
   // Lấy danh sách bài học theo chapterId
   getUnitsByChapter: async (chapterId: string): Promise<ApiResponse<Unit[]>> => {

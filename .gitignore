@@ -23,3 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 *.github
+# VS Code cache
+.vscode/.cache/
+node_modules/.tmp/
+*.tsbuildinfo
+.eslintcache
+.sonarlint/
