@@ -9,11 +9,25 @@ import { Label } from '../components/ui/Label'
 import { Textarea } from '../components/ui/Textarea'
 import { Badge } from '../components/ui/Badge'
 import { StaffNavigation } from '../components/layout/StaffNavigation'
-import { StaffUnitService, type Unit } from '../services/staffUnitService'
-import { MaterialService, type Material, type MaterialType } from '../services/materialService'
+import { StaffUnitService } from '../services/staffUnitService'
+import { MaterialService } from '../services/materialService'
 import { SearchableSelect } from '../components/ui/SearchableSelect'
-import type { StaffCourseDetail, ChapterDetail, UnitDetail } from '../types/staffCourse'
+import type { Course } from '../types/course'
+import type { Chapter } from '../types/chapter'
+import type { Unit, UnitDetail } from '../types/unit'
+import type { Material, MaterialType } from '../types/material'
 import api from '../api/axios'
+import { type AxiosResponse } from 'axios'
+
+// Define detailed types based on base types for this page's context
+// This avoids polluting global types if these are specific to the staff view
+export interface ChapterDetail extends Chapter {
+  // Currently same as Chapter, can be extended later
+}
+
+export interface StaffCourseDetail extends Course {
+  // Currently same as Course, can be extended later
+}
 
 interface LocationState {
   unit?: UnitDetail
@@ -35,7 +49,7 @@ interface MaterialFormData extends Material {
   isDeleted?: boolean
   originalData?: Material
   selectedFile?: File | null
-  title?: string // For display purposes
+  title?: string // For display purposes, not part of the Material type
 }
 
 const StaffUpdateUnitPage: React.FC = () => {
@@ -148,7 +162,7 @@ const StaffUpdateUnitPage: React.FC = () => {
 
     try {
       // Sử dụng API chính: /chapters/{chapterId}/units
-      const response = await api.get(`/chapters/${currentChapterId}/units`, {
+      const response = await api.get<{ success: boolean; data: Unit[] }>(`/chapters/${currentChapterId}/units`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
           'Content-Type': 'application/json'
@@ -156,7 +170,7 @@ const StaffUpdateUnitPage: React.FC = () => {
       })
       
       if (response.data.success && response.data.data) {
-        const filtered = response.data.data.filter((u: any) => u.id !== unitId)
+        const filtered = response.data.data.filter((u: Unit) => u.id !== unitId)
         setAvailableUnits(filtered)
         console.log('Successfully fetched units:', filtered.length)
         return
@@ -217,7 +231,7 @@ const StaffUpdateUnitPage: React.FC = () => {
   const addMaterial = () => {
     const newMaterial: MaterialFormData = {
       id: `new_${Date.now()}`,
-      title: '',
+      description: '', // Add missing required property
       fileUrl: '',
       type: 'GRAMMAR' as MaterialType,
       script: '',
@@ -359,7 +373,7 @@ const StaffUpdateUnitPage: React.FC = () => {
   }
 
   // Helper function để xử lý material mới
-  const processNewMaterial = async (material: MaterialFormData): Promise<any> => {
+  const processNewMaterial = async (material: MaterialFormData): Promise<AxiosResponse> => {
     console.log('🆕 Creating new material:', material.id)
     
     let finalFileUrl = ''
@@ -377,6 +391,7 @@ const StaffUpdateUnitPage: React.FC = () => {
       id: `${unitId}_${Date.now()}`,
       fileUrl: finalFileUrl,
       type: material.type,
+      description: material.description,
       script: material.script?.trim() || "",
       translation: material.translation?.trim() || "",
       unitId: unitId
@@ -391,7 +406,7 @@ const StaffUpdateUnitPage: React.FC = () => {
   }
 
   // Helper function để xử lý material cập nhật
-  const processUpdatedMaterial = async (material: MaterialFormData): Promise<any> => {
+  const processUpdatedMaterial = async (material: MaterialFormData): Promise<AxiosResponse> => {
     console.log('🔄 Updating existing material:', material.id)
     
     let finalFileUrl = material.fileUrl || ''
@@ -405,6 +420,7 @@ const StaffUpdateUnitPage: React.FC = () => {
       id: material.id,
       fileUrl: finalFileUrl,
       type: material.type,
+      description: material.description,
       script: material.script?.trim() || "",
       translation: material.translation?.trim() || "",
       unitId: unitId
@@ -420,7 +436,7 @@ const StaffUpdateUnitPage: React.FC = () => {
 
   // Helper function để xử lý tất cả materials
   const processMaterials = async () => {
-    const materialPromises: Promise<any>[] = []
+    const materialPromises: Promise<AxiosResponse>[] = []
     
     console.log('📋 Processing materials:', materials.map(m => ({
       id: m.id,
@@ -491,9 +507,8 @@ const StaffUpdateUnitPage: React.FC = () => {
     } catch (error) {
       console.error('❌ Error updating unit:', error)
       if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { status: number, data?: unknown } }
-        const errorData = axiosError.response?.data as { message?: string }
-        const errorMsg = errorData?.message || 'Lỗi không xác định'
+        const axiosError = error as { response?: { status: number; data?: { message?: string } } }
+        const errorMsg = axiosError.response?.data?.message || 'Lỗi không xác định'
         setError(`Lỗi cập nhật (${axiosError.response?.status}): ${errorMsg}`)
       } else {
         const errorMessage = error instanceof Error ? error.message : 'Có lỗi xảy ra khi cập nhật bài học'
@@ -613,7 +628,7 @@ const StaffUpdateUnitPage: React.FC = () => {
                           src={course.image}
                           alt="Course" 
                           className="w-full h-full object-cover rounded-lg relative z-10"
-                          onError={(e) => {
+                          onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
                             e.currentTarget.style.display = 'none'
                           }}
                         />
@@ -885,7 +900,7 @@ const StaffUpdateUnitPage: React.FC = () => {
                                     type="button"
                                     size="sm"
                                     variant="ghost"
-                                    onClick={(e) => {
+                                    onClick={(e: React.MouseEvent) => {
                                       e.stopPropagation()
                                       if (material.id) {
                                         removeMaterial(material.id)
