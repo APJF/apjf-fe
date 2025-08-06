@@ -1,14 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { CheckCircle, XCircle, AlertCircle, X } from 'lucide-react'
-import type { ToastType } from '../../hooks/useToast'
-
-export interface ToastProps {
-  id: string
-  type: ToastType
-  message: string
-  duration?: number
-  onClose: (id: string) => void
-}
+import type { ToastProps } from '../../types/ui'
 
 export const Toast: React.FC<ToastProps> = ({
   id,

@@ -6,7 +6,7 @@ import { Input } from "../components/ui/Input";
 import { Badge } from "../components/ui/Badge";
 import { Alert } from "../components/ui/Alert";
 import { roadmapService } from "../services/roadmapService";
-import type { LearningPath, RoadmapModule, RoadmapStage } from "../types/roadmap";
+import type { LearningPath } from "../types/roadmap";
 import {
   BookOpen,
   CheckCircle,
@@ -22,10 +22,16 @@ import {
   Flag
 } from "lucide-react";
 
-import type { RoadmapModule as ImportedRoadmapModule } from "../types/roadmap";
-
 // Interface to map learning paths to our UI - for compatibility with existing code
-interface LearningModule extends Omit<ImportedRoadmapModule, 'status'> {
+interface LearningModule {
+  id: number;
+  title: string;
+  description: string;
+  level: "N5" | "N4" | "N3" | "N2" | "N1";
+  progress?: number;
+  totalLessons?: number;
+  completedLessons?: number;
+  estimatedTime?: string;
   status: "PENDING" | "STUDYING" | "FINISHED"; // Ensures we use API status enum
 }
 
@@ -635,10 +641,6 @@ export function LearningPathPage() {
 
   const handleRefresh = async () => {
     await loadRoadmapData();
-  };
-  
-  const handleLogin = () => {
-    navigate('/login');
   };
 
   const getStatusText = (status: string) => {

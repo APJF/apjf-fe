@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, LogOut, Settings, BookOpen, ChevronDown, History, Shield, Users, Crown } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { getAvatarText } from '../../utils/avatarUtils';
 
 export const AuthSection: React.FC = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);

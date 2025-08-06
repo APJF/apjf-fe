@@ -1,104 +1,21 @@
 import api from "../api/axios"
-import type { 
-  UpdateProfileData, 
-  UpdateProfileResponse, 
-  UploadAvatarResponse 
+import type {
+  UpdateProfileData,
+  UpdateProfileResponse,
+  UploadAvatarResponse,
+  LoginCredentials as LoginData,
+  RegisterData,
+  UserInfo,
+  AuthResponse,
+  LoginResponse,
+  UserAuthResponse,
+  SendOtpData,
+  ChangePasswordData,
+  UserProfileResponse,
+  ForgotPasswordResponse,
+  ResetPasswordData,
+  VerifyOtpData
 } from "../types/auth"
-
-export interface LoginData {
-  email: string
-  password: string
-}
-
-export interface RegisterData {
-  email: string
-  password: string
-}
-
-export interface UserInfo {
-  id: number
-  email: string
-  username: string
-  avatar: string
-  roles: string[]
-}
-
-export interface AuthResponse {
-  success: boolean
-  message: string
-  data?: {
-    access_token: string
-    refresh_token: string
-    tokenType: string
-    userInfo: UserInfo
-  }
-  timestamp?: number
-}
-
-// New interface for login response (chỉ có tokens)
-export interface LoginResponse {
-  success: boolean
-  message: string
-  data?: {
-    access_token: string
-    refresh_token: string
-    tokenType?: string
-  }
-  timestamp?: number
-}
-
-// Generic response for operations with user data
-export interface UserAuthResponse {
-  success: boolean
-  message: string
-  data?: UserProfile | null
-  timestamp?: number
-}
-
-export interface SendOtpData {
-  email: string
-  type: 'registration' | 'reset_password'
-}
-
-export interface ChangePasswordData {
-  email: string
-  oldPassword: string
-  newPassword: string
-}
-
-export interface UserProfile {
-  id: number // Changed from string to number to match API
-  username: string
-  email: string
-  phone?: string // Make optional since API might not always return this
-  avatar?: string // Make optional 
-  enabled?: boolean // Make optional
-  authorities: string[] // This is the main field from API
-  roles?: string[] // Keep this for backward compatibility
-}
-
-export interface UserProfileResponse {
-  success: boolean
-  message: string
-  data: UserProfile
-  timestamp: number
-}
-
-export interface ForgotPasswordResponse {
-  success: boolean
-  message: string
-}
-
-export interface ResetPasswordData {
-  email: string
-  otp: string
-  newPassword: string
-}
-
-export interface VerifyOtpData {
-  email: string
-  otp: string
-}
 
 class AuthService {
   /**
@@ -110,12 +27,25 @@ class AuthService {
       const response = await api.post<LoginResponse>("/auth/login", credentials)
 
       if (response.data.success && response.data.data) {
-        // Login response chỉ chứa tokens, không có userInfo nữa
-        const { access_token, refresh_token } = response.data.data
+        const { access_token, refresh_token } = response.data.data;
+
+        // Defensive check to ensure tokens are valid strings before saving
+        if (typeof access_token !== 'string' || access_token.length === 0) {
+          console.error('❌ Login Error: access_token is missing or invalid in the API response.');
+          return { success: false, message: 'Lỗi đăng nhập: Phản hồi từ server không hợp lệ.', timestamp: Date.now() };
+        }
         
-        // Lưu tokens trước
-        localStorage.setItem("access_token", access_token)
-        localStorage.setItem("refresh_token", refresh_token)
+        localStorage.setItem("access_token", access_token);
+
+        if (typeof refresh_token === 'string' && refresh_token.length > 0) {
+          localStorage.setItem("refresh_token", refresh_token);
+        } else {
+          // Log a warning but don't block login. Refresh will fail later.
+          console.warn('⚠️ Login Warning: refresh_token is missing or invalid in the API response.');
+          // You might want to clear any old refresh token
+          localStorage.removeItem("refresh_token");
+        }
+        
         console.log('✅ Tokens saved successfully');
         
         // Gọi getProfile để lấy thông tin user sau khi có token
@@ -187,7 +117,7 @@ class AuthService {
     } catch (error) {
       console.error('❌ Login error:', error);
       if (error && typeof error === "object" && "response" in error) {
-        const axiosError = error as { response?: { data?: any } }
+        const axiosError = error as { response?: { data?: { message?: string } } }
         if (axiosError.response?.data) {
           return {
             success: false,
@@ -354,13 +284,23 @@ class AuthService {
       })
       
       if (response.data.success && response.data.data) {
-        const { userInfo, access_token, refresh_token: newRefreshToken } = response.data.data
+        const { access_token, refresh_token: newRefreshToken } = response.data.data
         
         // Update tokens
         localStorage.setItem("access_token", access_token)
         if (newRefreshToken) {
           localStorage.setItem("refresh_token", newRefreshToken)
         }
+      }
+      return response.data;
+    } catch (error) {
+      console.error('Error in refreshToken:', error);
+      return {
+        success: false,
+        message: 'Failed to refresh token'
+      };
+    }
+  }
 
   /**
    * Thay đổi mật khẩu (đã đăng nhập)
@@ -545,10 +485,12 @@ class AuthService {
    * Google OAuth2 Login - redirect to Google OAuth
    */
   initiateGoogleLogin(): void {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
-    // Remove /api suffix for OAuth endpoint
-    const oauthBaseUrl = baseUrl.replace('/api', '')
-    window.location.href = `${oauthBaseUrl}/oauth2/authorization/google`
+    // Use a consistent approach for the API base URL
+    const baseUrl = 'http://localhost:8080';
+    
+    // Remove /api suffix for OAuth endpoint if needed
+    const oauthBaseUrl = baseUrl.replace('/api', '');
+    window.location.href = `${oauthBaseUrl}/oauth2/authorization/google`;
   }
 
   /**

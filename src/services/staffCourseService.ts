@@ -1,83 +1,10 @@
 import axios from '../api/axios'
 
-export interface Course {
-  id: string
-  title: string
-  description: string | null
-  duration: number
-  level: string
-  image: string | null
-  requirement: string | null
-  status: 'INACTIVE' | 'ACTIVE'
-  prerequisiteCourseId: string | null
-  topics: any[]
-  exams: any[]
-  averageRating: number | null
-}
-
-export interface CoursesResponse {
-  content: Course[]
-  pageable: {
-    pageNumber: number
-    pageSize: number
-    sort: {
-      empty: boolean
-      sorted: boolean
-      unsorted: boolean
-    }
-    offset: number
-    paged: boolean
-    unpaged: boolean
-  }
-  last: boolean
-  totalElements: number
-  totalPages: number
-  size: number
-  number: number
-  sort: {
-    empty: boolean
-    sorted: boolean
-    unsorted: boolean
-  }
-  first: boolean
-  numberOfElements: number
-  empty: boolean
-}
-
-export interface CreateCourseRequest {
-  id: string
-  title: string
-  description: string
-  duration: number
-  level: string
-  image: string
-  requirement: string
-  status: 'INACTIVE' | 'ACTIVE'
-  prerequisiteCourseId: string | null
-  topicIds: string[]
-  examIds: string[]
-}
-
-export interface UpdateCourseRequest {
-  id: string
-  title: string
-  description: string
-  duration: number
-  level: string
-  image: string | null
-  requirement: string
-  status: 'INACTIVE' | 'ACTIVE'
-  prerequisiteCourseId: string | null
-  topicIds: string[]
-  examIds: string[]
-}
-
-interface ApiResponse<T> {
-  success: boolean
-  message: string
-  data: T
-  timestamp: number
-}
+import type { Course, CourseApiResponse as CoursesResponse, CreateCourseRequest, UpdateCourseRequest } from '@/types/course'
+import type { ApiResponse } from '@/types/api'
+import type { Topic } from '@/types/topic'
+import type { Exam } from '@/types/exam'
+import type { Chapter } from '@/types/chapter'
 
 // Helper function để lấy headers với token
 const getAuthHeaders = () => {
@@ -147,7 +74,7 @@ export const StaffCourseService = {
   },
 
   // Lấy thông tin khóa học với danh sách chương
-  getCourseWithChapters: async (courseId: string): Promise<ApiResponse<Course & { chapters: any[] }>> => {
+  getCourseWithChapters: async (courseId: string): Promise<ApiResponse<Course & { chapters: Chapter[] }>> => {
     try {
       // Lấy thông tin course
       const courseResponse = await axios.get(`/courses/${courseId}`, {
@@ -243,15 +170,15 @@ export const StaffCourseService = {
       const updateData: UpdateCourseRequest = {
         id: currentCourse.id,
         title: currentCourse.title,
-        description: currentCourse.description || '',
+        description: currentCourse.description ?? '',
         duration: currentCourse.duration,
         level: currentCourse.level,
         image: extractImageFilename(currentCourse.image), // Extract filename từ URL
-        requirement: currentCourse.requirement || '',
+        requirement: currentCourse.requirement ?? '',
         status: 'INACTIVE', // Chỉ thay đổi status
         prerequisiteCourseId: currentCourse.prerequisiteCourseId,
-        topicIds: currentCourse.topics?.map((topic: any) => topic.id) || [],
-        examIds: currentCourse.exams?.map((exam: any) => exam.id) || []
+        topicIds: currentCourse.topics?.map((topic: Topic) => topic.id.toString()) || [],
+        examIds: currentCourse.exams?.map((exam: Exam) => exam.id) || []
       }
       
       console.log('🔧 Deactivating course with data:', {

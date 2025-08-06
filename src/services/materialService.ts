@@ -11,23 +11,8 @@ const getAuthHeaders = () => {
   }
 }
 
-export interface Material {
-  id: string
-  fileUrl: string
-  type: MaterialType
-  script?: string
-  translation?: string
-  unitId?: string
-}
-
-export type MaterialType = 'KANJI' | 'GRAMMAR' | 'VOCAB' | 'LISTENING' | 'READING' | 'WRITING'
-
-interface ApiResponse<T> {
-  success: boolean
-  message: string
-  data: T
-  timestamp: number
-}
+import type { Material, MaterialType } from '@/types/material'
+import type { ApiResponse } from '@/types/api'
 
 export const MaterialService = {
   // Lấy danh sách tài liệu theo unitId

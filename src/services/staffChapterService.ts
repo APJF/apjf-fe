@@ -11,42 +11,8 @@ const getAuthHeaders = () => {
   }
 }
 
-export interface Chapter {
-  id: string
-  title: string
-  description: string | null
-  status: 'ACTIVE' | 'INACTIVE'
-  courseId: string
-  prerequisiteChapterId: string | null
-  exams: any[]
-}
-
-export interface CreateChapterRequest {
-  id: string
-  title: string
-  description: string
-  status: 'ACTIVE' | 'INACTIVE'
-  courseId: string
-  prerequisiteChapterId: string | null
-  exams: any[]
-}
-
-export interface UpdateChapterRequest {
-  id: string
-  title: string
-  description: string
-  status: 'ACTIVE' | 'INACTIVE'
-  courseId: string
-  prerequisiteChapterId: string | null
-  exams: any[]
-}
-
-interface ApiResponse<T> {
-  success: boolean
-  message: string
-  data: T
-  timestamp: number
-}
+import type { Chapter, CreateChapterRequest, UpdateChapterRequest } from '@/types/chapter'
+import type { ApiResponse } from '@/types/api'
 
 export const StaffChapterService = {
   // Lấy danh sách chương theo courseId

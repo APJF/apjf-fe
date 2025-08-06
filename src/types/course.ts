@@ -1,45 +1,6 @@
-export interface Topic {
-  id: number;
-  name: string;
-}
-
-export interface Exam {
-  id: string;
-  title: string;
-  description: string;
-  durationInMinutes: number;
-  numberOfQuestions: number;
-  status: "ACTIVE" | "INACTIVE";
-}
-
-export interface Material {
-  id: string;
-  description: string;
-  fileUrl: string;
-  type: string;
-}
-
-export interface Unit {
-  id: string;
-  title: string;
-  description: string;
-  status: string;
-  chapterId?: string;
-  prerequisiteUnitId: string | null;
-  exams?: Exam[];
-  materials?: Material[];
-}
-
-export interface Chapter {
-  id: string;
-  title: string;
-  description: string;
-  status: "ACTIVE" | "INACTIVE";
-  courseId: string;
-  prerequisiteChapterId: string | null;
-  exams: Exam[];
-  units?: Unit[];
-}
+import type { Chapter } from './chapter';
+import type { Exam } from './exam';
+import type { Topic } from './topic';
 
 export interface Course {
   id: string;
@@ -61,28 +22,7 @@ export interface Course {
 export interface CourseDetailApiResponse {
   success: boolean;
   message: string;
-  data: {
-    id: string;
-    title: string;
-    description: string;
-    duration: number;
-    level: "N5" | "N4" | "N3" | "N2" | "N1";
-    image: string;
-    requirement: string;
-    status: "ACTIVE" | "INACTIVE";
-    prerequisiteCourseId: string;
-    topics: Topic[];
-    exams: Exam[];
-    averageRating: number;
-  };
-  timestamp: number;
-}
-
-// API Response for Chapters
-export interface ChaptersApiResponse {
-  success: boolean;
-  message: string;
-  data: Chapter[];
+  data: Course;
   timestamp: number;
 }
 
@@ -169,67 +109,31 @@ export interface CreateCourseRequest {
   image: string;
   requirement: string;
   status: 'INACTIVE' | 'ACTIVE';
-  prerequisiteCourseId: string;
+  prerequisiteCourseId: string | null;
   topicIds: string[];
   examIds: string[];
 }
 
-// Create Chapter Request for staff
-export interface CreateChapterRequest {
+// Update Course Request for staff
+export interface UpdateCourseRequest {
   id: string;
   title: string;
   description: string;
-  status: 'ACTIVE' | 'INACTIVE';
-  courseId: string;
-  prerequisiteChapterId: string | null;
+  duration: number;
+  level: string;
+  image: string | null;
+  requirement: string;
+  status: 'INACTIVE' | 'ACTIVE';
+  prerequisiteCourseId: string | null;
+  topicIds: string[];
+  examIds: string[];
 }
+
 
 // Create Course API Response
 export interface CreateCourseApiResponse {
   success: boolean;
   message: string;
   data: Course;
-  timestamp: number;
-}
-
-// Create Chapter API Response
-export interface CreateChapterApiResponse {
-  success: boolean;
-  message: string;
-  data: Chapter;
-  timestamp: number;
-}
-
-// Chapter Detail API Response (for /api/chapters/{chapterId})
-export interface ChapterDetailApiResponse {
-  success: boolean;
-  message: string;
-  data: Chapter;
-  timestamp: number;
-}
-
-// Units API Response (for /api/units/chapter/{chapterId})
-export interface UnitsApiResponse {
-  success: boolean;
-  message: string;
-  data: Unit[];
-  timestamp: number;
-}
-
-// Create Unit Request for staff
-export interface CreateUnitRequest {
-  id: string;
-  title: string;
-  description: string;
-  status: 'ACTIVE' | 'INACTIVE';
-  chapterId: string;
-  prerequisiteUnitId: string | null;
-}
-
-// Create Unit API Response
-export interface CreateUnitApiResponse {
-  success: boolean;
-  message: string;
-  data: Unit;
   timestamp: number;
 }

@@ -4,14 +4,22 @@ export interface LoginCredentials {
 }
 
 export interface User {
-  id: number; // Changed from string to number to match API
+  id: number;
   email: string;
   name?: string;
   username?: string;
   avatar?: string;
   enabled?: boolean;
   authorities?: string[];
-  roles?: string[]; // Roles từ API có format: ["ROLE_USER", "ROLE_STAFF", "ROLE_MANAGER"]
+  roles?: string[];
+}
+
+export interface UserInfo {
+  id: number;
+  email: string;
+  username: string;
+  avatar: string;
+  roles: string[];
 }
 
 export interface RegisterData {
@@ -42,14 +50,14 @@ export interface SendOtpData {
 }
 
 export interface UserProfile {
-  id: number; // Changed from string to number to match API
+  id: number;
   username: string;
   email: string;
-  phone: string;
-  avatar: string;
-  enabled: boolean;
+  phone?: string;
+  avatar?: string;
+  enabled?: boolean;
   authorities: string[];
-  roles?: string[]; // Add roles field for consistency
+  roles?: string[];
 }
 
 export interface UserProfileResponse {
@@ -78,4 +86,39 @@ export interface UploadAvatarResponse {
   message: string;
   data: string;
   timestamp: number;
+}
+
+export interface AuthResponse {
+  success: boolean;
+  message: string;
+  data?: {
+    access_token: string;
+    refresh_token: string;
+    tokenType: string;
+    userInfo: UserInfo;
+  };
+  timestamp?: number;
+}
+
+export interface LoginResponse {
+  success: boolean;
+  message: string;
+  data?: {
+    access_token: string;
+    refresh_token: string;
+    tokenType?: string;
+  };
+  timestamp?: number;
+}
+
+export interface UserAuthResponse {
+  success: boolean;
+  message: string;
+  data?: UserProfile | null;
+  timestamp?: number;
+}
+
+export interface ForgotPasswordResponse {
+  success: boolean;
+  message: string;
 }

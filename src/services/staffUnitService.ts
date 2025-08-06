@@ -11,43 +11,8 @@ const getAuthHeaders = () => {
   }
 }
 
-export interface CreateUnitRequest {
-  title: string
-  description: string
-  status: 'INACTIVE' | 'ACTIVE'
-  chapterId: string
-  prerequisiteUnitId: string | null
-  examIds: string[]
-}
-
-export interface UpdateUnitRequest {
-  id: string
-  title: string
-  description: string
-  status: 'INACTIVE' | 'ACTIVE'
-  chapterId: string
-  prerequisiteUnitId: string | null
-  examIds: string[]
-}
-
-export interface Unit {
-  id: string
-  title: string
-  description: string | null
-  status: 'INACTIVE' | 'ACTIVE'
-  prerequisiteUnitId: string | null
-}
-
-export interface UnitDetail extends Unit {
-  chapterId?: string
-}
-
-interface ApiResponse<T> {
-  success: boolean
-  message: string
-  data: T
-  timestamp: number
-}
+import type { CreateUnitRequest, UpdateUnitRequest, Unit, UnitDetail } from '@/types/unit'
+import type { ApiResponse } from '@/types/api'
 
 export const StaffUnitService = {
   // Lấy danh sách bài học theo chapterId
