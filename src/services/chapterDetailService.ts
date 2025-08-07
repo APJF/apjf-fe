@@ -7,6 +7,6 @@ export const getChapterById = async (id: string) => {
 };
 
 export const getUnitsByChapterId = async (chapterId: string) => {
-  const response = await api.get<UnitsApiResponse>(`/units/chapter/${chapterId}`);
+  const response = await api.get<UnitsApiResponse>(`/chapters/${chapterId}/units`);
   return response.data;
 };

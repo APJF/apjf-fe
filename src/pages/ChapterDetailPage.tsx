@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getChapterById, getUnitsByChapterId } from '../services/chapterDetailService';
 import { MaterialService } from '../services/materialService';
 import type { Chapter } from '../types/chapter';
-import type { Unit } from '../types/unit';
+import type { Unit, UnitStatus } from '../types/unit';
 import type { Material } from '../types/material';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
@@ -25,7 +25,6 @@ import {
   ChevronRight,
   ChevronLeft,
   Download,
-  Maximize,
   ZoomIn,
   ZoomOut,
   Play,
@@ -34,19 +33,137 @@ import {
 interface Skill {
   id: string;
   name: string;
-  type: 'listening' | 'speaking' | 'reading' | 'writing' | 'vocabulary' | 'grammar' | 'practice';
+  type: 'vocabulary' | 'kanji' | 'grammar' | 'reading' | 'listening' | 'writing' | 'practice' | 'speaking';
+  order: number;
+  materials: Material[];
 }
 
 interface UnitWithSkills {
   id: string;
   title: string;
   description?: string | null;
-  courseId?: number;
+  status: UnitStatus;
+  chapterId: string;
+  prerequisiteUnitId?: string | null;
   isExpanded: boolean;
   isCompleted: boolean;
   materials: Material[];
   skills: Skill[];
 }
+
+// Material type mapping
+const MATERIAL_TYPE_TO_SKILL: Record<string, Skill['type']> = {
+  'VOCAB': 'vocabulary',
+  'KANJI': 'kanji',
+  'GRAMMAR': 'grammar',
+  'READING': 'reading', 
+  'LISTENING': 'listening',
+  'WRITING': 'writing'
+}
+
+// Skill order for display
+const SKILL_ORDER: Skill['type'][] = ['vocabulary', 'kanji', 'grammar', 'reading', 'listening', 'writing', 'practice']
+
+const SKILL_NAMES: Record<Skill['type'], string> = {
+  'vocabulary': 'Từ vựng',
+  'kanji': 'Kanji', 
+  'grammar': 'Ngữ pháp',
+  'reading': 'Luyện đọc',
+  'listening': 'Luyện nghe',
+  'writing': 'Luyện viết',
+  'practice': 'Kiểm tra',
+  'speaking': 'Luyện nói'
+}
+
+// Tạo skills từ materials có sẵn
+const createSkillsFromMaterials = (materials: Material[], unitId: string): Skill[] => {
+  console.log('Creating skills from materials for unit:', unitId, materials);
+  
+  // Tạo set các skill type có material
+  const availableSkillTypes = new Set<Skill['type']>();
+  
+  materials.forEach(material => {
+    const skillType = MATERIAL_TYPE_TO_SKILL[material.type];
+    if (skillType) {
+      availableSkillTypes.add(skillType);
+    }
+  });
+  
+  // Luôn có practice skill nếu có bất kỳ material nào
+  if (materials.length > 0) {
+    availableSkillTypes.add('practice');
+  }
+  
+  // Tạo skills theo thứ tự đã định sẵn, chỉ hiển thị skills có material
+  const skills: Skill[] = [];
+  
+  SKILL_ORDER.forEach((skillType, index) => {
+    if (availableSkillTypes.has(skillType)) {
+      const skillMaterials = materials.filter(material => 
+        MATERIAL_TYPE_TO_SKILL[material.type] === skillType
+      );
+      
+      // For practice skill, use the first available material (since it's generic)
+      let finalMaterials = skillMaterials;
+      if (skillType === 'practice' && materials.length > 0) {
+        finalMaterials = [materials[0]];
+      }
+      
+      skills.push({
+        id: `skill_${skillType}_${unitId}`, // Add unitId to make unique
+        name: SKILL_NAMES[skillType],
+        type: skillType,
+        order: index,
+        materials: finalMaterials
+      });
+    }
+  });
+  
+  console.log('Created skills for unit', unitId, ':', skills);
+  return skills;
+};
+
+// Sắp xếp units theo thứ tự prerequisite
+const sortUnitsByPrerequisite = (units: UnitWithSkills[]): UnitWithSkills[] => {
+  console.log('🔄 Sorting units by prerequisite order');
+  
+  const sorted: UnitWithSkills[] = [];
+  const remaining = [...units];
+  
+  // Tìm units không có prerequisite trước
+  while (remaining.length > 0) {
+    const readyUnits = remaining.filter(unit => {
+      // Unit sẵn sàng nếu không có prerequisite hoặc prerequisite đã được thêm vào sorted
+      return !unit.prerequisiteUnitId || 
+             sorted.some(sortedUnit => sortedUnit.id === unit.prerequisiteUnitId);
+    });
+    
+    if (readyUnits.length === 0) {
+      // Nếu không tìm thấy unit nào ready (có thể có circular dependency), 
+      // thêm tất cả units còn lại
+      console.warn('⚠️ Possible circular dependency detected, adding remaining units');
+      sorted.push(...remaining);
+      break;
+    }
+    
+    // Thêm ready units vào sorted và xóa khỏi remaining
+    readyUnits.forEach(unit => {
+      sorted.push(unit);
+      const index = remaining.indexOf(unit);
+      if (index > -1) {
+        remaining.splice(index, 1);
+      }
+    });
+  }
+  
+  console.log('🎯 Units sorted by prerequisite:', sorted.map(u => ({
+    id: u.id,
+    title: u.title,
+    prerequisiteUnitId: u.prerequisiteUnitId
+  })));
+  
+  return sorted;
+};
 
 const getSkillIcon = (type: string) => {
   switch (type) {
@@ -451,7 +568,10 @@ function StageUnitsView({ currentStage, setCurrentStage }: Readonly<{
 }
 
 export default function ChapterDetailPage() {
-  const { chapterId } = useParams<{ chapterId: string }>();
+  const { courseId, chapterId } = useParams<{ 
+    courseId: string;
+    chapterId: string;
+  }>();
   const navigate = useNavigate();
   const [chapter, setChapter] = useState<Chapter | null>(null);
   const [units, setUnits] = useState<UnitWithSkills[]>([]);
@@ -460,85 +580,122 @@ export default function ChapterDetailPage() {
   const [selectedSkill, setSelectedSkill] = useState<string>('');
   const [currentStage, setCurrentStage] = useState(3);
 
+  // Function to handle skill selection with auto-scroll
+  const handleSkillSelect = (skillId: string) => {
+    setSelectedSkill(skillId);
+    
+    // Auto scroll to top after skill selection (below header)
+    setTimeout(() => {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }, 100);
+  };
+
   useEffect(() => {
     if (chapterId) {
+      console.log('🔍 Fetching data for chapterId:', chapterId);
+      
       const fetchChapterData = async () => {
         try {
           setLoading(true);
+          setError(null);
+          
+          console.log('📡 Calling getChapterById and getUnitsByChapterId APIs');
           const [chapterRes, unitsRes] = await Promise.all([
             getChapterById(chapterId),
             getUnitsByChapterId(chapterId),
           ]);
 
+          console.log('📋 Chapter response:', chapterRes);
+          console.log('📋 Units response:', unitsRes);
+
           if (chapterRes.success) {
             setChapter(chapterRes.data);
           } else {
-            setError(chapterRes.message);
+            console.error('❌ Chapter fetch failed:', chapterRes.message);
+            setError(chapterRes.message || 'Không thể tải thông tin chương');
           }
 
           if (unitsRes.success) {
-            // Transform units và fetch materials cho mỗi unit
+            console.log('📝 Processing units data:', unitsRes.data);
+            
+            // Transform units với dữ liệu mới từ API
             const unitsWithSkills = await Promise.all(
               unitsRes.data.map(async (unit: Unit, index: number) => {
                 try {
                   const materialsRes = await MaterialService.getMaterialsByUnit(unit.id);
                   const materials = materialsRes.success ? materialsRes.data : [];
                   
-                  // Generate skills based on materials or default skills
-                  const skills: Skill[] = [
-                    { id: `vocab-${unit.id}`, name: 'Từ vựng', type: 'vocabulary' },
-                    { id: `grammar-${unit.id}`, name: 'Ngữ pháp', type: 'grammar' },
-                    { id: `listening-${unit.id}`, name: 'Luyện nghe', type: 'listening' },
-                    { id: `speaking-${unit.id}`, name: 'Luyện nói', type: 'speaking' },
-                    { id: `reading-${unit.id}`, name: 'Luyện đọc', type: 'reading' },
-                    { id: `writing-${unit.id}`, name: 'Luyện viết', type: 'writing' },
-                  ];
+                  // Generate skills based on materials
+                  const skills = createSkillsFromMaterials(materials, unit.id);
 
-                  return {
-                    ...unit,
+                  const processedUnit: UnitWithSkills = {
+                    id: unit.id,
+                    title: unit.title,
+                    description: unit.description,
+                    status: unit.status,
+                    chapterId: unit.chapterId || chapterId || '',
+                    prerequisiteUnitId: unit.prerequisiteUnitId,
                     isExpanded: index === 0, // Mở unit đầu tiên
-                    isCompleted: false, // Logic completion will be implemented later
+                    isCompleted: unit.status === 'ACTIVE', // Unit active = completed
                     materials,
                     skills,
                   };
+                  
+                  console.log(`✅ Processed unit ${unit.id}:`, processedUnit);
+                  return processedUnit;
                 } catch (err) {
-                  console.error(`Error fetching materials for unit ${unit.id}:`, err);
-                  return {
-                    ...unit,
+                  console.error(`❌ Error fetching materials for unit ${unit.id}:`, err);
+                  
+                  // Return unit with empty materials on error
+                  const fallbackUnit: UnitWithSkills = {
+                    id: unit.id,
+                    title: unit.title,
+                    description: unit.description,
+                    status: unit.status,
+                    chapterId: unit.chapterId || chapterId || '',
+                    prerequisiteUnitId: unit.prerequisiteUnitId,
                     isExpanded: index === 0,
-                    isCompleted: false,
+                    isCompleted: unit.status === 'ACTIVE',
                     materials: [],
-                    skills: [
-                      { id: `vocab-${unit.id}`, name: 'Từ vựng', type: 'vocabulary' },
-                      { id: `grammar-${unit.id}`, name: 'Ngữ pháp', type: 'grammar' },
-                      { id: `listening-${unit.id}`, name: 'Luyện nghe', type: 'listening' },
-                      { id: `speaking-${unit.id}`, name: 'Luyện nói', type: 'speaking' },
-                      { id: `reading-${unit.id}`, name: 'Luyện đọc', type: 'reading' },
-                      { id: `writing-${unit.id}`, name: 'Luyện viết', type: 'writing' },
-                    ] as Skill[],
+                    skills: [],
                   };
+                  return fallbackUnit;
                 }
               })
             );
 
-            setUnits(unitsWithSkills);
+            console.log('🎯 Final processed units:', unitsWithSkills);
+            
+            // Sort units based on prerequisite order
+            const sortedUnits = sortUnitsByPrerequisite(unitsWithSkills);
+            console.log('🔄 Units sorted by prerequisite:', sortedUnits);
+            
+            setUnits(sortedUnits);
             
             // Set first skill as selected
-            if (unitsWithSkills.length > 0 && unitsWithSkills[0].skills.length > 0) {
-              setSelectedSkill(unitsWithSkills[0].skills[0].id);
+            if (sortedUnits.length > 0 && sortedUnits[0].skills.length > 0) {
+              setSelectedSkill(sortedUnits[0].skills[0].id);
+              console.log('🎯 Selected first skill:', sortedUnits[0].skills[0].id);
             }
           } else {
-            console.error('Error fetching units:', unitsRes.message);
+            console.error('❌ Units fetch failed:', unitsRes.message);
+            setError(unitsRes.message || 'Không thể tải danh sách bài học');
           }
         } catch (err) {
-          setError('Failed to fetch chapter details.');
-          console.error(err);
+          console.error('💥 Fatal error in fetchChapterData:', err);
+          setError('Không thể tải thông tin chương. Vui lòng thử lại.');
         } finally {
           setLoading(false);
         }
       };
 
       fetchChapterData();
+    } else {
+      console.warn('⚠️ No chapterId provided');
+      setError('ID chương không hợp lệ');
     }
   }, [chapterId]);
 
@@ -562,6 +719,31 @@ export default function ChapterDetailPage() {
   };
 
   const currentSkillData = getCurrentSkill();
+
+  // Get current material from selected skill
+  const currentMaterial = currentSkillData?.skill.materials?.[0] || null;
+
+  // Zoom state for PDF viewer
+  const [zoomLevel, setZoomLevel] = useState(100);
+
+  const handleZoomIn = () => {
+    setZoomLevel(prev => Math.min(prev + 25, 200));
+  };
+
+  const handleZoomOut = () => {
+    setZoomLevel(prev => Math.max(prev - 25, 50));
+  };
+
+  const handleDownload = () => {
+    if (currentMaterial?.fileUrl) {
+      const link = document.createElement('a');
+      link.href = currentMaterial.fileUrl;
+      link.download = currentMaterial.description || 'learning-material.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
 
   const handleStageClick = (stageId: number) => {
     setCurrentStage(stageId);
@@ -608,7 +790,7 @@ export default function ChapterDetailPage() {
             <Button 
               variant="ghost" 
               size="sm" 
-              onClick={() => navigate(`/courses/${chapter?.courseId}`)} 
+              onClick={() => navigate(`/courses/${courseId || chapter?.courseId}`)} 
               className="text-white hover:bg-white/20"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -728,7 +910,7 @@ export default function ChapterDetailPage() {
                               ? 'bg-blue-100 border-l-4 border-l-blue-500'
                               : 'hover:bg-gray-50 border border-gray-100'
                           }`}
-                          onClick={() => setSelectedSkill(skill.id)}
+                          onClick={() => handleSkillSelect(skill.id)}
                           type="button"
                         >
                           <div
@@ -755,51 +937,111 @@ export default function ChapterDetailPage() {
           <div className="flex-1 bg-gray-100 p-6">
             <Card className="h-full shadow-lg">
               <CardContent className="p-0 h-full">
-                {/* PDF Toolbar */}
+                {/* Single PDF Toolbar */}
                 <div className="bg-gray-800 text-white p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <h3 className="font-semibold">Tài liệu học tập</h3>
-                    <div className="flex items-center gap-2 text-sm text-gray-300">
-                      <span>Trang 1 / 10</span>
-                    </div>
+                  {/* Left: Document Title and Skill Info */}
+                  <div className="flex items-center gap-4 flex-1">
+                    <h3 className="font-semibold">
+                      {currentMaterial 
+                        ? `Tài liệu: ${currentMaterial.description || 'Learning Material'}`
+                        : 'Tài liệu học tập'
+                      }
+                    </h3>
+                    {currentSkillData && (
+                      <div className="flex items-center gap-2 text-sm text-gray-300">
+                        <span>•</span>
+                        <span>{currentSkillData.skill.name} - {currentSkillData.unit.title}</span>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" variant="ghost" className="text-white hover:bg-gray-700">
+                  {/* Center: Zoom Controls */}
+                  <div className="flex items-center gap-2 mx-4">
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="text-white hover:bg-gray-700"
+                      onClick={handleZoomOut}
+                      disabled={!currentMaterial}
+                    >
                       <ZoomOut className="h-4 w-4" />
                     </Button>
-                    <span className="text-sm px-2">100%</span>
-                    <Button size="sm" variant="ghost" className="text-white hover:bg-gray-700">
+                    <span className="text-sm px-2 min-w-[60px] text-center">{zoomLevel}%</span>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="text-white hover:bg-gray-700"
+                      onClick={handleZoomIn}
+                      disabled={!currentMaterial}
+                    >
                       <ZoomIn className="h-4 w-4" />
                     </Button>
-                    <div className="w-px h-6 bg-gray-600 mx-2" />
-                    <Button size="sm" variant="ghost" className="text-white hover:bg-gray-700">
-                      <Maximize className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="ghost" className="text-white hover:bg-gray-700">
+                  </div>
+
+                  {/* Right: Download Button */}
+                  <div className="flex items-center">
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="text-white hover:bg-gray-700"
+                      onClick={handleDownload}
+                      disabled={!currentMaterial}
+                    >
                       <Download className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
 
-                {/* PDF Content Area */}
-                <div className="h-full bg-white flex items-center justify-center p-8">
-                  <div className="text-center">
-                    <div className="w-32 h-32 bg-gray-200 rounded-lg flex items-center justify-center mb-6 mx-auto">
-                      <FileText className="h-16 w-16 text-gray-400" />
+                {/* PDF Content Area - No padding */}
+                <div className="h-full bg-white flex items-center justify-center pb-11">
+                  {currentMaterial ? (
+                    /* Actual PDF Display with Zoom - Full width/height */
+                    <div className="w-full h-full bg-white overflow-auto ">
+                      <iframe
+                        src={currentMaterial.fileUrl}
+                        className="w-full h-full border-0"
+                        title={`Material: ${currentMaterial.description || 'Learning Material'}`}
+                        style={{ 
+                          transform: `scale(${zoomLevel / 100})`,
+                          transformOrigin: 'top left',
+                          width: `${(100 * 100) / zoomLevel}%`,
+                          height: `${(100 * 100) / zoomLevel}%`
+                        }}
+                      />
                     </div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Tài liệu PDF</h3>
-                    <p className="text-gray-600 mb-6 max-w-md">
-                      {currentSkillData
-                        ? `Nội dung bài học "${currentSkillData.skill.name}" - ${currentSkillData.unit.title}`
-                        : 'Chọn kỹ năng từ sidebar để xem tài liệu'}
-                    </p>
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
-                      <p className="text-sm text-blue-800">
-                        💡 <strong>Mẹo:</strong> Sử dụng các công cụ trên thanh toolbar để điều chỉnh hiển thị tài liệu.
+                  ) : (
+                    /* Placeholder when no material - Keep padding for centered content */
+                    <div className="text-center p-8">
+                      <div className="w-32 h-32 bg-gray-200 rounded-lg flex items-center justify-center mb-6 mx-auto">
+                        <FileText className="h-16 w-16 text-gray-400" />
+                      </div>
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">Tài liệu PDF</h3>
+                      <p className="text-gray-600 mb-6 max-w-md">
+                        {currentSkillData
+                          ? `Chưa có tài liệu cho "${currentSkillData.skill.name}" - ${currentSkillData.unit.title}`
+                          : 'Chọn kỹ năng từ sidebar để xem tài liệu'}
                       </p>
+                      {currentSkillData?.skill.materials && currentSkillData.skill.materials.length > 0 && (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 max-w-md mx-auto">
+                          <p className="text-sm text-yellow-800">
+                            📁 Có {currentSkillData.skill.materials.length} tài liệu cho kỹ năng này:
+                          </p>
+                          <div className="mt-2 space-y-1">
+                            {currentSkillData.skill.materials.map((material, index) => (
+                              <div key={material.id} className="text-xs text-yellow-700">
+                                {index + 1}. {material.description || `Material ${material.id}`}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto mt-4">
+                        <p className="text-sm text-blue-800">
+                          💡 <strong>Mẹo:</strong> Sử dụng các công cụ trên thanh toolbar để điều chỉnh hiển thị tài liệu.
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

@@ -142,10 +142,10 @@ const StaffUpdateCoursePage: React.FC = () => {
   }, [])
 
   const handleFileSelect = useCallback((file: File) => {
-    // Kiểm tra kích thước file (800KB limit giống như trang tạo course)
-    if (file.size > 800 * 1024) {
-      setError('Kích thước file không được vượt quá 800KB')
-      showToast("error", "Kích thước file không được vượt quá 800KB")
+    // Kiểm tra kích thước file (8MB limit)
+    if (file.size > 8 * 1024 * 1024) {
+      setError('Kích thước file không được vượt quá 8MB')
+      showToast("error", "Kích thước file không được vượt quá 8MB")
       return
     }
 

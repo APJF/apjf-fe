@@ -86,7 +86,7 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
   };
 
   return (
-    <div className="group bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-red-200">
+    <div className="group bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-red-200 flex flex-col h-[480px]">
       <div className="relative overflow-hidden">
         {course.image ? (
           <img
@@ -114,9 +114,9 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
         )}
       </div>
 
-      <div className="p-5">
+      <div className="p-5 flex flex-col flex-1">
         <div className="flex items-start justify-between mb-3">
-          <h3 className="font-semibold text-gray-900 text-lg leading-tight line-clamp-2 flex-1 mr-2">{course.title}</h3>
+          <h3 className="font-semibold text-gray-900 text-lg leading-tight line-clamp-2 flex-1 mr-2 min-h-[3.5rem]">{course.title}</h3>
           {course.topics && course.topics.length > 0 && (
             <span className="text-red-600 text-xs font-medium bg-red-50 px-2 py-1 rounded-full whitespace-nowrap">
               {course.topics[0].name}
@@ -124,7 +124,7 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
           )}
         </div>
 
-        <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+        <p className="text-gray-600 text-sm mb-4 line-clamp-2 min-h-[2.5rem]">
           {course.description}
         </p>
 
@@ -147,7 +147,7 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
         </div>
 
         {course.topics && course.topics.length > 0 && (
-          <div className="mb-4">
+          <div className="mb-4 flex-1">
             <div className="flex flex-wrap gap-1">
               {course.topics.slice(0, 3).map((topic) => (
                 <span
@@ -166,12 +166,14 @@ const CourseCard: React.FC<{ course: Course }> = ({ course }) => {
           </div>
         )}
 
-        <Link
-          to={`/courses/${course.id}`}
-          className="block w-full text-center bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 transition-colors font-medium"
-        >
-          Xem chi tiết
-        </Link>
+        <div className="mt-auto">
+          <Link
+            to={`/courses/${course.id}`}
+            className="block w-full text-center bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 transition-colors font-medium"
+          >
+            Xem chi tiết
+          </Link>
+        </div>
       </div>
     </div>
   );
@@ -251,10 +253,7 @@ const CoursesPage: React.FC = () => {
   const [sortBy, setSortBy] = useState<"averageRating" | "duration" | "title" | "level" | "id">("id")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [filterLevel, setFilterLevel] = useState<string>("all")
-  const [filterTopic, setFilterTopic] = useState<string>("all")
   const [minRating, setMinRating] = useState(0)
-  const [minPrice, setMinPrice] = useState(0)
-  const [maxPrice, setMaxPrice] = useState(1000)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   
   // Pagination
@@ -262,17 +261,6 @@ const CoursesPage: React.FC = () => {
   const [itemsPerPage] = useState(6)
 
   const levels = ["all", "N5", "N4", "N3", "N2", "N1"]
-
-  // Get unique topics from courses
-  const topics = useMemo(() => {
-    const uniqueTopics = new Set<string>()
-    allCourses.forEach(course => {
-      course.topics?.forEach(topic => {
-        uniqueTopics.add(topic.name)
-      })
-    })
-    return ["all", ...Array.from(uniqueTopics)]
-  }, [allCourses])
 
   // Filtered and sorted courses
   const filteredAndSortedCourses = useMemo(() => {
@@ -283,15 +271,9 @@ const CoursesPage: React.FC = () => {
       
       const matchesLevel = filterLevel === "all" || course.level === filterLevel
       
-      const matchesTopic = filterTopic === "all" || 
-        course.topics?.some(topic => topic.name === filterTopic)
-      
       const matchesRating = (course.averageRating || 0) >= minRating
-      
-      // Price filter - for future use
-      const matchesPrice = true // course.price >= minPrice && course.price <= maxPrice
 
-      return matchesSearch && matchesLevel && matchesTopic && matchesRating && matchesPrice
+      return matchesSearch && matchesLevel && matchesRating
     })
 
     filtered.sort((a, b) => {
@@ -332,7 +314,7 @@ const CoursesPage: React.FC = () => {
     })
 
     return filtered
-  }, [allCourses, searchTerm, sortBy, sortOrder, filterLevel, filterTopic, minRating])
+  }, [allCourses, searchTerm, sortBy, sortOrder, filterLevel, minRating])
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredAndSortedCourses.length / itemsPerPage)
@@ -343,22 +325,17 @@ const CoursesPage: React.FC = () => {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, sortBy, sortOrder, filterLevel, filterTopic, minRating])
+  }, [searchTerm, sortBy, sortOrder, filterLevel, minRating])
 
   // Active filters count
   const activeFiltersCount = [
     filterLevel !== "all",
-    filterTopic !== "all",
     minRating > 0,
-    minPrice > 0 || maxPrice < 1000,
   ].filter(Boolean).length
 
   const clearAllFilters = () => {
     setFilterLevel("all")
-    setFilterTopic("all")
     setMinRating(0)
-    setMinPrice(0)
-    setMaxPrice(1000)
     setSearchTerm("")
     setCurrentPage(1)
   }
@@ -397,12 +374,12 @@ const CoursesPage: React.FC = () => {
           {/* Sidebar */}
           <div
             className={`
-            fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:shadow-none lg:bg-transparent
+            fixed inset-y-0 left-0 z-40 w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:shadow-none lg:bg-white
             ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
           `}
           >
-            <div className="h-full overflow-y-auto">
-              <div className="p-6 lg:p-0">
+            <div className="h-full overflow-y-auto lg:sticky lg:top-8">
+              <div className="p-6 lg:p-6">
                 {/* Mobile header */}
                 <div className="flex items-center justify-between mb-6 lg:hidden">
                   <h2 className="text-lg font-semibold text-gray-900">Bộ lọc</h2>
@@ -411,29 +388,65 @@ const CoursesPage: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Filters */}
-                <div className="space-y-6">
-                  {/* Filter Header */}
-                  <div className="hidden lg:flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <SlidersHorizontal className="w-5 h-5 text-gray-600" />
-                      <h2 className="text-lg font-semibold text-gray-900">Bộ lọc</h2>
+                {/* Desktop filter container */}
+                <div className="hidden lg:block bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  {/* Filters */}
+                  <div className="space-y-6">
+                    {/* Filter Header */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <SlidersHorizontal className="w-5 h-5 text-gray-600" />
+                        <h2 className="text-lg font-semibold text-gray-900">Bộ lọc</h2>
+                        {activeFiltersCount > 0 && (
+                          <span className="bg-red-100 text-red-700 text-xs font-medium px-2 py-1 rounded-full">
+                            {activeFiltersCount}
+                          </span>
+                        )}
+                      </div>
                       {activeFiltersCount > 0 && (
-                        <span className="bg-red-100 text-red-700 text-xs font-medium px-2 py-1 rounded-full">
-                          {activeFiltersCount}
-                        </span>
+                        <button
+                          onClick={clearAllFilters}
+                          className="text-sm text-red-600 hover:text-red-700 font-medium"
+                        >
+                          Xóa tất cả
+                        </button>
                       )}
                     </div>
-                    {activeFiltersCount > 0 && (
-                      <button
-                        onClick={clearAllFilters}
-                        className="text-sm text-red-600 hover:text-red-700 font-medium"
-                      >
-                        Xóa tất cả
-                      </button>
-                    )}
-                  </div>
 
+                    {/* Level Filter */}
+                    <FilterSection title="Trình độ">
+                      <div className="space-y-2">
+                        {levels.map((level) => (
+                          <label key={level} className="flex items-center gap-3 cursor-pointer group">
+                            <input
+                              type="radio"
+                              name="level"
+                              value={level}
+                              checked={filterLevel === level}
+                              onChange={(e) => setFilterLevel(e.target.value)}
+                              className="w-4 h-4 text-red-600 border-gray-300 focus:ring-red-500"
+                            />
+                            <span className="text-sm text-gray-700 group-hover:text-gray-900 transition-colors">
+                              {level === "all" ? "Tất cả trình độ" : level}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </FilterSection>
+
+                    {/* Rating Filter */}
+                    <FilterSection title="Đánh giá tối thiểu">
+                      <StarRating 
+                        rating={minRating} 
+                        onRatingChange={setMinRating} 
+                        interactive={true} 
+                      />
+                    </FilterSection>
+                  </div>
+                </div>
+
+                {/* Mobile filters */}
+                <div className="lg:hidden space-y-6">
                   {/* Level Filter */}
                   <FilterSection title="Trình độ">
                     <div className="space-y-2">
@@ -455,27 +468,6 @@ const CoursesPage: React.FC = () => {
                     </div>
                   </FilterSection>
 
-                  {/* Topic Filter */}
-                  <FilterSection title="Chủ đề">
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {topics.map((topic) => (
-                        <label key={topic} className="flex items-center gap-3 cursor-pointer group">
-                          <input
-                            type="radio"
-                            name="topic"
-                            value={topic}
-                            checked={filterTopic === topic}
-                            onChange={(e) => setFilterTopic(e.target.value)}
-                            className="w-4 h-4 text-red-600 border-gray-300 focus:ring-red-500"
-                          />
-                          <span className="text-sm text-gray-700 group-hover:text-gray-900 transition-colors">
-                            {topic === "all" ? "Tất cả chủ đề" : topic}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </FilterSection>
-
                   {/* Rating Filter */}
                   <FilterSection title="Đánh giá tối thiểu">
                     <StarRating 
@@ -483,44 +475,6 @@ const CoursesPage: React.FC = () => {
                       onRatingChange={setMinRating} 
                       interactive={true} 
                     />
-                  </FilterSection>
-
-                  {/* Price Filter - for future use */}
-                  <FilterSection title="Khoảng giá (Tương lai)">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <div className="relative w-16">
-                          <span className="absolute left-1 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs">
-                            $
-                          </span>
-                          <input
-                            type="number"
-                            placeholder="0"
-                            value={minPrice}
-                            onChange={(e) => setMinPrice(Number(e.target.value) || 0)}
-                            className="w-full pl-3 pr-1 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-red-500 focus:border-transparent outline-none"
-                          />
-                        </div>
-                        <span className="text-gray-400 text-xs">—</span>
-                        <div className="relative w-16">
-                          <span className="absolute left-1 top-1/2 transform -translate-y-1/2 text-gray-500 text-xs">
-                            $
-                          </span>
-                          <input
-                            type="number"
-                            placeholder="1000"
-                            value={maxPrice}
-                            onChange={(e) => setMaxPrice(Number(e.target.value) || 1000)}
-                            className="w-full pl-3 pr-1 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-red-500 focus:border-transparent outline-none"
-                          />
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <span className="inline-block bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-md">
-                          ${minPrice} - ${maxPrice}
-                        </span>
-                      </div>
-                    </div>
                   </FilterSection>
                 </div>
               </div>
@@ -712,6 +666,8 @@ const CoursesPage: React.FC = () => {
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
           overflow: hidden;
+          word-break: break-word;
+          text-overflow: ellipsis;
         }
         .line-clamp-3 {
           display: -webkit-box;

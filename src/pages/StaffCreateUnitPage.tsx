@@ -119,10 +119,10 @@ const StaffCreateUnitPage: React.FC = () => {
   // Handle file selection for material
   const handleMaterialFileSelect = (materialId: number, file: File | null) => {
     if (file) {
-      // Kiểm tra kích thước file (800KB = 800 * 1024 bytes)
-      const maxSize = 800 * 1024
+      // Kiểm tra kích thước file (8MB = 8 * 1024 * 1024 bytes)
+      const maxSize = 8 * 1024 * 1024
       if (file.size > maxSize) {
-        showToast('error', `File "${file.name}" có kích thước ${(file.size / 1024).toFixed(1)}KB. Vui lòng chọn file dưới 800KB.`)
+        showToast('error', `File "${file.name}" có kích thước ${(file.size / (1024 * 1024)).toFixed(1)}MB. Vui lòng chọn file dưới 8MB.`)
         return
       }
     }
@@ -292,9 +292,9 @@ const StaffCreateUnitPage: React.FC = () => {
     }
 
     // Kiểm tra kích thước file
-    const maxSize = 800 * 1024 // 800KB
+    const maxSize = 8 * 1024 * 1024 // 8MB
     if (material.selectedFile.size > maxSize) {
-      setError(`File "${material.selectedFile.name}" có kích thước ${(material.selectedFile.size / 1024).toFixed(1)}KB. Vui lòng chọn file dưới 800KB.`)
+      setError(`File "${material.selectedFile.name}" có kích thước ${(material.selectedFile.size / (1024 * 1024)).toFixed(1)}MB. Vui lòng chọn file dưới 8MB.`)
       return false
     }
 
