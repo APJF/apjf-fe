@@ -18,23 +18,62 @@ import {
   TrendingUp,
   RefreshCw,
   AlertCircle,
-  Users
+  Users,
+  GripVertical
 } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
-interface CourseModule {
+// Interfaces phù hợp với API response thực tế
+interface CourseInPath {
+  courseId: string;
+  learningPathId: number;
+  courseOrderNumber: number;
+  title: string;
+  description: string | null;
+  duration: number;
+  level: string;
+}
+
+interface CourseWithDetails extends CourseInPath {
+  // Additional fields for display
+  instructor?: string;
+  rating?: number;
+  students?: number;
+  totalLessons?: number;
+  progress?: number;
+  status?: "not_started" | "in_progress" | "completed";
+}
+
+interface LearningPathApiResponse {
   id: number;
   title: string;
   description: string;
-  level: "N5" | "N4" | "N3" | "N2" | "N1";
-  progress: number;
-  totalLessons: number;
-  completedLessons: number;
-  estimatedTime: string;
-  difficulty: "Cơ bản" | "Trung bình" | "Nâng cao";
-  status: "not_started" | "in_progress" | "completed";
-  rating: number;
-  students: number;
-  instructor: string;
+  targetLevel: string;
+  primaryGoal: string;
+  focusSkill: string;
+  status: "PENDING" | "STUDYING" | "FINISHED";
+  duration: number;
+  userId: number;
+  username: string;
+  createdAt: string;
+  lastUpdatedAt: string;
+  courses: CourseInPath[]; // This matches the actual API response structure
 }
 
 interface LearningGoal {
@@ -55,18 +94,24 @@ interface NextCourse {
   rating: number;
 }
 
-interface RoadmapData {
+interface LearningPathData {
   id: number;
   title: string;
   description: string;
-  level: "N5" | "N4" | "N3" | "N2" | "N1";
-  rating: number;
-  students: number;
-  overallProgress: number;
-  modules: CourseModule[];
-  goals: LearningGoal[];
-  nextCourses: NextCourse[];
-  stats: {
+  targetLevel: string;
+  primaryGoal: string;
+  focusSkill: string;
+  status: "PENDING" | "STUDYING" | "FINISHED";
+  duration: number;
+  userId: number;
+  username: string;
+  rating?: number;
+  students?: number;
+  overallProgress?: number;
+  courses: CourseWithDetails[];
+  goals?: LearningGoal[];
+  nextCourses?: NextCourse[];
+  stats?: {
     completedLessons: number;
     studyHours: number;
     streakDays: number;
@@ -74,81 +119,51 @@ interface RoadmapData {
 }
 
 // Mock data for development
-const mockCourseModules: CourseModule[] = [
+const mockCoursesWithDetails: CourseWithDetails[] = [
   {
-    id: 1,
+    courseId: "JPD111",
+    learningPathId: 1,
+    courseOrderNumber: 1,
     title: "Tiếng Nhật N5 - Cơ bản",
     description: "Khóa học tổng hợp về tiếng Nhật cơ bản cho người mới bắt đầu",
     level: "N5",
     progress: 40,
     totalLessons: 45,
-    completedLessons: 18,
-    estimatedTime: "40 giờ",
-    difficulty: "Cơ bản",
+    duration: 40,
     status: "in_progress",
     rating: 4.8,
     students: 1250,
     instructor: "Sensei Tanaka",
   },
   {
-    id: 2,
+    courseId: "JPD112",
+    learningPathId: 1,
+    courseOrderNumber: 2,
     title: "Kanji cơ bản - 300 chữ Hán đầu tiên",
     description: "Học thuộc 300 chữ Kanji cơ bản nhất trong tiếng Nhật",
     level: "N5",
     progress: 65,
     totalLessons: 30,
-    completedLessons: 19,
-    estimatedTime: "25 giờ",
-    difficulty: "Cơ bản",
+    duration: 25,
     status: "in_progress",
     rating: 4.7,
     students: 890,
     instructor: "Sensei Yamada",
   },
   {
-    id: 3,
+    courseId: "JPD113",
+    learningPathId: 1,
+    courseOrderNumber: 3,
     title: "Tiếng Nhật N4 - Sơ cấp",
     description: "Nâng cao kỹ năng tiếng Nhật lên trình độ N4",
     level: "N4",
     progress: 0,
     totalLessons: 50,
-    completedLessons: 0,
-    estimatedTime: "50 giờ",
-    difficulty: "Trung bình",
+    duration: 50,
     status: "not_started",
     rating: 4.6,
     students: 650,
     instructor: "Sensei Sato",
-  },
-  {
-    id: 4,
-    title: "Giao tiếp tiếng Nhật hàng ngày",
-    description: "Luyện tập giao tiếp trong các tình huống thực tế",
-    level: "N4",
-    progress: 0,
-    totalLessons: 35,
-    completedLessons: 0,
-    estimatedTime: "30 giờ",
-    difficulty: "Trung bình",
-    status: "not_started",
-    rating: 4.5,
-    students: 420,
-    instructor: "Sensei Kimura",
-  },
-  {
-    id: 5,
-    title: "Tiếng Nhật N3 - Trung cấp",
-    description: "Khóa học nâng cao cho trình độ N3",
-    level: "N3",
-    progress: 0,
-    totalLessons: 60,
-    completedLessons: 0,
-    estimatedTime: "60 giờ",
-    difficulty: "Nâng cao",
-    status: "not_started",
-    rating: 4.4,
-    students: 320,
-    instructor: "Sensei Watanabe",
   },
 ];
 
@@ -195,12 +210,132 @@ const mockNextCourses: NextCourse[] = [
   },
 ];
 
-// Mini Roadmap Map Component - Copy từ RoadmapPage với đầy đủ logic
-function MiniRoadmapMap({ onStageClick }: Readonly<{ onStageClick: (stageId: number) => void }>) {
+// Sortable Course Item Component
+function SortableCourseItem({ 
+  course, 
+  getStatusBadge, 
+  getLevelColor, 
+  navigate 
+}: Readonly<{
+  course: CourseWithDetails;
+  getStatusBadge: (status: string) => React.ReactElement;
+  getLevelColor: (level: string) => string;
+  navigate: (path: string) => void;
+}>) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: course.courseId });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div 
+      ref={setNodeRef} 
+      style={style}
+      className={`border rounded-lg p-4 hover:shadow-sm transition-shadow ${isDragging ? 'shadow-lg' : ''}`}
+    >
+      <div className="flex items-start space-x-4">
+        {/* Drag Handle */}
+        <div 
+          {...attributes} 
+          {...listeners}
+          className="flex items-center justify-center w-6 h-6 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing mt-1"
+        >
+          <GripVertical className="h-4 w-4" />
+        </div>
+
+        {/* Course Number */}
+        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+          <span className="text-sm font-medium text-blue-600">{course.courseOrderNumber}</span>
+        </div>
+
+        {/* Course Content */}
+        <div className="flex-1">
+          <div className="flex justify-between items-start mb-2">
+            <div>
+              <h3 className="font-semibold text-gray-900">{course.title || course.courseId}</h3>
+              <p className="text-sm text-gray-600">{course.description || `Khóa học ${course.courseId}`}</p>
+            </div>
+            <div className="text-right">
+              <div className="text-lg font-bold text-gray-900">{course.progress || 0}%</div>
+              {getStatusBadge(course.status || "not_started")}
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="mb-3">
+            <Progress value={course.progress || 0} className="h-2" />
+          </div>
+
+          {/* Course Info */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4 text-xs text-gray-600">
+              <Badge className={getLevelColor(course.level || "N5")}>{course.level || "N5"}</Badge>
+              <span className="flex items-center space-x-1">
+                <Clock className="h-3 w-3" />
+                <span>{course.duration || 30} giờ</span>
+              </span>
+              <span className="flex items-center space-x-1">
+                <BookOpen className="h-3 w-3" />
+                <span>{course.totalLessons || 0} bài</span>
+              </span>
+              <span className="flex items-center space-x-1">
+                <Star className="h-3 w-3" />
+                <span>{course.rating || 0}</span>
+              </span>
+            </div>
+
+            <div className="flex space-x-2">
+              {course.status === "in_progress" && (
+                <Button 
+                  size="sm" 
+                  className="bg-blue-600 hover:bg-blue-700" 
+                  onClick={() => navigate(`/courses/${course.courseId}`)}
+                >
+                  Tiếp tục
+                </Button>
+              )}
+              {course.status === "not_started" && (
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => navigate(`/courses/${course.courseId}`)}
+                >
+                  Bắt đầu
+                </Button>
+              )}
+              {course.status === "completed" && (
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => navigate(`/courses/${course.courseId}`)}
+                >
+                  Ôn tập
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Mini Learning Path Map Component - Copy từ LearningPathPage với đầy đủ logic
+function MiniLearningPathMap({ onStageClick }: Readonly<{ onStageClick: (stageId: number) => void }>) {
   const [currentPage, setCurrentPage] = useState(0);
 
-  // Sample roadmap data with stages - giống y hệt RoadmapPage
-  const roadmapStages = [
+  // Sample learning path data with stages - giống y hệt LearningPathPage
+  const learningPathStages = [
     {
       id: 1,
       title: "Hiragana & Katakana",
@@ -252,10 +387,10 @@ function MiniRoadmapMap({ onStageClick }: Readonly<{ onStageClick: (stageId: num
   ];
 
   const stagesPerPage = 4;
-  const totalPages = Math.ceil(roadmapStages.length / stagesPerPage);
-  const currentStages = roadmapStages.slice(currentPage * stagesPerPage, (currentPage + 1) * stagesPerPage);
+  const totalPages = Math.ceil(learningPathStages.length / stagesPerPage);
+  const currentStages = learningPathStages.slice(currentPage * stagesPerPage, (currentPage + 1) * stagesPerPage);
 
-  // Cố định vị trí cho 4 stages trên mỗi trang - giống y hệt RoadmapPage
+  // Cố định vị trí cho 4 stages trên mỗi trang - giống y hệt LearningPathPage
   const fixedPositions = [
     { x: 20, y: 40 },  // Stage 1
     { x: 44, y: 54 },  // Stage 2
@@ -318,7 +453,7 @@ function MiniRoadmapMap({ onStageClick }: Readonly<{ onStageClick: (stageId: num
           backgroundPosition: "center",
         }}
       >
-        {/* Stage markers - copy y hệt từ RoadmapPage */}
+        {/* Stage markers - copy y hệt từ LearningPathPage */}
         {stagesWithFixedPositions.map((stage, index) => (
           <div
             key={stage.id}
@@ -328,7 +463,7 @@ function MiniRoadmapMap({ onStageClick }: Readonly<{ onStageClick: (stageId: num
               top: `${stage.position.y}%`,
             }}
           >
-            {/* Connection line to next stage - giống y hệt RoadmapPage */}
+            {/* Connection line to next stage - giống y hệt LearningPathPage */}
             <div
               className="absolute w-32 h-0.5 bg-blue-400 opacity-70"
               style={{
@@ -339,7 +474,7 @@ function MiniRoadmapMap({ onStageClick }: Readonly<{ onStageClick: (stageId: num
               }}
             />
 
-            {/* Stage marker - giống y hệt RoadmapPage nhưng nhỏ hơn */}
+            {/* Stage marker - giống y hệt LearningPathPage nhưng nhỏ hơn */}
             <div className="flex flex-col items-center">
               <button
                 className={`w-10 h-10 rounded-full border-2 ${getStageColor(stage.status)} flex items-center justify-center shadow-lg cursor-pointer hover:scale-110 transition-transform group relative`}
@@ -379,7 +514,7 @@ function MiniRoadmapMap({ onStageClick }: Readonly<{ onStageClick: (stageId: num
         ))}
       </div>
 
-      {/* Navigation buttons - giống y hệt RoadmapPage */}
+      {/* Navigation buttons - giống y hệt LearningPathPage */}
       {totalPages > 1 && (
         <div className="flex justify-center space-x-4 mt-4">
           <Button
@@ -787,16 +922,73 @@ const treeAnimationStyle = `
 
 // (Đã xoá biến treeAnimationStyle không sử dụng)
 
-export function RoadmapDetailPage() {
+export function LearningPathDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const [roadmapData, setRoadmapData] = useState<RoadmapData | null>(null);
+  const [learningPathData, setLearningPathData] = useState<LearningPathData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentStage, setCurrentStage] = useState(3); // State để quản lý stage hiện tại
+  const [currentStage, setCurrentStage] = useState(1);
+  const [isReordering, setIsReordering] = useState(false);
+
+  // Sensors for drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  // Handle drag end
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id || !learningPathData) {
+      return;
+    }
+
+    const oldIndex = learningPathData.courses.findIndex(course => course.courseId === active.id);
+    const newIndex = learningPathData.courses.findIndex(course => course.courseId === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) {
+      return;
+    }
+
+    // Reorder courses locally
+    const newCourses = arrayMove(learningPathData.courses, oldIndex, newIndex);
+    
+    // Update courseOrderNumber for each course
+    const updatedCourses = newCourses.map((course, index) => ({
+      ...course,
+      courseOrderNumber: index + 1
+    }));
+
+    // Update local state immediately for better UX
+    setLearningPathData({
+      ...learningPathData,
+      courses: updatedCourses
+    });
+
+    // Send to API
+    try {
+      setIsReordering(true);
+      const courseIds = updatedCourses.map(course => course.courseId);
+      await roadmapService.reorderLearningPathCourses(learningPathData.id, courseIds);
+      console.log('✅ Course reorder successful');
+    } catch (error) {
+      console.error('❌ Error reordering courses:', error);
+      // Revert to original order on error
+      setLearningPathData({
+        ...learningPathData,
+        courses: learningPathData.courses
+      });
+    } finally {
+      setIsReordering(false);
+    }
+  };
 
   useEffect(() => {
-    const loadRoadmapDetail = async () => {
+    const loadLearningPathDetail = async () => {
       if (!id) {
         setError("ID lộ trình không hợp lệ");
         setIsLoading(false);
@@ -804,33 +996,103 @@ export function RoadmapDetailPage() {
       }
 
       try {
+        console.log('🔥 START loadLearningPathDetail - ID:', id);
+        
         setIsLoading(true);
         setError(null);
 
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         const token = localStorage.getItem('access_token');
+        
+        console.log('🔥 Auth Check - User:', user);
+        console.log('🔥 Auth Check - Token exists:', !!token);
+        console.log('🔥 Auth Check - user.id:', user.id);
+        console.log('🔥 Auth Check - user keys:', Object.keys(user));
+        console.log('🔥 Auth Check - Full user object:', JSON.stringify(user, null, 2));
+        
+        // Kiểm tra thêm các field có thể có
+        console.log('🔥 Auth Check - user.userId:', user.userId);
+        console.log('🔥 Auth Check - user.username:', user.username);
+        console.log('🔥 Auth Check - user.email:', user.email);
 
-        if (user.id && token) {
-          // Gọi API khi có user và token (hiện tại API chưa có)
-          await roadmapService.getRoadmapDetail(parseInt(id));
-          // Transform API response to match our interface
-          // Note: This will need to be updated when real API is available
+        // Chỉ cần token vì JWT đã chứa thông tin user
+        if (token) {
+          console.log('🔥 AUTH SUCCESS - Using API with token');
+          // Gọi API thực để lấy chi tiết learning path
+          const response = await roadmapService.getLearningPathDetail(parseInt(id));
+          console.log('🔥 Full API Response:', response);
+          
+          const apiData = response.data as unknown as LearningPathApiResponse;
+          console.log('🔥 API Data:', apiData);
+          console.log('🔥 API Courses:', apiData.courses);
+          
+          // Sử dụng trực tiếp dữ liệu từ API response
+          const coursesWithProgress = apiData.courses.map((course, index) => ({
+            ...course,
+            // Thêm progress và status mock tạm thời
+            progress: Math.floor(Math.random() * 100),
+            status: (index === 0 ? "in_progress" : "not_started") as "not_started" | "in_progress" | "completed"
+          })) as CourseWithDetails[];
+          
+          console.log('🔥 Courses With Progress:', coursesWithProgress);
+
+          const realData: LearningPathData = {
+            id: apiData.id,
+            title: apiData.title,
+            description: apiData.description,
+            targetLevel: apiData.targetLevel,
+            primaryGoal: apiData.primaryGoal,
+            focusSkill: apiData.focusSkill,
+            status: apiData.status,
+            duration: apiData.duration,
+            userId: apiData.userId,
+            username: apiData.username,
+            courses: coursesWithProgress,
+            rating: 4.8, // Mock rating
+            students: 3530, // Mock students
+            overallProgress: Math.round(
+              coursesWithProgress.reduce((sum: number, course: CourseWithDetails) => sum + (course.progress || 0), 0) / coursesWithProgress.length
+            ),
+            goals: mockLearningGoals, // Keep mock goals for now
+            nextCourses: mockNextCourses, // Keep mock next courses for now
+            stats: {
+              completedLessons: 37,
+              studyHours: 95,
+              streakDays: 12,
+            },
+          };
+          
+          console.log('🔥 Final Real Data:', realData);
+          console.log('🔥 Final Courses:', realData.courses);
+          
+          setLearningPathData(realData);
+          return;
         }
 
+        console.log('🚨 Using MOCK DATA - No token found');
+        console.log('🚨 User:', user);
+        console.log('🚨 Token:', token);
+        
         // Sử dụng mock data
         const overallProgress = Math.round(
-          mockCourseModules.reduce((sum, module) => sum + module.progress, 0) / mockCourseModules.length
+          mockCoursesWithDetails.reduce((sum, course) => sum + (course.progress || 0), 0) / mockCoursesWithDetails.length
         );
 
-        const mockData: RoadmapData = {
+        const mockData: LearningPathData = {
           id: parseInt(id),
           title: "Lộ trình N5 tiếng Nhật cơ bản",
           description: "Lộ trình học từng bước từ cơ bản đến nâng cao. Hiragana, Katakana và ngữ pháp cơ bản",
-          level: "N5",
+          targetLevel: "N5",
+          primaryGoal: "Đạt chứng chỉ JLPT N5",
+          focusSkill: "Toàn diện",
+          status: "STUDYING",
+          duration: 99,
+          userId: 1,
+          username: "new user",
           rating: 4.8,
           students: 3530,
           overallProgress,
-          modules: mockCourseModules,
+          courses: mockCoursesWithDetails,
           goals: mockLearningGoals,
           nextCourses: mockNextCourses,
           stats: {
@@ -840,16 +1102,16 @@ export function RoadmapDetailPage() {
           },
         };
 
-        setRoadmapData(mockData);
+        setLearningPathData(mockData);
       } catch (err) {
-        console.error('Error loading roadmap detail:', err);
+        console.error('Error loading learning path detail:', err);
         setError('Không thể tải chi tiết lộ trình học.');
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadRoadmapDetail();
+    loadLearningPathDetail();
   }, [id]);
 
   const getStatusBadge = (status: string) => {
@@ -879,8 +1141,8 @@ export function RoadmapDetailPage() {
     }
   };
 
-  const handleBackToRoadmap = () => {
-    navigate('/roadmap');
+  const handleBackToLearningPath = () => {
+    navigate('/learning-path');
   };
 
   if (isLoading) {
@@ -894,7 +1156,10 @@ export function RoadmapDetailPage() {
     );
   }
 
-  if (error || !roadmapData) {
+  console.log('🔥 RENDER - learningPathData:', learningPathData);
+  console.log('🔥 RENDER - courses:', learningPathData?.courses);
+
+  if (error || !learningPathData) {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="bg-white border-b border-gray-200 shadow-sm">
@@ -902,7 +1167,7 @@ export function RoadmapDetailPage() {
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
-                onClick={handleBackToRoadmap}
+                onClick={handleBackToLearningPath}
                 className="p-2 hover:bg-gray-100 text-gray-600"
               >
                 <ArrowLeft className="h-5 w-5" />
@@ -920,7 +1185,7 @@ export function RoadmapDetailPage() {
             <h3 className="font-semibold">Lỗi</h3>
             <p className="mt-2 text-sm">{error || "Không tìm thấy lộ trình học."}</p>
             <Button 
-              onClick={handleBackToRoadmap}
+              onClick={handleBackToLearningPath}
               className="mt-4"
               size="sm"
             >
@@ -940,7 +1205,7 @@ export function RoadmapDetailPage() {
           <div className="flex items-center space-x-4">
             <Button 
               variant="ghost" 
-              onClick={handleBackToRoadmap} 
+              onClick={handleBackToLearningPath} 
               className="flex items-center space-x-2"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -969,22 +1234,22 @@ export function RoadmapDetailPage() {
                       <BookOpen className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <h2 className="text-xl font-semibold text-gray-900">{roadmapData.title}</h2>
-                      <p className="text-gray-600 text-sm">{roadmapData.description}</p>
+                      <h2 className="text-xl font-semibold text-gray-900">{learningPathData.title}</h2>
+                      <p className="text-gray-600 text-sm">{learningPathData.description}</p>
                       <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
                         <span className="flex items-center gap-1">
                           <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                          {roadmapData.rating} ({roadmapData.students.toLocaleString()} đánh giá)
+                          {learningPathData.rating || 0} ({learningPathData.students?.toLocaleString() || 0} đánh giá)
                         </span>
                         <span className="flex items-center gap-1">
                           <Users className="h-4 w-4" />
-                          {roadmapData.students.toLocaleString()} học viên
+                          {learningPathData.students?.toLocaleString() || 0} học viên
                         </span>
                       </div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-blue-600">{roadmapData.overallProgress}%</div>
+                    <div className="text-2xl font-bold text-blue-600">{learningPathData.overallProgress}%</div>
                     <p className="text-sm text-gray-600">Hoàn thành</p>
                     <Button className="mt-2 bg-blue-600 hover:bg-blue-700">
                       <Play className="h-4 w-4 mr-2" />
@@ -995,93 +1260,41 @@ export function RoadmapDetailPage() {
               </CardContent>
             </Card>
 
-            {/* Course Modules */}
+            {/* Course Modules with Drag & Drop */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <BookOpen className="h-5 w-5" />
-                  <span>Lộ trình khóa học ({roadmapData.modules.length} khóa học)</span>
+                  <span>Danh sách khóa học ({learningPathData.courses.length} khóa học)</span>
+                  {isReordering && (
+                    <div className="flex items-center space-x-2 text-sm text-blue-600">
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      <span>Đang cập nhật thứ tự...</span>
+                    </div>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {roadmapData.modules.map((module, index) => (
-                  <div key={module.id} className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
-                    <div className="flex items-start space-x-4">
-                      {/* Module Number */}
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-sm font-medium text-blue-600">{index + 1}</span>
-                      </div>
-
-                      {/* Module Content */}
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <h3 className="font-semibold text-gray-900">{module.title}</h3>
-                            <p className="text-sm text-gray-600">{module.description}</p>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-lg font-bold text-gray-900">{module.progress}%</div>
-                            {getStatusBadge(module.status)}
-                          </div>
-                        </div>
-
-                        {/* Progress Bar */}
-                        <div className="mb-3">
-                          <Progress value={module.progress} className="h-2" />
-                        </div>
-
-                        {/* Module Info */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-4 text-xs text-gray-600">
-                            <Badge className={getLevelColor(module.level)}>{module.level}</Badge>
-                            <span className="flex items-center space-x-1">
-                              <Clock className="h-3 w-3" />
-                              <span>{module.estimatedTime}</span>
-                            </span>
-                            <span className="flex items-center space-x-1">
-                              <BookOpen className="h-3 w-3" />
-                              <span>{module.totalLessons} bài</span>
-                            </span>
-                            <span className="flex items-center space-x-1">
-                              <Star className="h-3 w-3" />
-                              <span>{module.rating}</span>
-                            </span>
-                          </div>
-
-                          <div className="flex space-x-2">
-                            {module.status === "in_progress" && (
-                              <Button 
-                                size="sm" 
-                                className="bg-blue-600 hover:bg-blue-700" 
-                                onClick={() => navigate(`/courses/${module.id}`)}
-                              >
-                                Tiếp tục
-                              </Button>
-                            )}
-                            {module.status === "not_started" && (
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => navigate(`/courses/${module.id}`)}
-                              >
-                                Bắt đầu
-                              </Button>
-                            )}
-                            {module.status === "completed" && (
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => navigate(`/courses/${module.id}`)}
-                              >
-                                Ôn tập
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                <DndContext 
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext 
+                    items={learningPathData.courses.map(course => course.courseId)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {learningPathData.courses.map((course) => (
+                      <SortableCourseItem
+                        key={course.courseId}
+                        course={course}
+                        getStatusBadge={getStatusBadge}
+                        getLevelColor={getLevelColor}
+                        navigate={navigate}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
               </CardContent>
             </Card>
 
@@ -1094,7 +1307,8 @@ export function RoadmapDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {roadmapData.nextCourses.map((course) => (
+                {learningPathData.nextCourses && learningPathData.nextCourses.length > 0 ? (
+                  learningPathData.nextCourses.map((course) => (
                   <div key={course.id} className="border rounded-lg p-4">
                     <div className="flex justify-between items-start">
                       <div>
@@ -1120,14 +1334,17 @@ export function RoadmapDetailPage() {
                       </div>
                     </div>
                   </div>
-                ))}
+                ))
+                ) : (
+                  <p className="text-gray-500 text-center py-4">Chưa có khóa học tiếp theo được đề xuất</p>
+                )}
               </CardContent>
             </Card>
           </div>
 
           {/* Sidebar */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Mini Roadmap Map */}
+            {/* Mini Learning Path Map */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
@@ -1136,7 +1353,7 @@ export function RoadmapDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <MiniRoadmapMap onStageClick={setCurrentStage} />
+                <MiniLearningPathMap onStageClick={setCurrentStage} />
               </CardContent>
             </Card>
 
@@ -1162,4 +1379,4 @@ export function RoadmapDetailPage() {
   );
 }
 
-export default RoadmapDetailPage;
+export default LearningPathDetailPage;

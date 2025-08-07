@@ -5,6 +5,7 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Badge } from "../components/ui/Badge";
 import { Alert } from "../components/ui/Alert";
+import { useToast } from "../hooks/useToast";
 import { roadmapService } from "../services/roadmapService";
 import type { LearningPath } from "../types/roadmap";
 import {
@@ -221,7 +222,7 @@ function ChatWidget() {
 }
 
 // Current Learning Roadmap Component
-function CurrentLearningRoadmap({ activePath }: { activePath: LearningPath | null }) {
+function CurrentLearningRoadmap({ activePath }: Readonly<{ activePath: LearningPath | null }>) {
   const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(0);
 
@@ -507,7 +508,7 @@ function CurrentLearningRoadmap({ activePath }: { activePath: LearningPath | nul
           <Button 
             variant="outline" 
             className="bg-white text-xs px-3 py-1"
-            onClick={() => navigate(`/roadmap-detail/${activePath.id}`)}
+            onClick={() => navigate(`/learning-path-detail/${activePath.id}`)}
           >
             Chi tiết
           </Button>
@@ -519,6 +520,7 @@ function CurrentLearningRoadmap({ activePath }: { activePath: LearningPath | nul
 
 export function LearningPathPage() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState("newest");
   const [modules, setModules] = useState<LearningModule[]>([]);
@@ -610,11 +612,11 @@ export function LearningPathPage() {
           title: path.title,
           description: path.description || "Không có mô tả",
           level: (path.targetLevel || 'N5') as "N5" | "N4" | "N3" | "N2" | "N1",
-          status: path.status as "PENDING" | "STUDYING" | "FINISHED",
+          status: path.status,
           // Các trường phụ có thể không có trong API response
           estimatedTime: `${path.duration || 0} ngày`,
           difficulty: (path.focusSkill === 'Cơ bản' || path.focusSkill === 'Trung bình' || path.focusSkill === 'Nâng cao') 
-            ? path.focusSkill as "Cơ bản" | "Trung bình" | "Nâng cao" 
+            ? path.focusSkill 
             : "Cơ bản",
           progress: 0,
           totalLessons: path.courses?.length || 0,
@@ -657,11 +659,13 @@ export function LearningPathPage() {
     setIsLoading(true);
     try {
       await roadmapService.setLearningPathActive(id);
+      showToast('success', 'Đã đặt lộ trình thành công!');
       // Sau khi đặt thành công, load lại dữ liệu
       await loadRoadmapData();
     } catch (error) {
       console.error("Error setting learning path active:", error);
       setError("Không thể đặt lộ trình thành đang học. Vui lòng thử lại sau.");
+      showToast('error', 'Không thể đặt lộ trình thành đang học');
     } finally {
       setIsLoading(false);
     }
@@ -746,7 +750,7 @@ export function LearningPathPage() {
             size="sm"
             variant="outline"
             className="text-gray-600 bg-white border text-xs px-2 py-1 h-7"
-            onClick={() => navigate(`/roadmap-detail/${module.id}`)}
+            onClick={() => navigate(`/learning-path-detail/${module.id}`)}
           >
             Chi tiết
           </Button>
