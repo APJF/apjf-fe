@@ -97,8 +97,9 @@ const StaffCreateCoursePage: React.FC = () => {
   }
 
   const handleFileSelect = (file: File) => {
-    if (file.size > 800 * 1024) { // 800KB limit
-      setError('Kích thước file không được vượt quá 800KB')
+    // Kiểm tra kích thước file (8MB limit)
+    if (file.size > 8 * 1024 * 1024) {
+      setError('Kích thước file không được vượt quá 8MB')
       return
     }
     
