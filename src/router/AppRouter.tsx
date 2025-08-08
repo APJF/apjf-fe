@@ -32,6 +32,7 @@ import StaffCreateExamPage from "../pages/StaffCreateExamPage";
 import StaffUpdateExamPage from "../pages/StaffUpdateExamPage";
 import StaffStudentFeedbackPage from "../pages/StaffStudentFeedbackPage";
 import StaffRequestsPage from "../pages/StaffRequestsPage";
+import ManagerApprovalRequestsPage from "../pages/ManagerApprovalRequestsPage";
 import { ExamPreparationPage } from '../pages/ExamPreparationPage';
 import { ExamDoingPage } from '../pages/ExamDoingPage';
 import { ExamResultPage } from '../pages/ExamResultPage';
@@ -169,6 +170,14 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute requiredRoles={["MANAGER", "ADMIN"]}>
         <ManagerDashboardPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/manager/approval-requests",
+    element: (
+      <ProtectedRoute requiredRoles={["MANAGER", "ADMIN"]}>
+        <ManagerApprovalRequestsPage />
       </ProtectedRoute>
     ),
   },

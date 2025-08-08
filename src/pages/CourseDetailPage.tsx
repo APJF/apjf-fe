@@ -108,8 +108,10 @@ export default function CourseDetailPage() {
       }
       
       if (chaptersRes.success) {
+        // Lọc chỉ lấy chapters có status ACTIVE
+        const activeChapters = chaptersRes.data.filter(chapter => chapter.status === "ACTIVE");
         // Sắp xếp chapters theo thứ tự prerequisite
-        const sortedChapters = sortChaptersByPrerequisite(chaptersRes.data);
+        const sortedChapters = sortChaptersByPrerequisite(activeChapters);
         setChapters(sortedChapters);
       } else {
         // Chapters không thành công không phải lỗi critical, chỉ log warning

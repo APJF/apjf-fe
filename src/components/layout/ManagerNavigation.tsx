@@ -1,23 +1,26 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  BarChart3,
-  BookOpen,
-  Plus,
+  TrendingUp,
   Users,
+  BookOpen,
+  DollarSign,
+  Award,
+  Calendar,
+  MessageSquare,
+  Settings,
   Menu,
   X,
   Home,
-  ChevronRight,
-  FileText,
   LogOut,
-  ChevronLeft
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { getAvatarText } from '../../lib/utils';
 
-interface StaffNavItemProps {
-  to: string;
+interface ManagerNavItemProps {
+  to?: string;
   icon: React.ReactNode;
   label: string;
   isActive: boolean;
@@ -25,7 +28,7 @@ interface StaffNavItemProps {
   isCollapsed: boolean;
 }
 
-const StaffNavItem: React.FC<StaffNavItemProps> = ({
+const ManagerNavItem: React.FC<ManagerNavItemProps> = ({
   to,
   icon,
   label,
@@ -33,11 +36,34 @@ const StaffNavItem: React.FC<StaffNavItemProps> = ({
   onClick,
   isCollapsed
 }) => {
+  if (to) {
+    return (
+      <Link
+        to={to}
+        onClick={onClick}
+        className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group ${
+          isActive
+            ? 'bg-red-50 text-red-700 border border-red-200'
+            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+        }`}
+        title={isCollapsed ? label : undefined}
+      >
+        <div className={`transition-colors ${
+          isActive ? 'text-red-600' : 'text-gray-400 group-hover:text-gray-600'
+        }`}>
+          {icon}
+        </div>
+        {!isCollapsed && (
+          <span className="font-medium">{label}</span>
+        )}
+      </Link>
+    );
+  }
+
   return (
-    <Link
-      to={to}
+    <button
       onClick={onClick}
-      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group ${
+      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 group ${
         isActive
           ? 'bg-red-50 text-red-700 border border-red-200'
           : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
@@ -52,16 +78,21 @@ const StaffNavItem: React.FC<StaffNavItemProps> = ({
       {!isCollapsed && (
         <span className="font-medium">{label}</span>
       )}
-      {isActive && !isCollapsed && <ChevronRight className="h-4 w-4 ml-auto text-red-500" />}
-    </Link>
+    </button>
   );
 };
 
-interface StaffNavigationProps {
+interface ManagerNavigationProps {
   children: React.ReactNode;
+  activeTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
-export const StaffNavigation: React.FC<StaffNavigationProps> = ({ children }) => {
+export const ManagerNavigation: React.FC<ManagerNavigationProps> = ({ 
+  children, 
+  activeTab,
+  onTabChange 
+}) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
@@ -71,33 +102,71 @@ export const StaffNavigation: React.FC<StaffNavigationProps> = ({ children }) =>
 
   const navigationItems = [
     {
-      to: '/staff/dashboard',
-      icon: <BarChart3 className="h-5 w-5" />,
-      label: 'Dashboard'
+      id: 'overview',
+      label: 'Tổng quan',
+      icon: <TrendingUp className="h-5 w-5" />,
+      to: '/manager/dashboard'
     },
     {
-      to: '/staff/courses',
+      id: 'users',
+      label: 'Quản lý người dùng',
+      icon: <Users className="h-5 w-5" />
+    },
+    {
+      id: 'approval-requests',
+      label: 'Phê duyệt yêu cầu',
       icon: <BookOpen className="h-5 w-5" />,
-      label: 'Courses'
+      to: '/manager/approval-requests'
     },
     {
-      to: '/staff/create-course',
-      icon: <Plus className="h-5 w-5" />,
-      label: 'Create Course'
+      id: 'revenue',
+      label: 'Doanh thu',
+      icon: <DollarSign className="h-5 w-5" />
     },
     {
-      to: '/staff/requests',
-      icon: <FileText className="h-5 w-5" />,
-      label: "My Requests"
+      id: 'instructors',
+      label: 'Giảng viên',
+      icon: <Award className="h-5 w-5" />
     },
     {
-      to: '/staff/student-feedback',
-      icon: <Users className="h-5 w-5" />,
-      label: "Student's Feedback"
+      id: 'schedule',
+      label: 'Lịch trình',
+      icon: <Calendar className="h-5 w-5" />
+    },
+    {
+      id: 'feedback',
+      label: 'Phản hồi',
+      icon: <MessageSquare className="h-5 w-5" />
+    },
+    {
+      id: 'settings',
+      label: 'Cài đặt',
+      icon: <Settings className="h-5 w-5" />
     }
   ];
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (itemId: string) => {
+    if (activeTab) {
+      return activeTab === itemId;
+    }
+    // Fallback for route-based navigation
+    if (itemId === 'overview') {
+      return location.pathname === '/manager/dashboard';
+    }
+    if (itemId === 'approval-requests') {
+      return location.pathname === '/manager/approval-requests';
+    }
+    return false;
+  };
+
+  const handleItemClick = (item: any) => {
+    if (item.to) {
+      navigate(item.to);
+    } else if (onTabChange) {
+      onTabChange(item.id);
+    }
+    setIsMobileMenuOpen(false);
+  };
 
   const handleLogout = () => {
     logout();
@@ -120,10 +189,10 @@ export const StaffNavigation: React.FC<StaffNavigationProps> = ({ children }) =>
             {!isCollapsed && (
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center">
-                  <BarChart3 className="h-5 w-5 text-white" />
+                  <TrendingUp className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-bold text-gray-900">Staff Panel</h1>
+                  <h1 className="text-lg font-bold text-gray-900">Manager Panel</h1>
                   <p className="text-xs text-gray-500">管理パネル</p>
                 </div>
               </div>
@@ -145,23 +214,23 @@ export const StaffNavigation: React.FC<StaffNavigationProps> = ({ children }) =>
                   {user?.avatar && !avatarError ? (
                     <img
                       src={user.avatar}
-                      alt={user?.username || 'Staff'}
+                      alt={user?.username || 'Manager'}
                       className="w-full h-full rounded-full object-cover"
                       onError={() => setAvatarError(true)}
                       onLoad={() => setAvatarError(false)}
                     />
                   ) : (
                     <span className="flex items-center justify-center w-full h-full">
-                      {getAvatarText(user?.username || 'Staff')}
+                      {getAvatarText(user?.username || 'Manager')}
                     </span>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900 truncate">{user?.username || 'Staff'}</p>
-                  <p className="text-sm text-gray-600 truncate">{user?.email || 'staff@example.com'}</p>
+                  <p className="font-medium text-gray-900 truncate">{user?.username || 'Manager'}</p>
+                  <p className="text-sm text-gray-600 truncate">{user?.email || 'manager@example.com'}</p>
                   <div className="mt-1">
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
-                      Staff
+                      Manager
                     </span>
                   </div>
                 </div>
@@ -174,12 +243,13 @@ export const StaffNavigation: React.FC<StaffNavigationProps> = ({ children }) =>
             
 
             {navigationItems.map((item) => (
-              <StaffNavItem
-                key={item.to}
+              <ManagerNavItem
+                key={item.id}
                 to={item.to}
                 icon={item.icon}
                 label={item.label}
-                isActive={isActive(item.to)}
+                isActive={isActive(item.id)}
+                onClick={() => handleItemClick(item)}
                 isCollapsed={isCollapsed}
               />
             ))}
@@ -214,10 +284,10 @@ export const StaffNavigation: React.FC<StaffNavigationProps> = ({ children }) =>
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center">
-              <BarChart3 className="h-5 w-5 text-white" />
+              <TrendingUp className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900">Staff Panel</h1>
+              <h1 className="text-lg font-bold text-gray-900">Manager Panel</h1>
             </div>
           </div>
           <button
@@ -251,22 +321,22 @@ export const StaffNavigation: React.FC<StaffNavigationProps> = ({ children }) =>
                     {user?.avatar && !avatarError ? (
                       <img
                         src={user.avatar}
-                        alt={user?.username || 'Staff'}
+                        alt={user?.username || 'Manager'}
                         className="w-full h-full rounded-full object-cover"
                         onError={() => setAvatarError(true)}
                         onLoad={() => setAvatarError(false)}
                       />
                     ) : (
                       <span className="flex items-center justify-center w-full h-full">
-                        {getAvatarText(user?.username || 'Staff')}
+                        {getAvatarText(user?.username || 'Manager')}
                       </span>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 truncate">{user?.username || 'Staff'}</p>
-                    <p className="text-sm text-gray-600 truncate">{user?.email || 'staff@example.com'}</p>
+                    <p className="font-medium text-gray-900 truncate">{user?.username || 'Manager'}</p>
+                    <p className="text-sm text-gray-600 truncate">{user?.email || 'manager@example.com'}</p>
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800 mt-1">
-                      Staff
+                      Manager
                     </span>
                   </div>
                 </div>
@@ -285,13 +355,13 @@ export const StaffNavigation: React.FC<StaffNavigationProps> = ({ children }) =>
 
               <nav className="space-y-2 mb-6">
                 {navigationItems.map((item) => (
-                  <StaffNavItem
-                    key={item.to}
+                  <ManagerNavItem
+                    key={item.id}
                     to={item.to}
                     icon={item.icon}
                     label={item.label}
-                    isActive={isActive(item.to)}
-                    onClick={() => setIsMobileMenuOpen(false)}
+                    isActive={isActive(item.id)}
+                    onClick={() => handleItemClick(item)}
                     isCollapsed={false}
                   />
                 ))}
