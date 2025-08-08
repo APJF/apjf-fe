@@ -24,9 +24,6 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronLeft,
-  Download,
-  ZoomIn,
-  ZoomOut,
   Play,
 } from 'lucide-react';
 
@@ -417,19 +414,28 @@ function StageUnitsView({ currentStage, setCurrentStage }: Readonly<{
   const allStages = generateUnits();
   const currentStageData = allStages.find((s) => s.id === currentStage);
 
-  // Auto-scroll logic
+  // Auto-scroll logic - Use scrollTop instead of scrollIntoView to avoid page interference
   useEffect(() => {
     if (currentStageData?.status === "in_progress" && unitContainerRef.current) {
       const completedUnits = Math.floor(currentStageData.units * 0.65);
       const currentUnitNumber = currentStageData.unitNumbers[0] + completedUnits;
       
       setTimeout(() => {
-        const currentUnitElement = document.querySelector(`[data-unit="${currentUnitNumber}"]`);
+        const currentUnitElement = document.querySelector(`[data-unit="${currentUnitNumber}"]`) as HTMLElement;
         if (currentUnitElement && unitContainerRef.current) {
-          currentUnitElement.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center',
-            inline: 'center'
+          // Use scrollTop on the container instead of scrollIntoView to prevent page scroll
+          const container = unitContainerRef.current;
+          
+          // Calculate relative position within container
+          const elementTop = currentUnitElement.offsetTop;
+          const containerHeight = container.clientHeight;
+          
+          // Scroll to center the element within the container
+          const scrollTop = elementTop - (containerHeight / 2);
+          
+          container.scrollTo({
+            top: scrollTop,
+            behavior: 'smooth'
           });
         }
       }, 100);
@@ -582,15 +588,114 @@ export default function ChapterDetailPage() {
 
   // Function to handle skill selection with auto-scroll
   const handleSkillSelect = (skillId: string) => {
+    console.log('🎯 handleSkillSelect called for:', skillId, 'current page scrollY:', window.scrollY);
     setSelectedSkill(skillId);
     
     // Auto scroll to top after skill selection (below header)
     setTimeout(() => {
+      console.log('📜 Scrolling to top 300, before scroll Y:', window.scrollY);
       window.scrollTo({
-        top: 0,
+        top: 300,
         behavior: 'smooth'
       });
+      setTimeout(() => {
+        console.log('📜 After scroll, current Y:', window.scrollY);
+      }, 500);
     }, 100);
+  };
+
+  // Navigation functions for skills
+  const getAllSkillsInOrder = () => {
+    const allSkills: Array<{ skillId: string; unitId: string; unitTitle: string; skillName: string; skillType: string }> = [];
+    
+    units.forEach(unit => {
+      unit.skills.forEach(skill => {
+        allSkills.push({
+          skillId: skill.id,
+          unitId: unit.id,
+          unitTitle: unit.title,
+          skillName: skill.name,
+          skillType: skill.type
+        });
+      });
+    });
+    
+    return allSkills;
+  };
+
+  const getCurrentSkillIndex = () => {
+    const allSkills = getAllSkillsInOrder();
+    return allSkills.findIndex(skill => skill.skillId === selectedSkill);
+  };
+
+  const handlePreviousSkill = () => {
+    console.log('⬅️ handlePreviousSkill called, current scrollY:', window.scrollY);
+    const allSkills = getAllSkillsInOrder();
+    const currentIndex = getCurrentSkillIndex();
+    
+    if (currentIndex > 0) {
+      const previousSkill = allSkills[currentIndex - 1];
+      
+      // Expand the unit containing the previous skill
+      setUnits(prev => prev.map(unit => ({
+        ...unit,
+        isExpanded: unit.id === previousSkill.unitId ? true : unit.isExpanded
+      })));
+      
+      handleSkillSelect(previousSkill.skillId);
+    }
+  };
+
+  const handleNextSkill = () => {
+    console.log('➡️ handleNextSkill called, current scrollY:', window.scrollY);
+    const allSkills = getAllSkillsInOrder();
+    const currentIndex = getCurrentSkillIndex();
+    
+    if (currentIndex < allSkills.length - 1) {
+      const nextSkill = allSkills[currentIndex + 1];
+      
+      // Expand the unit containing the next skill
+      setUnits(prev => prev.map(unit => ({
+        ...unit,
+        isExpanded: unit.id === nextSkill.unitId ? true : unit.isExpanded
+      })));
+      
+      handleSkillSelect(nextSkill.skillId);
+    } else {
+      // At the last skill - navigate to next chapter
+      navigate(`/courses/${courseId}`);
+    }
+  };
+
+  const isFirstSkill = () => getCurrentSkillIndex() === 0;
+  const isLastSkill = () => {
+    const allSkills = getAllSkillsInOrder();
+    return getCurrentSkillIndex() === allSkills.length - 1;
+  };
+
+  const isLastSkillOfUnit = () => {
+    const currentSkillData = getCurrentSkill();
+    if (!currentSkillData) return false;
+    
+    const unit = currentSkillData.unit;
+    const skillIndex = unit.skills.findIndex(skill => skill.id === selectedSkill);
+    return skillIndex === unit.skills.length - 1;
+  };
+
+  const isPracticeSkill = () => {
+    const currentSkillData = getCurrentSkill();
+    return currentSkillData?.skill.type === 'practice';
+  };
+
+  // Get button text for next skill navigation
+  const getNextButtonText = () => {
+    if (isPracticeSkill() && isLastSkillOfUnit() && !isLastSkill()) {
+      return 'Bài học tiếp theo';
+    }
+    if (isLastSkill()) {
+      return 'Chương tiếp theo';
+    }
+    return 'Kỹ năng tiếp theo';
   };
 
   useEffect(() => {
@@ -621,9 +726,13 @@ export default function ChapterDetailPage() {
           if (unitsRes.success) {
             console.log('📝 Processing units data:', unitsRes.data);
             
+            // Lọc chỉ lấy units có status ACTIVE
+            const activeUnits = unitsRes.data.filter((unit: Unit) => unit.status === 'ACTIVE');
+            console.log('🔍 Filtered active units:', activeUnits);
+            
             // Transform units với dữ liệu mới từ API
             const unitsWithSkills = await Promise.all(
-              unitsRes.data.map(async (unit: Unit, index: number) => {
+              activeUnits.map(async (unit: Unit) => {
                 try {
                   const materialsRes = await MaterialService.getMaterialsByUnit(unit.id);
                   const materials = materialsRes.success ? materialsRes.data : [];
@@ -638,7 +747,7 @@ export default function ChapterDetailPage() {
                     status: unit.status,
                     chapterId: unit.chapterId || chapterId || '',
                     prerequisiteUnitId: unit.prerequisiteUnitId,
-                    isExpanded: index === 0, // Mở unit đầu tiên
+                    isExpanded: false, // Will be set later based on completion status
                     isCompleted: unit.status === 'ACTIVE', // Unit active = completed
                     materials,
                     skills,
@@ -657,7 +766,7 @@ export default function ChapterDetailPage() {
                     status: unit.status,
                     chapterId: unit.chapterId || chapterId || '',
                     prerequisiteUnitId: unit.prerequisiteUnitId,
-                    isExpanded: index === 0,
+                    isExpanded: false, // Will be set later based on completion status
                     isCompleted: unit.status === 'ACTIVE',
                     materials: [],
                     skills: [],
@@ -673,12 +782,21 @@ export default function ChapterDetailPage() {
             const sortedUnits = sortUnitsByPrerequisite(unitsWithSkills);
             console.log('🔄 Units sorted by prerequisite:', sortedUnits);
             
-            setUnits(sortedUnits);
+            // Find first incomplete unit, or first unit if all completed
+            const firstIncompleteUnit = sortedUnits.find(unit => !unit.isCompleted) || sortedUnits[0];
             
-            // Set first skill as selected
-            if (sortedUnits.length > 0 && sortedUnits[0].skills.length > 0) {
-              setSelectedSkill(sortedUnits[0].skills[0].id);
-              console.log('🎯 Selected first skill:', sortedUnits[0].skills[0].id);
+            // Set the first incomplete unit as expanded
+            const unitsWithExpansion = sortedUnits.map(unit => ({
+              ...unit,
+              isExpanded: unit.id === firstIncompleteUnit?.id
+            }));
+            
+            setUnits(unitsWithExpansion);
+            
+            // Set first skill of the expanded unit as selected
+            if (firstIncompleteUnit && firstIncompleteUnit.skills.length > 0) {
+              setSelectedSkill(firstIncompleteUnit.skills[0].id);
+              console.log('🎯 Selected first skill of first incomplete unit:', firstIncompleteUnit.skills[0].id);
             }
           } else {
             console.error('❌ Units fetch failed:', unitsRes.message);
@@ -700,11 +818,15 @@ export default function ChapterDetailPage() {
   }, [chapterId]);
 
   const toggleUnit = (unitId: string) => {
+    console.log('🔧 toggleUnit called for:', unitId, 'current page scrollY:', window.scrollY);
     setUnits((prev) =>
       prev.map((unit) =>
         unit.id === unitId ? { ...unit, isExpanded: !unit.isExpanded } : unit
       )
     );
+    setTimeout(() => {
+      console.log('🔧 After toggleUnit, scrollY:', window.scrollY);
+    }, 200);
   };
 
   // Find current skill details
@@ -724,29 +846,16 @@ export default function ChapterDetailPage() {
   const currentMaterial = currentSkillData?.skill.materials?.[0] || null;
 
   // Zoom state for PDF viewer
-  const [zoomLevel, setZoomLevel] = useState(100);
+  const [zoomLevel] = useState(100);
 
-  const handleZoomIn = () => {
-    setZoomLevel(prev => Math.min(prev + 25, 200));
-  };
 
-  const handleZoomOut = () => {
-    setZoomLevel(prev => Math.max(prev - 25, 50));
-  };
-
-  const handleDownload = () => {
-    if (currentMaterial?.fileUrl) {
-      const link = document.createElement('a');
-      link.href = currentMaterial.fileUrl;
-      link.download = currentMaterial.description || 'learning-material.pdf';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
-  };
 
   const handleStageClick = (stageId: number) => {
+    console.log('🗺️ handleStageClick called for stage:', stageId, 'current scrollY:', window.scrollY);
     setCurrentStage(stageId);
+    setTimeout(() => {
+      console.log('🗺️ After handleStageClick, scrollY:', window.scrollY);
+    }, 200);
   };
 
   if (loading) {
@@ -838,22 +947,6 @@ export default function ChapterDetailPage() {
               </div>
             </div>
 
-            {currentSkillData && (
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 max-w-4xl mx-auto">
-                <div className="flex items-center justify-center gap-6">
-                  <div>
-                    <h2 className="text-2xl font-bold">{currentSkillData.unit.title}</h2>
-                    <p className="text-lg opacity-90">{currentSkillData.unit.description || 'Bài học tiếng Nhật'}</p>
-                  </div>
-                  <div className="text-center">
-                    <Badge className="bg-white/20 text-white border-white/30 mb-2">
-                      {currentSkillData.skill.name}
-                    </Badge>
-                    <p className="text-sm opacity-80">Kỹ năng đang học</p>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -861,7 +954,7 @@ export default function ChapterDetailPage() {
       {/* Main Content Area */}
       <div className="flex flex-1">
         {/* Left Sidebar - Units and Skills */}
-        <div className="w-80 bg-white shadow-lg border-r border-gray-200 flex flex-col">
+        <div className="w-80 bg-white shadow-lg border-r border-gray-200 flex flex-col h-screen">
           {/* Sidebar Header */}
           <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
             <h2 className="text-lg font-bold text-gray-900 mb-2">Danh sách bài học</h2>
@@ -869,7 +962,7 @@ export default function ChapterDetailPage() {
           </div>
 
           {/* Units List */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto max-h-[calc(100vh-120px)]">
             <div className="p-4 space-y-4">
               {units.map((unit) => (
                 <div key={unit.id} className="space-y-2">
@@ -954,42 +1047,6 @@ export default function ChapterDetailPage() {
                       </div>
                     )}
                   </div>
-
-                  {/* Center: Zoom Controls */}
-                  <div className="flex items-center gap-2 mx-4">
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      className="text-white hover:bg-gray-700"
-                      onClick={handleZoomOut}
-                      disabled={!currentMaterial}
-                    >
-                      <ZoomOut className="h-4 w-4" />
-                    </Button>
-                    <span className="text-sm px-2 min-w-[60px] text-center">{zoomLevel}%</span>
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      className="text-white hover:bg-gray-700"
-                      onClick={handleZoomIn}
-                      disabled={!currentMaterial}
-                    >
-                      <ZoomIn className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  {/* Right: Download Button */}
-                  <div className="flex items-center">
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      className="text-white hover:bg-gray-700"
-                      onClick={handleDownload}
-                      disabled={!currentMaterial}
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
-                  </div>
                 </div>
 
                 {/* PDF Content Area - No padding */}
@@ -1050,13 +1107,21 @@ export default function ChapterDetailPage() {
           {/* Bottom Action Bar */}
           <div className="bg-white border-t border-gray-200 p-6">
             <div className="flex items-center justify-between">
-              <Button variant="outline" className="flex items-center gap-2 bg-transparent">
+              <Button 
+                variant="outline" 
+                className="flex items-center gap-2 bg-transparent"
+                onClick={handlePreviousSkill}
+                disabled={isFirstSkill()}
+              >
                 <ArrowLeft className="h-4 w-4" />
                 Kỹ năng trước
               </Button>
 
-              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 text-white flex items-center gap-2">
-                Kỹ năng tiếp theo
+              <Button 
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white flex items-center gap-2"
+                onClick={handleNextSkill}
+              >
+                {getNextButtonText()}
                 <ArrowLeft className="h-4 w-4 rotate-180" />
               </Button>
             </div>

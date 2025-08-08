@@ -6,6 +6,7 @@ import { Badge } from "../components/ui/Badge"
 import { Avatar } from "../components/ui/Avatar"
 import { Alert } from "../components/ui/Alert"
 import { StaffNavigation } from "../components/layout/StaffNavigation"
+import { useAuth } from "../hooks/useAuth"
 import { 
   Search, 
   Clock, 
@@ -34,8 +35,8 @@ export function StaffRequestsPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 6
 
-  // Get user info from localStorage
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  // Use useAuth hook to get user info properly
+  const { user } = useAuth()
 
   // Fetch requests data
   const fetchRequests = async () => {
@@ -43,12 +44,28 @@ export function StaffRequestsPage() {
       setIsLoading(true)
       setError(null)
       
-      if (!user.id) {
+      if (!user?.id) {
         throw new Error('Không tìm thấy thông tin người dùng')
       }
 
       // Sử dụng API mới với createdBy filter
       const response = await approvalRequestService.getStaffRequests(user.id.toString())
+      console.log('📋 API Response:', response)
+      console.log('📋 Request Data:', response.data)
+      
+      // Validate data structure
+      if (response.data && Array.isArray(response.data)) {
+        response.data.forEach((item, index) => {
+          console.log(`Request ${index}:`, {
+            id: item.id,
+            targetTitle: item.targetTitle,
+            targetId: item.targetId,
+            createdBy: item.createdBy,
+            hasAllRequiredFields: !!(item.targetTitle && item.targetId && item.createdBy)
+          })
+        })
+      }
+      
       setRequests(response.data)
     } catch (err) {
       console.error('Error fetching requests:', err)
@@ -59,8 +76,10 @@ export function StaffRequestsPage() {
   }
 
   useEffect(() => {
-    fetchRequests()
-  }, [user.id])
+    if (user?.id) {
+      fetchRequests()
+    }
+  }, [user?.id])
 
   // Calculate statistics
   const stats = useMemo(() => {
@@ -76,9 +95,9 @@ export function StaffRequestsPage() {
   const filteredData = useMemo(() => {
     let filtered = requests.filter((item) => {
       const matchesSearch =
-        item.targetTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.targetId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.createdBy.toLowerCase().includes(searchTerm.toLowerCase())
+        (item.targetTitle?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (item.targetId?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (item.createdBy?.toLowerCase() || '').includes(searchTerm.toLowerCase())
 
       const matchesStatus = statusFilter === "all" || 
         (statusFilter === "PENDING" && item.decision === "PENDING") ||
@@ -189,7 +208,8 @@ export function StaffRequestsPage() {
     }
   }
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'N/A'
     return new Date(dateString).toLocaleDateString('vi-VN', {
       day: '2-digit',
       month: '2-digit',
@@ -207,6 +227,20 @@ export function StaffRequestsPage() {
       .join("")
       .toUpperCase()
       .slice(0, 2)
+  }
+
+  if (!user) {
+    return (
+      <StaffNavigation>
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-6">
+          <Alert className="max-w-md">
+            <XCircle className="h-4 w-4" />
+            <h3 className="font-semibold">Chưa đăng nhập</h3>
+            <p className="mt-2 text-sm">Vui lòng đăng nhập để xem danh sách yêu cầu.</p>
+          </Alert>
+        </div>
+      </StaffNavigation>
+    )
   }
 
   if (error) {

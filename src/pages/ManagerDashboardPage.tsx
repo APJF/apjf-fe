@@ -2,14 +2,8 @@ import { useState } from 'react';
 import { 
   Users, 
   BookOpen, 
-  TrendingUp, 
   DollarSign,
-  Calendar,
   Award,
-  MessageSquare,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
   Bell,
   Search,
   Plus,
@@ -23,85 +17,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
+import { ManagerNavigation } from '../components/layout/ManagerNavigation';
 import ManagerApprovalRequestsPage from './ManagerApprovalRequestsPage';
-
-// Navigation Sidebar Component
-function ManagerSidebar({ activeTab, setActiveTab, isCollapsed, setIsCollapsed }: Readonly<{
-  activeTab: string;
-  setActiveTab: (tab: string) => void;
-  isCollapsed: boolean;
-  setIsCollapsed: (collapsed: boolean) => void;
-}>) {
-  const menuItems = [
-    { id: 'overview', label: 'Tổng quan', icon: TrendingUp },
-    { id: 'users', label: 'Quản lý người dùng', icon: Users },
-    { id: 'approval-requests', label: 'Phê duyệt yêu cầu', icon: BookOpen },
-    { id: 'revenue', label: 'Doanh thu', icon: DollarSign },
-    { id: 'instructors', label: 'Giảng viên', icon: Award },
-    { id: 'schedule', label: 'Lịch trình', icon: Calendar },
-    { id: 'feedback', label: 'Phản hồi', icon: MessageSquare },
-    { id: 'settings', label: 'Cài đặt', icon: Settings },
-  ];
-
-  return (
-    <div className={`bg-white border-r border-gray-200 transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'} flex flex-col h-screen`}>
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        {!isCollapsed && (
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center">
-              <BookOpen className="h-5 w-5 text-white" />
-            </div>
-            <span className="font-bold text-gray-900">Manager Panel</span>
-          </div>
-        )}
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
-        >
-          {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
-        </button>
-      </div>
-
-      {/* Navigation Menu */}
-      <nav className="flex-1 p-2">
-        <div className="space-y-1">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center px-3 py-2 rounded-lg text-left transition-colors ${
-                  isActive 
-                    ? 'bg-red-50 text-red-700 border-r-2 border-red-600' 
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-                title={isCollapsed ? item.label : undefined}
-              >
-                <Icon className={`h-5 w-5 ${isActive ? 'text-blue-600' : 'text-gray-500'}`} />
-                {!isCollapsed && (
-                  <span className="ml-3 font-medium">{item.label}</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </nav>
-
-      {/* Footer */}
-      <div className="p-4 border-t border-gray-200">
-        {!isCollapsed && (
-          <div className="text-center">
-            <p className="text-xs text-gray-500">Manager Dashboard v1.0</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 // Overview Tab Component
 function OverviewTab() {
@@ -386,7 +303,6 @@ function SettingsTab() {
 // Main Manager Dashboard Component
 export function ManagerDashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
-  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -403,17 +319,8 @@ export function ManagerDashboardPage() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <ManagerSidebar 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab}
-        isCollapsed={isCollapsed}
-        setIsCollapsed={setIsCollapsed}
-      />
-
-      {/* Main Content */}
-      <div className="flex-1 overflow-hidden">
+    <ManagerNavigation activeTab={activeTab} onTabChange={setActiveTab}>
+      <div className="bg-gray-50">
         {/* Top Header */}
         <div className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
@@ -435,11 +342,11 @@ export function ManagerDashboardPage() {
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="p-6">
           {renderContent()}
         </div>
       </div>
-    </div>
+    </ManagerNavigation>
   );
 }
 

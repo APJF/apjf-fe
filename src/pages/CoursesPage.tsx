@@ -265,6 +265,9 @@ const CoursesPage: React.FC = () => {
   // Filtered and sorted courses
   const filteredAndSortedCourses = useMemo(() => {
     const filtered = allCourses.filter((course) => {
+      // Chỉ hiển thị courses có status ACTIVE
+      const isActive = course.status === "ACTIVE"
+      
       const matchesSearch =
         course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         course.description?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -273,7 +276,7 @@ const CoursesPage: React.FC = () => {
       
       const matchesRating = (course.averageRating || 0) >= minRating
 
-      return matchesSearch && matchesLevel && matchesRating
+      return isActive && matchesSearch && matchesLevel && matchesRating
     })
 
     filtered.sort((a, b) => {
