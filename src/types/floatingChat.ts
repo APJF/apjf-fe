@@ -1,19 +1,17 @@
-export interface Message {
+export interface FloatingMessage {
   id: string;
   content: string;
   role: "user" | "assistant";
   timestamp: Date;
-  isTyping?: boolean;
-  isEditing?: boolean;
 }
 
-export interface ChatSession {
+export interface FloatingChatSession {
   id: string;
   name: string;
   lastMessage: string;
   timestamp: Date;
   function: AIFunction;
-  messages: Message[];
+  messages: FloatingMessage[];
 }
 
 export interface AIFunction {

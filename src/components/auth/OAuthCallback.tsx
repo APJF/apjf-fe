@@ -43,20 +43,32 @@ const OAuthCallback: React.FC = () => {
       };
     }
 
-    // Xử lý callback thành công
-    const success = authService.handleGoogleCallback();
-    
-    if (success) {
-      showToast("success", "Đăng nhập Google thành công!");
-      redirectTimer = setTimeout(() => {
-        navigate('/', { replace: true });
-      }, 1000);
-    } else {
-      showToast("error", "Đăng nhập Google thất bại");
-      redirectTimer = setTimeout(() => {
-        navigate('/login', { replace: true });
-      }, 2000);
-    }
+    // Xử lý callback thành công với async/await
+    const handleCallback = async () => {
+      try {
+        const success = await authService.handleGoogleCallback();
+        
+        if (success) {
+          showToast("success", "Đăng nhập Google thành công!");
+          redirectTimer = setTimeout(() => {
+            navigate('/', { replace: true });
+          }, 1000);
+        } else {
+          showToast("error", "Đăng nhập Google thất bại");
+          redirectTimer = setTimeout(() => {
+            navigate('/login', { replace: true });
+          }, 2000);
+        }
+      } catch (error) {
+        console.error('Google OAuth callback error:', error);
+        showToast("error", "Có lỗi xảy ra trong quá trình đăng nhập");
+        redirectTimer = setTimeout(() => {
+          navigate('/login', { replace: true });
+        }, 2000);
+      }
+    };
+
+    handleCallback();
 
     return () => {
       if (redirectTimer) clearTimeout(redirectTimer);

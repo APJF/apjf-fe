@@ -309,95 +309,98 @@ function MiniRoadmapMap({ onStageClick }: Readonly<{ onStageClick: (stageId: num
   };
 
   return (
-    <div className="space-y-3">
-      <div
-        className="w-full h-48 bg-cover bg-center rounded-lg relative overflow-hidden"
-        style={{
-          backgroundImage: "url('/img/Roadmap.webp')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      >
-        {/* Stage markers - copy y hệt từ RoadmapPage */}
-        {stagesWithFixedPositions.map((stage, index) => (
-          <div
-            key={stage.id}
-            className="absolute transform -translate-x-1/2 -translate-y-1/2 z-10"
-            style={{
-              left: `${stage.position.x}%`,
-              top: `${stage.position.y}%`,
-            }}
-          >
-            {/* Connection line to next stage - giống y hệt RoadmapPage */}
+    <div className="space-y-2">
+      <div className="relative rounded-md overflow-hidden">
+        {/* Ảnh nền với tỷ lệ tự nhiên - tối giản padding */}
+        <img 
+          src="/img/Roadmap.webp" 
+          alt="Japan Roadmap" 
+          className="w-full h-auto object-contain"
+        />
+        
+        {/* Stage markers overlay */}
+        <div className="absolute inset-0">
+          {/* Stage markers - copy y hệt từ RoadmapPage */}
+          {stagesWithFixedPositions.map((stage, index) => (
             <div
-              className="absolute w-32 h-0.5 bg-blue-400 opacity-70"
+              key={stage.id}
+              className="absolute transform -translate-x-1/2 -translate-y-1/2 z-10"
               style={{
-                left: "50%",
-                top: "50%",
-                transform: index === 2 || index === 3 ? `rotate(-90deg)` : `rotate(90deg)`,
-                transformOrigin: "0 0",
+                left: `${stage.position.x}%`,
+                top: `${stage.position.y}%`,
               }}
-            />
+            >
+              {/* Connection line to next stage - giống y hệt RoadmapPage */}
+              <div
+                className="absolute w-32 h-0.5 bg-blue-400 opacity-70"
+                style={{
+                  left: "50%",
+                  top: "50%",
+                  transform: index === 2 || index === 3 ? `rotate(-90deg)` : `rotate(90deg)`,
+                  transformOrigin: "0 0",
+                }}
+              />
 
-            {/* Stage marker - giống y hệt RoadmapPage nhưng nhỏ hơn */}
-            <div className="flex flex-col items-center">
-              <button
-                className={`w-10 h-10 rounded-full border-2 ${getStageColor(stage.status)} flex items-center justify-center shadow-lg cursor-pointer hover:scale-110 transition-transform group relative`}
-                onClick={() => onStageClick(stage.id)}
-                aria-label={`Chọn chặng ${stage.id}: ${stage.title}`}
-              >
-                {getStageIcon(stage.status)}
-                
-                {/* Stage info tooltip - hiển thị khi hover - stage 3 sẽ hiển thị phía trên */}
-                <div className={`absolute left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-xl p-3 min-w-48 opacity-0 group-hover:opacity-100 transition-opacity z-30 border border-gray-200 pointer-events-none ${
-                  stage.id === 3 ? 'bottom-14' : 'top-14'
-                }`}>
-                  <div className="flex items-center space-x-2 mb-2">
-                    {getStageIcon(stage.status)}
-                    <span className="font-semibold text-xs text-gray-900">Chặng {stage.id}</span>
-                  </div>
-                  <h4 className="font-semibold text-gray-900 text-xs mb-1">{stage.title}</h4>
-                  <p className="text-xs text-gray-600 mb-2">{stage.description}</p>
-                  {stage.status === "in_progress" && (
-                    <div className="space-y-1 mb-2">
-                      <div className="flex justify-between text-xs">
-                        <span>Tiến độ</span>
-                        <span className="font-semibold text-blue-600">{stage.progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-1.5">
-                        <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: `${stage.progress}%` }} />
-                      </div>
+              {/* Stage marker - giống y hệt RoadmapPage nhưng nhỏ hơn */}
+              <div className="flex flex-col items-center">
+                <button
+                  className={`w-10 h-10 rounded-full border-2 ${getStageColor(stage.status)} flex items-center justify-center shadow-lg cursor-pointer hover:scale-110 transition-transform group relative`}
+                  onClick={() => onStageClick(stage.id)}
+                  aria-label={`Chọn chặng ${stage.id}: ${stage.title}`}
+                >
+                  {getStageIcon(stage.status)}
+                  
+                  {/* Stage info tooltip - hiển thị khi hover - stage 3 sẽ hiển thị phía trên */}
+                  <div className={`absolute left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-xl p-3 min-w-48 opacity-0 group-hover:opacity-100 transition-opacity z-30 border border-gray-200 pointer-events-none ${
+                    stage.id === 3 ? 'bottom-14' : 'top-14'
+                  }`}>
+                    <div className="flex items-center space-x-2 mb-2">
+                      {getStageIcon(stage.status)}
+                      <span className="font-semibold text-xs text-gray-900">Chặng {stage.id}</span>
                     </div>
-                  )}
-                  <div className={`text-xs font-medium px-2 py-1 rounded-full text-center ${getStageColor(stage.status)}`}>
-                    {getStatusTextLabel(stage.status)}
+                    <h4 className="font-semibold text-gray-900 text-xs mb-1">{stage.title}</h4>
+                    <p className="text-xs text-gray-600 mb-2">{stage.description}</p>
+                    {stage.status === "in_progress" && (
+                      <div className="space-y-1 mb-2">
+                        <div className="flex justify-between text-xs">
+                          <span>Tiến độ</span>
+                          <span className="font-semibold text-blue-600">{stage.progress}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5">
+                          <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: `${stage.progress}%` }} />
+                        </div>
+                      </div>
+                    )}
+                    <div className={`text-xs font-medium px-2 py-1 rounded-full text-center ${getStageColor(stage.status)}`}>
+                      {getStatusTextLabel(stage.status)}
+                    </div>
                   </div>
-                </div>
-              </button>
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
-      {/* Navigation buttons - giống y hệt RoadmapPage */}
+      {/* Navigation buttons - compact */}
       {totalPages > 1 && (
-        <div className="flex justify-center space-x-4 mt-4">
+        <div className="flex justify-center space-x-2 mt-2">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
             disabled={currentPage === 0}
-            className="bg-white"
+            className="bg-white text-xs px-2 py-1 h-7"
           >
-            ← Chặng trước
+            ← Trước
           </Button>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1">
             {Array.from({ length: totalPages }, (_, i) => (
               <button
                 key={i}
                 onClick={() => setCurrentPage(i)}
-                className={`w-2 h-2 rounded-full transition-colors ${
+                className={`w-1.5 h-1.5 rounded-full transition-colors ${
                   i === currentPage ? "bg-blue-600" : "bg-gray-300"
                 }`}
               />
@@ -409,9 +412,9 @@ function MiniRoadmapMap({ onStageClick }: Readonly<{ onStageClick: (stageId: num
             size="sm"
             onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
             disabled={currentPage === totalPages - 1}
-            className="bg-white"
+            className="bg-white text-xs px-2 py-1 h-7"
           >
-            Chặng sau →
+            Sau →
           </Button>
         </div>
       )}
@@ -517,29 +520,102 @@ function StageUnitsView({ currentStage, setCurrentStage }: Readonly<{
     const units = currentStageData.unitNumbers;
     let index = 0;
 
+    // Pattern: 1 unit → 2 units → 1 unit → 2 units...
+    // Hàng 0: 1 unit (unit 1)
+    // Hàng 1: 2 units (units 2,3) 
+    // Hàng 2: 1 unit (unit 4)
+    // Hàng 3: 2 units (units 5,6)...
     while (index < units.length) {
-      const isEvenRow = Math.floor(layout.length) % 2 === 0;
+      const isEvenRow = layout.length % 2 === 0;
       if (isEvenRow) {
-        const rowUnits = units.slice(index, index + 2);
-        layout.push(rowUnits);
-        index += 2;
-      } else {
+        // Hàng chẵn (0,2,4...): 1 unit
         const rowUnits = units.slice(index, index + 1);
         layout.push(rowUnits);
         index += 1;
+      } else {
+        // Hàng lẻ (1,3,5...): 2 units (nếu còn đủ)
+        if (index < units.length - 1) {
+          const rowUnits = units.slice(index, index + 2);
+          layout.push(rowUnits);
+          index += 2;
+        } else {
+          // Nếu chỉ còn 1 unit cuối thì vẫn cho vào hàng lẻ
+          const rowUnits = units.slice(index, index + 1);
+          layout.push(rowUnits);
+          index += 1;
+        }
       }
     }
     return layout;
   };
 
-const pathLayout = createPathLayout();
-const rowHeight = 100; // Chiều cao mỗi hàng
-// Tính số hàng dựa trên mô hình xen kẽ 2-1-2-1
-const numUnits = currentStageData.units;
-const numCycles = Math.floor(numUnits / 3); // Mỗi chu kỳ 2 hàng (2+1 unit)
-const remainingUnits = numUnits % 3;
-const numRows = remainingUnits === 0 ? numCycles * 2 : numCycles * 2 + 1;
-const contentHeight = numRows * rowHeight; // Chiều cao nội dung thực tế
+  const createZigzagPath = () => {
+    const pathCommands = [];
+    // Copy thuật toán với điểm bắt đầu và kết thúc ở giữa
+    const leftX = 100;   // 25% của 400
+    const centerX = 200; // 50% của 400 (điểm bắt đầu và kết thúc)
+    const rightX = 300;  // 75% của 400  
+    const radius = 40;   // radius cho các arc
+    
+    // Y positions cho từng hàng (120px apart)
+    const y1 = 60;   // hàng đầu: 1 unit ở giữa
+    const y2 = 180;  // hàng 2: 2 units (trái-phải)
+    const y3 = 300;  // hàng 3: 1 unit ở giữa
+    const y4 = 420;  // hàng 4: 2 units (trái-phải)
+    const y5 = 540;  // hàng 5: 1 unit ở giữa
+    const y6 = 660;  // hàng 6: 2 units (trái-phải)
+    const y7 = 780;  // hàng 7: 1 unit ở giữa
+    const y8 = 900;  // hàng 8: 2 units (trái-phải)
+    
+    // Bắt đầu từ giữa (unit đầu tiên)
+    pathCommands.push(`M ${centerX} ${y1}`);
+    
+    // Pattern theo layout thực tế
+    if (pathLayout.length > 1) {
+      // Từ giữa xuống hàng 2 (2 units): arc sang trái
+      pathCommands.push(`A ${radius} ${radius} 0 0 0 ${leftX} ${y2}`);
+      // Ngang qua phải
+      pathCommands.push(`L ${rightX} ${y2}`);
+    }
+    
+    if (pathLayout.length > 2) {
+      // Từ phải lên hàng 3 (1 unit ở giữa): arc về giữa
+      pathCommands.push(`A ${radius} ${radius} 0 0 1 ${centerX} ${y3}`);
+    }
+    
+    if (pathLayout.length > 3) {
+      // Từ giữa xuống hàng 4 (2 units): arc sang trái
+      pathCommands.push(`A ${radius} ${radius} 0 0 0 ${leftX} ${y4}`);
+      // Ngang qua phải
+      pathCommands.push(`L ${rightX} ${y4}`);
+    }
+    
+    if (pathLayout.length > 4) {
+      // Từ phải lên hàng 5 (1 unit ở giữa): arc về giữa
+      pathCommands.push(`A ${radius} ${radius} 0 0 1 ${centerX} ${y5}`);
+    }
+    
+    if (pathLayout.length > 5) {
+      // Từ giữa xuống hàng 6 (2 units): arc sang trái
+      pathCommands.push(`A ${radius} ${radius} 0 0 0 ${leftX} ${y6}`);
+      pathCommands.push(`L ${rightX} ${y6}`);
+    }
+    
+    if (pathLayout.length > 6) {
+      // Từ phải lên hàng 7 (1 unit ở giữa): arc về giữa
+      pathCommands.push(`A ${radius} ${radius} 0 0 1 ${centerX} ${y7}`);
+    }
+    
+    if (pathLayout.length > 7) {
+      // Từ giữa xuống hàng 8 (2 units): arc sang trái
+      pathCommands.push(`A ${radius} ${radius} 0 0 0 ${leftX} ${y8}`);
+      pathCommands.push(`L ${rightX} ${y8}`);
+    }
+
+    return pathCommands.join(' ');
+  };
+
+  const pathLayout = createPathLayout();
   
 // CSS Animation for Cherry Blossoms only - Optimized for performance
 const treeAnimationStyle = `
@@ -631,7 +707,7 @@ const treeAnimationStyle = `
         {/* Scrollable Container for Path and Units */}
         <div 
           ref={unitContainerRef}
-          className="relative z-10 h-full overflow-y-auto"
+          className="relative z-10 h-full overflow-y-auto p-6"
           style={{ 
             scrollBehavior: 'smooth'
           }}
@@ -639,122 +715,73 @@ const treeAnimationStyle = `
           {/* Add CSS Animation Styles for falling petals */}
           <style dangerouslySetInnerHTML={{ __html: treeAnimationStyle }} />
 
-          {/* SVG for Scrollable Path */}
+          {/* Units Path with Curved Design matching the sample */}
           <div className="relative">
-            <svg
-              className="w-full"
-              style={{ height: `${contentHeight}px` }}
-              viewBox={`0 0 400 ${contentHeight}`}
-              preserveAspectRatio="xMidYMin slice"
+            {/* SVG for curved path */}
+            <svg 
+              className="absolute inset-0 w-full h-full" 
+              style={{ height: `${pathLayout.length * 120}px` }}
+              viewBox={`0 0 400 ${pathLayout.length * 120}`}
+              preserveAspectRatio="none"
             >
-              {/* Road Path - Dynamic based on content with smooth curves */}
+              {/* Generate perfect zigzag path using optimized algorithm */}
               <path
-                d={(() => {
-                  const pathCommands = ['M130 0'];
-                  const numRows = pathLayout.length;
-                  const rowHeight = 100;
-                  const numPairs = Math.floor(numRows / 2);
-                  const hasExtraRow = numRows % 2 === 1;
-                  let startY = 0;
-                  let lastX = 130;
-
-                  for (let k = 0; k < numPairs; k++) {
-                    const y0 = 50 + 2 * k * rowHeight - 5 * k;
-                    const y1 = y0 + rowHeight;
-                    
-                    if (k === 0) {
-                      // Smooth curve from start to first position using Cubic Bezier
-                      pathCommands.push(`C125 ${y0 - 30}, 125 ${y0 - 15}, 130 ${y0}`);
-                    } else {
-                      // Smooth transition between rows using Cubic Bezier
-                      pathCommands.push(`C70 ${(startY + y0) / 2 - 20}, 70 ${(startY + y0) / 2 + 10}, 130 ${y0}`);
-                    }
-                    // Horizontal line with smooth curve to right side
-                    pathCommands.push(`C200 ${y0 - 5}, 240 ${y0 + 5}, 270 ${y0}`);
-                    // Smooth curve down the right side
-                    pathCommands.push(`C320 ${(y0 + y1) / 2 - 15}, 320 ${(y0 + y1) / 2 + 15}, 270 ${y1}`);
-                    // Horizontal line back to left with smooth curve  
-                    pathCommands.push(`C240 ${y1 + 5}, 200 ${y1 - 5}, 130 ${y1}`);
-                    startY = y1;
-                  }
-
-                  if (hasExtraRow) {
-                    const yLast = 50 + (2 * numPairs) * rowHeight;
-                    // Smooth curve to final row using Cubic Bezier
-                    pathCommands.push(`C115 ${(startY + yLast) / 2 - 15}, 125 ${(startY + yLast) / 2 + 15}, 130 ${yLast}`);
-                    pathCommands.push(`C200 ${yLast - 5}, 240 ${yLast + 5}, 270 ${yLast}`);
-                    lastX = 270;
-                  }
-
-                  // Smooth ending curve
-                  if (lastX === 270) {
-                    pathCommands.push(`C275 ${contentHeight - 30}, 275 ${contentHeight - 15}, 270 ${contentHeight}`);
-                  } else {
-                    pathCommands.push(`C125 ${contentHeight - 30}, 125 ${contentHeight - 15}, 130 ${contentHeight}`);
-                  }
-
-                  return pathCommands.join(' ');
-                })()}
-                fill="none"
-                stroke="#8B4513"
+                d={createZigzagPath()}
+                stroke="#D4AF37"
                 strokeWidth="8"
+                fill="none"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                opacity="0.9"
               />
-
-              {/* Falling Cherry Blossoms - Only in this scrollable area */}
-              {Array.from({ length: 40 }, (_, index) => {
-                const startX = Math.random() * 400;
-                const startY = Math.random() * contentHeight;
-                const size = 1.5 + Math.random() * 2.5;
-                const colors = ['#FFB6C1', '#FF69B4', '#FFC0CB', '#FFCCCB', '#FFE4E1', '#F8BBD9'];
-                const color = colors[Math.floor(Math.random() * colors.length)];
-                
-                return (
-                  <circle
-                    key={`petal-scrollable-${index}`}
-                    className="falling-petals"
-                    cx={startX}
-                    cy={startY}
-                    r={size}
-                    fill={color}
-                    fillOpacity="0.8"
-                    style={{
-                      animationDelay: `${Math.random() * 12}s`,
-                      animationDuration: `${8 + Math.random() * 6}s`,
-                    }}
-                  />
-                );
-              })}
             </svg>
 
-            {/* Path with Units */}
-            <div className="absolute top-0 left-0 w-full py-4" style={{ gap: '50px', display: 'flex', flexDirection: 'column' }}>
+            {/* Units positioned exactly on the zigzag path */}
+            <div className="relative space-y-8">
               {pathLayout.map((rowUnits, rowIndex) => (
-                <div key={`row-${rowIndex}-${rowUnits[0] || rowIndex}`} className="relative">
-                  <div className="flex items-center justify-center space-x-8">
-                    {rowUnits.map((unitNumber) => {
+                <div key={`row-${rowIndex}-${rowUnits[0] || rowIndex}`} className="relative h-24">
+                  {/* Position units at exact coordinates matching the path */}
+                  <div className="relative h-full">
+                    {rowUnits.map((unitNumber, unitIndex) => {
                       const status = getUnitStatus(unitNumber);
                       const isCurrentUnit = currentStageData.status === "in_progress" && 
                         unitNumber === currentStageData.unitNumbers[0] + Math.floor(currentStageData.units * 0.65);
 
+                      // Calculate position theo pattern 1-2-1-2
+                      let leftPosition;
+                      const rowIndex = rowUnits === pathLayout[0] ? 0 : pathLayout.findIndex(row => row === rowUnits);
+                      const isEvenRow = rowIndex % 2 === 0;
+                      
+                      if (isEvenRow) {
+                        // Hàng chẵn: 1 unit ở giữa (50%)
+                        leftPosition = '50%';
+                      } else {
+                        // Hàng lẻ: 2 units ở trái (25%) và phải (75%)
+                        leftPosition = unitIndex === 0 ? '25%' : '75%';
+                      }
+
                       return (
-                        <div key={unitNumber} className="relative">
+                        <div 
+                          key={unitNumber} 
+                          className="absolute top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10"
+                          style={{ left: leftPosition }}
+                        >
+                          {/* Unit Circle */}
                           <div
                             data-unit={unitNumber}
-                            className={`w-12 h-12 rounded-full border-4 flex items-center justify-center font-bold text-sm shadow-lg cursor-pointer hover:scale-110 transition-transform relative bg-white ${getUnitStatusClass(status)} ${
+                            className={`w-16 h-16 rounded-full border-4 flex items-center justify-center font-bold text-lg shadow-lg cursor-pointer hover:scale-110 transition-transform relative bg-white ${getUnitStatusClass(status)} ${
                               isCurrentUnit ? 'ring-4 ring-blue-300 ring-opacity-50 animate-pulse' : ''
                             }`}
                           >
                             {unitNumber}
                             {status === "completed" && (
-                              <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                                <CheckCircle className="w-2 h-2 text-white" />
+                              <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                                <CheckCircle className="w-3 h-3 text-white" />
                               </div>
                             )}
                             {isCurrentUnit && (
-                              <div className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center animate-bounce">
-                                <Play className="w-3 h-3 text-white" />
+                              <div className="absolute -top-2 -right-2 w-7 h-7 bg-blue-500 rounded-full flex items-center justify-center animate-bounce">
+                                <Play className="w-4 h-4 text-white" />
                               </div>
                             )}
                           </div>
@@ -957,9 +984,9 @@ export function RoadmapDetailPage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-10 gap-4">
           {/* Main Content */}
-          <div className="lg:col-span-4 space-y-6">
+          <div className="lg:col-span-6 space-y-6">
             {/* Course Overview */}
             <Card className="border-blue-200 bg-blue-50">
               <CardContent className="p-6">
@@ -1126,19 +1153,15 @@ export function RoadmapDetailPage() {
           </div>
 
           {/* Sidebar */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Mini Roadmap Map */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <BookOpen className="h-5 w-5" />
-                  <span>Lộ trình tổng quan</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <MiniRoadmapMap onStageClick={setCurrentStage} />
-              </CardContent>
-            </Card>
+          <div className="lg:col-span-4 space-y-4">
+            {/* Mini Roadmap Map - Simplified without card wrapper */}
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-gray-900 flex items-center space-x-1">
+                <BookOpen className="h-4 w-4" />
+                <span>Lộ trình tổng quan</span>
+              </h3>
+              <MiniRoadmapMap onStageClick={setCurrentStage} />
+            </div>
 
             {/* Current Stage Units */}
             <Card>
