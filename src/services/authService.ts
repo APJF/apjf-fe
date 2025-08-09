@@ -364,36 +364,45 @@ class AuthService {
   }
 
   /**
-   * Cập nhật thông tin profile
+   * Cập nhật thông tin profile (không bao gồm avatar)
    */
   async updateProfile(data: UpdateProfileData): Promise<UpdateProfileResponse> {
     try {
-      const response = await api.post<UpdateProfileResponse>("/users/profile", data)
+      // Loại bỏ avatar khỏi data để không cập nhật avatar
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { avatar, ...profileDataWithoutAvatar } = data;
       
-      // Cập nhật user info trong localStorage nếu thành công
+      const response = await api.put<UpdateProfileResponse>("/users/profile", profileDataWithoutAvatar)
+      
+      // Sau khi update thành công, gọi GET để refresh thông tin user
       if (response.data.success) {
-        const currentUser = this.getCurrentUser()
-        if (currentUser) {
-          const updatedUser = {
-            ...currentUser,
-            email: data.email,
-            username: data.username,
-            phone: data.phone,
-            // Chỉ update avatar nếu có avatar mới và là full URL, không thì giữ nguyên
-            // Tránh việc cập nhật với object name thay vì full URL
-            avatar: (data.avatar && (data.avatar.startsWith('http://') || data.avatar.startsWith('https://'))) 
-              ? data.avatar 
-              : currentUser.avatar
-          }
-          
-          console.log('Updating localStorage with user:', updatedUser);
-          localStorage.setItem("userInfo", JSON.stringify(updatedUser))
-          
-          // Dispatch event để notify các component khác
-          window.dispatchEvent(new CustomEvent('authStateChanged', {
-            detail: { user: updatedUser, isAuthenticated: true }
-          }))
+        console.log('✅ Profile updated successfully, refreshing user info...');
+        await this.refreshUserInfo();
+      }
+      
+      return response.data
+    } catch (error) {
+      if (error && typeof error === "object" && "response" in error) {
+        const axiosError = error as { response?: { data?: UpdateProfileResponse } }
+        if (axiosError.response?.data) {
+          return axiosError.response.data
         }
+      }
+      throw error
+    }
+  }
+
+  /**
+   * Cập nhật profile chỉ với các field cơ bản (email, username, phone) - không bao gồm avatar
+   */
+  async updateBasicProfile(data: { email: string; username: string; phone?: string }): Promise<UpdateProfileResponse> {
+    try {
+      const response = await api.put<UpdateProfileResponse>("/users/profile", data)
+      
+      // Sau khi update thành công, gọi GET để refresh thông tin user
+      if (response.data.success) {
+        console.log('✅ Basic profile updated successfully, refreshing user info...');
+        await this.refreshUserInfo();
       }
       
       return response.data
@@ -424,17 +433,19 @@ class AuthService {
         username: currentProfile.username,
         email: currentProfile.email,
         phone: currentProfile.phone || '', // Provide default empty string
-        avatar: avatarObjectName
+        avatar: avatarObjectName // Lưu object name trực tiếp, không phải URL
       };
       
-      console.log('📤 Updating profile with new avatar:', updateData);
-      const updateResponse = await this.updateProfile(updateData);
+      console.log('📤 Updating profile with new avatar object name:', updateData);
+      const response = await api.put<UpdateProfileResponse>("/users/profile", updateData);
       
-      if (updateResponse.success) {
+      if (response.data.success) {
         console.log('✅ Profile updated successfully with new avatar');
+        // Gọi GET để refresh thông tin user sau khi update
+        await this.refreshUserInfo();
         return true;
       } else {
-        console.error('❌ Failed to update profile with new avatar:', updateResponse.message);
+        console.error('❌ Failed to update profile with new avatar:', response.data.message);
         return false;
       }
     } catch (error) {
@@ -496,7 +507,7 @@ class AuthService {
   /**
    * Xử lý callback từ Google OAuth2
    */
-  handleGoogleCallback(): boolean {
+  async handleGoogleCallback(): Promise<boolean> {
     const urlParams = new URLSearchParams(window.location.search)
     const access_token = urlParams.get('token') || ''
     const refresh_token = urlParams.get('refreshToken') || ''
@@ -504,26 +515,52 @@ class AuthService {
     const username = urlParams.get('username')
 
     if (access_token && refresh_token && email && username) {
-      // Tạo userInfo object
-      const userInfo: UserInfo = {
-        id: 0, // Temporary ID, backend sẽ provide proper ID
-        email,
-        username,
-        avatar: '',
-        roles: ['ROLE_USER'] // Default role
+      try {
+        // Lưu tokens trước
+        localStorage.setItem('access_token', access_token)
+        localStorage.setItem('refresh_token', refresh_token)
+        
+        console.log('✅ Google OAuth tokens saved, fetching user profile...');
+        
+        // Gọi getProfile để lấy thông tin đầy đủ từ backend, bao gồm avatar
+        const profileResponse = await this.getProfile();
+        
+        if (profileResponse.success && profileResponse.data) {
+          const profileData = profileResponse.data;
+          
+          // Tạo userInfo object với thông tin đầy đủ từ backend
+          const userInfo: UserInfo = {
+            id: profileData.id,
+            email: profileData.email,
+            username: profileData.username,
+            avatar: profileData.avatar || '', // Lấy avatar từ backend
+            roles: profileData.authorities || ['ROLE_USER'] // Map authorities to roles
+          }
+
+          // Lưu userInfo đầy đủ
+          localStorage.setItem('userInfo', JSON.stringify(userInfo))
+          
+          // Dispatch auth state change event
+          window.dispatchEvent(new CustomEvent('authStateChanged', {
+            detail: { user: userInfo, isAuthenticated: true }
+          }))
+
+          console.log('✅ Google OAuth login successful with full profile:', userInfo.username);
+          return true;
+        } else {
+          console.error('❌ Failed to fetch profile after Google OAuth:', profileResponse.message);
+          // Clear tokens nếu không lấy được profile
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          return false;
+        }
+      } catch (profileError) {
+        console.error('❌ Profile fetch error after Google OAuth:', profileError);
+        // Clear tokens nếu lỗi
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        return false;
       }
-
-      // Lưu tokens và userInfo
-      localStorage.setItem('access_token', access_token)
-      localStorage.setItem('refresh_token', refresh_token)
-      localStorage.setItem('userInfo', JSON.stringify(userInfo))
-      
-      // Dispatch auth state change event
-      window.dispatchEvent(new CustomEvent('authStateChanged', {
-        detail: { user: userInfo, isAuthenticated: true }
-      }))
-
-      return true
     }
 
     // Xử lý error case

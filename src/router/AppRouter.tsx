@@ -8,7 +8,7 @@ import CoursesPage from "../pages/CoursesPage";
 import CourseDetailPage from "../pages/CourseDetailPage";
 import ChapterDetailPage from "../pages/ChapterDetailPage";
 import LearningPathPage from "../pages/LearningPathPage";
-import LearningPathDetailPage from "../pages/LearningPathDetailPage";
+import RoadmapDetailPage from "../pages/LearningPathDetailPage";
 import LoginPage from "../pages/LoginPage";
 import RegisterPage from "../pages/RegisterPage";
 import ForgotPasswordPage from "../pages/ForgotPasswordPage";
@@ -76,10 +76,10 @@ const router = createBrowserRouter([
     ),
   },
   {
-    path: "/learning-path-detail/:id",
+    path: "/roadmap-detail/:id",
     element: (
       <Layout>
-        <LearningPathDetailPage />
+        <RoadmapDetailPage />
       </Layout>
     ),
   },
@@ -332,7 +332,7 @@ const router = createBrowserRouter([
   },
   // Alias for backward compatibility
   {
-    path: "/learning-path",
+    path: "/roadmap",
     element: (
       <Layout>
         <LearningPathPage />

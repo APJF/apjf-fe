@@ -42,7 +42,7 @@ api.interceptors.request.use(
 
     return config;
   },
-  (error: Error) => {
+  (error) => {
     return Promise.reject(error);
   }
 );
@@ -81,7 +81,7 @@ api.interceptors.response.use(
           }
           return api(originalRequest);
         })
-        .catch((err: Error) => {
+        .catch(err => {
           return Promise.reject(err);
         });
       }
@@ -95,7 +95,7 @@ api.interceptors.response.use(
         localStorage.clear();
         window.location.href = '/login';
         isRefreshing = false;
-        return Promise.reject(new Error('No refresh token available'));
+        return Promise.reject(error);
       }
 
       try {
@@ -129,20 +129,17 @@ api.interceptors.response.use(
             data: err.response?.data,
             message: err.message,
         });
-        const errorToReject = refreshError instanceof Error 
-            ? refreshError 
-            : new Error(err.message || 'Token refresh failed');
-        processQueue(errorToReject, null);
+        processQueue(err, null);
         localStorage.clear();
         window.location.href = '/login';
-        return Promise.reject(errorToReject);
+        return Promise.reject(refreshError);
 
       } finally {
         isRefreshing = false;
       }
     }
 
-    return Promise.reject(error instanceof Error ? error : new Error('Unknown error'));
+    return Promise.reject(error);
   }
 );
 

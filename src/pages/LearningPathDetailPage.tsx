@@ -18,62 +18,23 @@ import {
   TrendingUp,
   RefreshCw,
   AlertCircle,
-  Users,
-  GripVertical
+  Users
 } from "lucide-react";
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
-import type { DragEndEvent } from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 
-// Interfaces phù hợp với API response thực tế
-interface CourseInPath {
-  courseId: string;
-  learningPathId: number;
-  courseOrderNumber: number;
-  title: string;
-  description: string | null;
-  duration: number;
-  level: string;
-}
-
-interface CourseWithDetails extends CourseInPath {
-  // Additional fields for display
-  instructor?: string;
-  rating?: number;
-  students?: number;
-  totalLessons?: number;
-  progress?: number;
-  status?: "not_started" | "in_progress" | "completed";
-}
-
-interface LearningPathApiResponse {
+interface CourseModule {
   id: number;
   title: string;
   description: string;
-  targetLevel: string;
-  primaryGoal: string;
-  focusSkill: string;
-  status: "PENDING" | "STUDYING" | "FINISHED";
-  duration: number;
-  userId: number;
-  username: string;
-  createdAt: string;
-  lastUpdatedAt: string;
-  courses: CourseInPath[]; // This matches the actual API response structure
+  level: "N5" | "N4" | "N3" | "N2" | "N1";
+  progress: number;
+  totalLessons: number;
+  completedLessons: number;
+  estimatedTime: string;
+  difficulty: "Cơ bản" | "Trung bình" | "Nâng cao";
+  status: "not_started" | "in_progress" | "completed";
+  rating: number;
+  students: number;
+  instructor: string;
 }
 
 interface LearningGoal {
@@ -94,24 +55,18 @@ interface NextCourse {
   rating: number;
 }
 
-interface LearningPathData {
+interface RoadmapData {
   id: number;
   title: string;
   description: string;
-  targetLevel: string;
-  primaryGoal: string;
-  focusSkill: string;
-  status: "PENDING" | "STUDYING" | "FINISHED";
-  duration: number;
-  userId: number;
-  username: string;
-  rating?: number;
-  students?: number;
-  overallProgress?: number;
-  courses: CourseWithDetails[];
-  goals?: LearningGoal[];
-  nextCourses?: NextCourse[];
-  stats?: {
+  level: "N5" | "N4" | "N3" | "N2" | "N1";
+  rating: number;
+  students: number;
+  overallProgress: number;
+  modules: CourseModule[];
+  goals: LearningGoal[];
+  nextCourses: NextCourse[];
+  stats: {
     completedLessons: number;
     studyHours: number;
     streakDays: number;
@@ -119,51 +74,81 @@ interface LearningPathData {
 }
 
 // Mock data for development
-const mockCoursesWithDetails: CourseWithDetails[] = [
+const mockCourseModules: CourseModule[] = [
   {
-    courseId: "JPD111",
-    learningPathId: 1,
-    courseOrderNumber: 1,
+    id: 1,
     title: "Tiếng Nhật N5 - Cơ bản",
     description: "Khóa học tổng hợp về tiếng Nhật cơ bản cho người mới bắt đầu",
     level: "N5",
     progress: 40,
     totalLessons: 45,
-    duration: 40,
+    completedLessons: 18,
+    estimatedTime: "40 giờ",
+    difficulty: "Cơ bản",
     status: "in_progress",
     rating: 4.8,
     students: 1250,
     instructor: "Sensei Tanaka",
   },
   {
-    courseId: "JPD112",
-    learningPathId: 1,
-    courseOrderNumber: 2,
+    id: 2,
     title: "Kanji cơ bản - 300 chữ Hán đầu tiên",
     description: "Học thuộc 300 chữ Kanji cơ bản nhất trong tiếng Nhật",
     level: "N5",
     progress: 65,
     totalLessons: 30,
-    duration: 25,
+    completedLessons: 19,
+    estimatedTime: "25 giờ",
+    difficulty: "Cơ bản",
     status: "in_progress",
     rating: 4.7,
     students: 890,
     instructor: "Sensei Yamada",
   },
   {
-    courseId: "JPD113",
-    learningPathId: 1,
-    courseOrderNumber: 3,
+    id: 3,
     title: "Tiếng Nhật N4 - Sơ cấp",
     description: "Nâng cao kỹ năng tiếng Nhật lên trình độ N4",
     level: "N4",
     progress: 0,
     totalLessons: 50,
-    duration: 50,
+    completedLessons: 0,
+    estimatedTime: "50 giờ",
+    difficulty: "Trung bình",
     status: "not_started",
     rating: 4.6,
     students: 650,
     instructor: "Sensei Sato",
+  },
+  {
+    id: 4,
+    title: "Giao tiếp tiếng Nhật hàng ngày",
+    description: "Luyện tập giao tiếp trong các tình huống thực tế",
+    level: "N4",
+    progress: 0,
+    totalLessons: 35,
+    completedLessons: 0,
+    estimatedTime: "30 giờ",
+    difficulty: "Trung bình",
+    status: "not_started",
+    rating: 4.5,
+    students: 420,
+    instructor: "Sensei Kimura",
+  },
+  {
+    id: 5,
+    title: "Tiếng Nhật N3 - Trung cấp",
+    description: "Khóa học nâng cao cho trình độ N3",
+    level: "N3",
+    progress: 0,
+    totalLessons: 60,
+    completedLessons: 0,
+    estimatedTime: "60 giờ",
+    difficulty: "Nâng cao",
+    status: "not_started",
+    rating: 4.4,
+    students: 320,
+    instructor: "Sensei Watanabe",
   },
 ];
 
@@ -210,132 +195,12 @@ const mockNextCourses: NextCourse[] = [
   },
 ];
 
-// Sortable Course Item Component
-function SortableCourseItem({ 
-  course, 
-  getStatusBadge, 
-  getLevelColor, 
-  navigate 
-}: Readonly<{
-  course: CourseWithDetails;
-  getStatusBadge: (status: string) => React.ReactElement;
-  getLevelColor: (level: string) => string;
-  navigate: (path: string) => void;
-}>) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({ id: course.courseId });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <div 
-      ref={setNodeRef} 
-      style={style}
-      className={`border rounded-lg p-4 hover:shadow-sm transition-shadow ${isDragging ? 'shadow-lg' : ''}`}
-    >
-      <div className="flex items-start space-x-4">
-        {/* Drag Handle */}
-        <div 
-          {...attributes} 
-          {...listeners}
-          className="flex items-center justify-center w-6 h-6 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing mt-1"
-        >
-          <GripVertical className="h-4 w-4" />
-        </div>
-
-        {/* Course Number */}
-        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-          <span className="text-sm font-medium text-blue-600">{course.courseOrderNumber}</span>
-        </div>
-
-        {/* Course Content */}
-        <div className="flex-1">
-          <div className="flex justify-between items-start mb-2">
-            <div>
-              <h3 className="font-semibold text-gray-900">{course.title || course.courseId}</h3>
-              <p className="text-sm text-gray-600">{course.description || `Khóa học ${course.courseId}`}</p>
-            </div>
-            <div className="text-right">
-              <div className="text-lg font-bold text-gray-900">{course.progress || 0}%</div>
-              {getStatusBadge(course.status || "not_started")}
-            </div>
-          </div>
-
-          {/* Progress Bar */}
-          <div className="mb-3">
-            <Progress value={course.progress || 0} className="h-2" />
-          </div>
-
-          {/* Course Info */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4 text-xs text-gray-600">
-              <Badge className={getLevelColor(course.level || "N5")}>{course.level || "N5"}</Badge>
-              <span className="flex items-center space-x-1">
-                <Clock className="h-3 w-3" />
-                <span>{course.duration || 30} giờ</span>
-              </span>
-              <span className="flex items-center space-x-1">
-                <BookOpen className="h-3 w-3" />
-                <span>{course.totalLessons || 0} bài</span>
-              </span>
-              <span className="flex items-center space-x-1">
-                <Star className="h-3 w-3" />
-                <span>{course.rating || 0}</span>
-              </span>
-            </div>
-
-            <div className="flex space-x-2">
-              {course.status === "in_progress" && (
-                <Button 
-                  size="sm" 
-                  className="bg-blue-600 hover:bg-blue-700" 
-                  onClick={() => navigate(`/courses/${course.courseId}`)}
-                >
-                  Tiếp tục
-                </Button>
-              )}
-              {course.status === "not_started" && (
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={() => navigate(`/courses/${course.courseId}`)}
-                >
-                  Bắt đầu
-                </Button>
-              )}
-              {course.status === "completed" && (
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={() => navigate(`/courses/${course.courseId}`)}
-                >
-                  Ôn tập
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Mini Learning Path Map Component - Copy từ LearningPathPage với đầy đủ logic
-function MiniLearningPathMap({ onStageClick }: Readonly<{ onStageClick: (stageId: number) => void }>) {
+// Mini Roadmap Map Component - Copy từ RoadmapPage với đầy đủ logic
+function MiniRoadmapMap({ onStageClick }: Readonly<{ onStageClick: (stageId: number) => void }>) {
   const [currentPage, setCurrentPage] = useState(0);
 
-  // Sample learning path data with stages - giống y hệt LearningPathPage
-  const learningPathStages = [
+  // Sample roadmap data with stages - giống y hệt RoadmapPage
+  const roadmapStages = [
     {
       id: 1,
       title: "Hiragana & Katakana",
@@ -387,10 +252,10 @@ function MiniLearningPathMap({ onStageClick }: Readonly<{ onStageClick: (stageId
   ];
 
   const stagesPerPage = 4;
-  const totalPages = Math.ceil(learningPathStages.length / stagesPerPage);
-  const currentStages = learningPathStages.slice(currentPage * stagesPerPage, (currentPage + 1) * stagesPerPage);
+  const totalPages = Math.ceil(roadmapStages.length / stagesPerPage);
+  const currentStages = roadmapStages.slice(currentPage * stagesPerPage, (currentPage + 1) * stagesPerPage);
 
-  // Cố định vị trí cho 4 stages trên mỗi trang - giống y hệt LearningPathPage
+  // Cố định vị trí cho 4 stages trên mỗi trang - giống y hệt RoadmapPage
   const fixedPositions = [
     { x: 20, y: 40 },  // Stage 1
     { x: 44, y: 54 },  // Stage 2
@@ -444,95 +309,98 @@ function MiniLearningPathMap({ onStageClick }: Readonly<{ onStageClick: (stageId
   };
 
   return (
-    <div className="space-y-3">
-      <div
-        className="w-full h-48 bg-cover bg-center rounded-lg relative overflow-hidden"
-        style={{
-          backgroundImage: "url('/img/Roadmap.webp')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      >
-        {/* Stage markers - copy y hệt từ LearningPathPage */}
-        {stagesWithFixedPositions.map((stage, index) => (
-          <div
-            key={stage.id}
-            className="absolute transform -translate-x-1/2 -translate-y-1/2 z-10"
-            style={{
-              left: `${stage.position.x}%`,
-              top: `${stage.position.y}%`,
-            }}
-          >
-            {/* Connection line to next stage - giống y hệt LearningPathPage */}
+    <div className="space-y-2">
+      <div className="relative rounded-md overflow-hidden">
+        {/* Ảnh nền với tỷ lệ tự nhiên - tối giản padding */}
+        <img 
+          src="/img/Roadmap.webp" 
+          alt="Japan Roadmap" 
+          className="w-full h-auto object-contain"
+        />
+        
+        {/* Stage markers overlay */}
+        <div className="absolute inset-0">
+          {/* Stage markers - copy y hệt từ RoadmapPage */}
+          {stagesWithFixedPositions.map((stage, index) => (
             <div
-              className="absolute w-32 h-0.5 bg-blue-400 opacity-70"
+              key={stage.id}
+              className="absolute transform -translate-x-1/2 -translate-y-1/2 z-10"
               style={{
-                left: "50%",
-                top: "50%",
-                transform: index === 2 || index === 3 ? `rotate(-90deg)` : `rotate(90deg)`,
-                transformOrigin: "0 0",
+                left: `${stage.position.x}%`,
+                top: `${stage.position.y}%`,
               }}
-            />
+            >
+              {/* Connection line to next stage - giống y hệt RoadmapPage */}
+              <div
+                className="absolute w-32 h-0.5 bg-blue-400 opacity-70"
+                style={{
+                  left: "50%",
+                  top: "50%",
+                  transform: index === 2 || index === 3 ? `rotate(-90deg)` : `rotate(90deg)`,
+                  transformOrigin: "0 0",
+                }}
+              />
 
-            {/* Stage marker - giống y hệt LearningPathPage nhưng nhỏ hơn */}
-            <div className="flex flex-col items-center">
-              <button
-                className={`w-10 h-10 rounded-full border-2 ${getStageColor(stage.status)} flex items-center justify-center shadow-lg cursor-pointer hover:scale-110 transition-transform group relative`}
-                onClick={() => onStageClick(stage.id)}
-                aria-label={`Chọn chặng ${stage.id}: ${stage.title}`}
-              >
-                {getStageIcon(stage.status)}
-                
-                {/* Stage info tooltip - hiển thị khi hover - stage 3 sẽ hiển thị phía trên */}
-                <div className={`absolute left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-xl p-3 min-w-48 opacity-0 group-hover:opacity-100 transition-opacity z-30 border border-gray-200 pointer-events-none ${
-                  stage.id === 3 ? 'bottom-14' : 'top-14'
-                }`}>
-                  <div className="flex items-center space-x-2 mb-2">
-                    {getStageIcon(stage.status)}
-                    <span className="font-semibold text-xs text-gray-900">Chặng {stage.id}</span>
-                  </div>
-                  <h4 className="font-semibold text-gray-900 text-xs mb-1">{stage.title}</h4>
-                  <p className="text-xs text-gray-600 mb-2">{stage.description}</p>
-                  {stage.status === "in_progress" && (
-                    <div className="space-y-1 mb-2">
-                      <div className="flex justify-between text-xs">
-                        <span>Tiến độ</span>
-                        <span className="font-semibold text-blue-600">{stage.progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-1.5">
-                        <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: `${stage.progress}%` }} />
-                      </div>
+              {/* Stage marker - giống y hệt RoadmapPage nhưng nhỏ hơn */}
+              <div className="flex flex-col items-center">
+                <button
+                  className={`w-10 h-10 rounded-full border-2 ${getStageColor(stage.status)} flex items-center justify-center shadow-lg cursor-pointer hover:scale-110 transition-transform group relative`}
+                  onClick={() => onStageClick(stage.id)}
+                  aria-label={`Chọn chặng ${stage.id}: ${stage.title}`}
+                >
+                  {getStageIcon(stage.status)}
+                  
+                  {/* Stage info tooltip - hiển thị khi hover - stage 3 sẽ hiển thị phía trên */}
+                  <div className={`absolute left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-xl p-3 min-w-48 opacity-0 group-hover:opacity-100 transition-opacity z-30 border border-gray-200 pointer-events-none ${
+                    stage.id === 3 ? 'bottom-14' : 'top-14'
+                  }`}>
+                    <div className="flex items-center space-x-2 mb-2">
+                      {getStageIcon(stage.status)}
+                      <span className="font-semibold text-xs text-gray-900">Chặng {stage.id}</span>
                     </div>
-                  )}
-                  <div className={`text-xs font-medium px-2 py-1 rounded-full text-center ${getStageColor(stage.status)}`}>
-                    {getStatusTextLabel(stage.status)}
+                    <h4 className="font-semibold text-gray-900 text-xs mb-1">{stage.title}</h4>
+                    <p className="text-xs text-gray-600 mb-2">{stage.description}</p>
+                    {stage.status === "in_progress" && (
+                      <div className="space-y-1 mb-2">
+                        <div className="flex justify-between text-xs">
+                          <span>Tiến độ</span>
+                          <span className="font-semibold text-blue-600">{stage.progress}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-1.5">
+                          <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: `${stage.progress}%` }} />
+                        </div>
+                      </div>
+                    )}
+                    <div className={`text-xs font-medium px-2 py-1 rounded-full text-center ${getStageColor(stage.status)}`}>
+                      {getStatusTextLabel(stage.status)}
+                    </div>
                   </div>
-                </div>
-              </button>
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
-      {/* Navigation buttons - giống y hệt LearningPathPage */}
+      {/* Navigation buttons - compact */}
       {totalPages > 1 && (
-        <div className="flex justify-center space-x-4 mt-4">
+        <div className="flex justify-center space-x-2 mt-2">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
             disabled={currentPage === 0}
-            className="bg-white"
+            className="bg-white text-xs px-2 py-1 h-7"
           >
-            ← Chặng trước
+            ← Trước
           </Button>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1">
             {Array.from({ length: totalPages }, (_, i) => (
               <button
                 key={i}
                 onClick={() => setCurrentPage(i)}
-                className={`w-2 h-2 rounded-full transition-colors ${
+                className={`w-1.5 h-1.5 rounded-full transition-colors ${
                   i === currentPage ? "bg-blue-600" : "bg-gray-300"
                 }`}
               />
@@ -544,9 +412,9 @@ function MiniLearningPathMap({ onStageClick }: Readonly<{ onStageClick: (stageId
             size="sm"
             onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
             disabled={currentPage === totalPages - 1}
-            className="bg-white"
+            className="bg-white text-xs px-2 py-1 h-7"
           >
-            Chặng sau →
+            Sau →
           </Button>
         </div>
       )}
@@ -652,29 +520,102 @@ function StageUnitsView({ currentStage, setCurrentStage }: Readonly<{
     const units = currentStageData.unitNumbers;
     let index = 0;
 
+    // Pattern: 1 unit → 2 units → 1 unit → 2 units...
+    // Hàng 0: 1 unit (unit 1)
+    // Hàng 1: 2 units (units 2,3) 
+    // Hàng 2: 1 unit (unit 4)
+    // Hàng 3: 2 units (units 5,6)...
     while (index < units.length) {
-      const isEvenRow = Math.floor(layout.length) % 2 === 0;
+      const isEvenRow = layout.length % 2 === 0;
       if (isEvenRow) {
-        const rowUnits = units.slice(index, index + 2);
-        layout.push(rowUnits);
-        index += 2;
-      } else {
+        // Hàng chẵn (0,2,4...): 1 unit
         const rowUnits = units.slice(index, index + 1);
         layout.push(rowUnits);
         index += 1;
+      } else {
+        // Hàng lẻ (1,3,5...): 2 units (nếu còn đủ)
+        if (index < units.length - 1) {
+          const rowUnits = units.slice(index, index + 2);
+          layout.push(rowUnits);
+          index += 2;
+        } else {
+          // Nếu chỉ còn 1 unit cuối thì vẫn cho vào hàng lẻ
+          const rowUnits = units.slice(index, index + 1);
+          layout.push(rowUnits);
+          index += 1;
+        }
       }
     }
     return layout;
   };
 
-const pathLayout = createPathLayout();
-const rowHeight = 100; // Chiều cao mỗi hàng
-// Tính số hàng dựa trên mô hình xen kẽ 2-1-2-1
-const numUnits = currentStageData.units;
-const numCycles = Math.floor(numUnits / 3); // Mỗi chu kỳ 2 hàng (2+1 unit)
-const remainingUnits = numUnits % 3;
-const numRows = remainingUnits === 0 ? numCycles * 2 : numCycles * 2 + 1;
-const contentHeight = numRows * rowHeight; // Chiều cao nội dung thực tế
+  const createZigzagPath = () => {
+    const pathCommands = [];
+    // Copy thuật toán với điểm bắt đầu và kết thúc ở giữa
+    const leftX = 100;   // 25% của 400
+    const centerX = 200; // 50% của 400 (điểm bắt đầu và kết thúc)
+    const rightX = 300;  // 75% của 400  
+    const radius = 40;   // radius cho các arc
+    
+    // Y positions cho từng hàng (120px apart)
+    const y1 = 60;   // hàng đầu: 1 unit ở giữa
+    const y2 = 180;  // hàng 2: 2 units (trái-phải)
+    const y3 = 300;  // hàng 3: 1 unit ở giữa
+    const y4 = 420;  // hàng 4: 2 units (trái-phải)
+    const y5 = 540;  // hàng 5: 1 unit ở giữa
+    const y6 = 660;  // hàng 6: 2 units (trái-phải)
+    const y7 = 780;  // hàng 7: 1 unit ở giữa
+    const y8 = 900;  // hàng 8: 2 units (trái-phải)
+    
+    // Bắt đầu từ giữa (unit đầu tiên)
+    pathCommands.push(`M ${centerX} ${y1}`);
+    
+    // Pattern theo layout thực tế
+    if (pathLayout.length > 1) {
+      // Từ giữa xuống hàng 2 (2 units): arc sang trái
+      pathCommands.push(`A ${radius} ${radius} 0 0 0 ${leftX} ${y2}`);
+      // Ngang qua phải
+      pathCommands.push(`L ${rightX} ${y2}`);
+    }
+    
+    if (pathLayout.length > 2) {
+      // Từ phải lên hàng 3 (1 unit ở giữa): arc về giữa
+      pathCommands.push(`A ${radius} ${radius} 0 0 1 ${centerX} ${y3}`);
+    }
+    
+    if (pathLayout.length > 3) {
+      // Từ giữa xuống hàng 4 (2 units): arc sang trái
+      pathCommands.push(`A ${radius} ${radius} 0 0 0 ${leftX} ${y4}`);
+      // Ngang qua phải
+      pathCommands.push(`L ${rightX} ${y4}`);
+    }
+    
+    if (pathLayout.length > 4) {
+      // Từ phải lên hàng 5 (1 unit ở giữa): arc về giữa
+      pathCommands.push(`A ${radius} ${radius} 0 0 1 ${centerX} ${y5}`);
+    }
+    
+    if (pathLayout.length > 5) {
+      // Từ giữa xuống hàng 6 (2 units): arc sang trái
+      pathCommands.push(`A ${radius} ${radius} 0 0 0 ${leftX} ${y6}`);
+      pathCommands.push(`L ${rightX} ${y6}`);
+    }
+    
+    if (pathLayout.length > 6) {
+      // Từ phải lên hàng 7 (1 unit ở giữa): arc về giữa
+      pathCommands.push(`A ${radius} ${radius} 0 0 1 ${centerX} ${y7}`);
+    }
+    
+    if (pathLayout.length > 7) {
+      // Từ giữa xuống hàng 8 (2 units): arc sang trái
+      pathCommands.push(`A ${radius} ${radius} 0 0 0 ${leftX} ${y8}`);
+      pathCommands.push(`L ${rightX} ${y8}`);
+    }
+
+    return pathCommands.join(' ');
+  };
+
+  const pathLayout = createPathLayout();
   
 // CSS Animation for Cherry Blossoms only - Optimized for performance
 const treeAnimationStyle = `
@@ -766,7 +707,7 @@ const treeAnimationStyle = `
         {/* Scrollable Container for Path and Units */}
         <div 
           ref={unitContainerRef}
-          className="relative z-10 h-full overflow-y-auto"
+          className="relative z-10 h-full overflow-y-auto p-6"
           style={{ 
             scrollBehavior: 'smooth'
           }}
@@ -774,122 +715,73 @@ const treeAnimationStyle = `
           {/* Add CSS Animation Styles for falling petals */}
           <style dangerouslySetInnerHTML={{ __html: treeAnimationStyle }} />
 
-          {/* SVG for Scrollable Path */}
+          {/* Units Path with Curved Design matching the sample */}
           <div className="relative">
-            <svg
-              className="w-full"
-              style={{ height: `${contentHeight}px` }}
-              viewBox={`0 0 400 ${contentHeight}`}
-              preserveAspectRatio="xMidYMin slice"
+            {/* SVG for curved path */}
+            <svg 
+              className="absolute inset-0 w-full h-full" 
+              style={{ height: `${pathLayout.length * 120}px` }}
+              viewBox={`0 0 400 ${pathLayout.length * 120}`}
+              preserveAspectRatio="none"
             >
-              {/* Road Path - Dynamic based on content with smooth curves */}
+              {/* Generate perfect zigzag path using optimized algorithm */}
               <path
-                d={(() => {
-                  const pathCommands = ['M130 0'];
-                  const numRows = pathLayout.length;
-                  const rowHeight = 100;
-                  const numPairs = Math.floor(numRows / 2);
-                  const hasExtraRow = numRows % 2 === 1;
-                  let startY = 0;
-                  let lastX = 130;
-
-                  for (let k = 0; k < numPairs; k++) {
-                    const y0 = 50 + 2 * k * rowHeight - 5 * k;
-                    const y1 = y0 + rowHeight;
-                    
-                    if (k === 0) {
-                      // Smooth curve from start to first position using Cubic Bezier
-                      pathCommands.push(`C125 ${y0 - 30}, 125 ${y0 - 15}, 130 ${y0}`);
-                    } else {
-                      // Smooth transition between rows using Cubic Bezier
-                      pathCommands.push(`C70 ${(startY + y0) / 2 - 20}, 70 ${(startY + y0) / 2 + 10}, 130 ${y0}`);
-                    }
-                    // Horizontal line with smooth curve to right side
-                    pathCommands.push(`C200 ${y0 - 5}, 240 ${y0 + 5}, 270 ${y0}`);
-                    // Smooth curve down the right side
-                    pathCommands.push(`C320 ${(y0 + y1) / 2 - 15}, 320 ${(y0 + y1) / 2 + 15}, 270 ${y1}`);
-                    // Horizontal line back to left with smooth curve  
-                    pathCommands.push(`C240 ${y1 + 5}, 200 ${y1 - 5}, 130 ${y1}`);
-                    startY = y1;
-                  }
-
-                  if (hasExtraRow) {
-                    const yLast = 50 + (2 * numPairs) * rowHeight;
-                    // Smooth curve to final row using Cubic Bezier
-                    pathCommands.push(`C115 ${(startY + yLast) / 2 - 15}, 125 ${(startY + yLast) / 2 + 15}, 130 ${yLast}`);
-                    pathCommands.push(`C200 ${yLast - 5}, 240 ${yLast + 5}, 270 ${yLast}`);
-                    lastX = 270;
-                  }
-
-                  // Smooth ending curve
-                  if (lastX === 270) {
-                    pathCommands.push(`C275 ${contentHeight - 30}, 275 ${contentHeight - 15}, 270 ${contentHeight}`);
-                  } else {
-                    pathCommands.push(`C125 ${contentHeight - 30}, 125 ${contentHeight - 15}, 130 ${contentHeight}`);
-                  }
-
-                  return pathCommands.join(' ');
-                })()}
-                fill="none"
-                stroke="#8B4513"
+                d={createZigzagPath()}
+                stroke="#D4AF37"
                 strokeWidth="8"
+                fill="none"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                opacity="0.9"
               />
-
-              {/* Falling Cherry Blossoms - Only in this scrollable area */}
-              {Array.from({ length: 40 }, (_, index) => {
-                const startX = Math.random() * 400;
-                const startY = Math.random() * contentHeight;
-                const size = 1.5 + Math.random() * 2.5;
-                const colors = ['#FFB6C1', '#FF69B4', '#FFC0CB', '#FFCCCB', '#FFE4E1', '#F8BBD9'];
-                const color = colors[Math.floor(Math.random() * colors.length)];
-                
-                return (
-                  <circle
-                    key={`petal-scrollable-${index}`}
-                    className="falling-petals"
-                    cx={startX}
-                    cy={startY}
-                    r={size}
-                    fill={color}
-                    fillOpacity="0.8"
-                    style={{
-                      animationDelay: `${Math.random() * 12}s`,
-                      animationDuration: `${8 + Math.random() * 6}s`,
-                    }}
-                  />
-                );
-              })}
             </svg>
 
-            {/* Path with Units */}
-            <div className="absolute top-0 left-0 w-full py-4" style={{ gap: '50px', display: 'flex', flexDirection: 'column' }}>
+            {/* Units positioned exactly on the zigzag path */}
+            <div className="relative space-y-8">
               {pathLayout.map((rowUnits, rowIndex) => (
-                <div key={`row-${rowIndex}-${rowUnits[0] || rowIndex}`} className="relative">
-                  <div className="flex items-center justify-center space-x-8">
-                    {rowUnits.map((unitNumber) => {
+                <div key={`row-${rowIndex}-${rowUnits[0] || rowIndex}`} className="relative h-24">
+                  {/* Position units at exact coordinates matching the path */}
+                  <div className="relative h-full">
+                    {rowUnits.map((unitNumber, unitIndex) => {
                       const status = getUnitStatus(unitNumber);
                       const isCurrentUnit = currentStageData.status === "in_progress" && 
                         unitNumber === currentStageData.unitNumbers[0] + Math.floor(currentStageData.units * 0.65);
 
+                      // Calculate position theo pattern 1-2-1-2
+                      let leftPosition;
+                      const rowIndex = rowUnits === pathLayout[0] ? 0 : pathLayout.findIndex(row => row === rowUnits);
+                      const isEvenRow = rowIndex % 2 === 0;
+                      
+                      if (isEvenRow) {
+                        // Hàng chẵn: 1 unit ở giữa (50%)
+                        leftPosition = '50%';
+                      } else {
+                        // Hàng lẻ: 2 units ở trái (25%) và phải (75%)
+                        leftPosition = unitIndex === 0 ? '25%' : '75%';
+                      }
+
                       return (
-                        <div key={unitNumber} className="relative">
+                        <div 
+                          key={unitNumber} 
+                          className="absolute top-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10"
+                          style={{ left: leftPosition }}
+                        >
+                          {/* Unit Circle */}
                           <div
                             data-unit={unitNumber}
-                            className={`w-12 h-12 rounded-full border-4 flex items-center justify-center font-bold text-sm shadow-lg cursor-pointer hover:scale-110 transition-transform relative bg-white ${getUnitStatusClass(status)} ${
+                            className={`w-16 h-16 rounded-full border-4 flex items-center justify-center font-bold text-lg shadow-lg cursor-pointer hover:scale-110 transition-transform relative bg-white ${getUnitStatusClass(status)} ${
                               isCurrentUnit ? 'ring-4 ring-blue-300 ring-opacity-50 animate-pulse' : ''
                             }`}
                           >
                             {unitNumber}
                             {status === "completed" && (
-                              <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                                <CheckCircle className="w-2 h-2 text-white" />
+                              <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                                <CheckCircle className="w-3 h-3 text-white" />
                               </div>
                             )}
                             {isCurrentUnit && (
-                              <div className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center animate-bounce">
-                                <Play className="w-3 h-3 text-white" />
+                              <div className="absolute -top-2 -right-2 w-7 h-7 bg-blue-500 rounded-full flex items-center justify-center animate-bounce">
+                                <Play className="w-4 h-4 text-white" />
                               </div>
                             )}
                           </div>
@@ -922,73 +814,16 @@ const treeAnimationStyle = `
 
 // (Đã xoá biến treeAnimationStyle không sử dụng)
 
-export function LearningPathDetailPage() {
+export function RoadmapDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const [learningPathData, setLearningPathData] = useState<LearningPathData | null>(null);
+  const [roadmapData, setRoadmapData] = useState<RoadmapData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentStage, setCurrentStage] = useState(1);
-  const [isReordering, setIsReordering] = useState(false);
-
-  // Sensors for drag and drop
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  // Handle drag end
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (!over || active.id === over.id || !learningPathData) {
-      return;
-    }
-
-    const oldIndex = learningPathData.courses.findIndex(course => course.courseId === active.id);
-    const newIndex = learningPathData.courses.findIndex(course => course.courseId === over.id);
-
-    if (oldIndex === -1 || newIndex === -1) {
-      return;
-    }
-
-    // Reorder courses locally
-    const newCourses = arrayMove(learningPathData.courses, oldIndex, newIndex);
-    
-    // Update courseOrderNumber for each course
-    const updatedCourses = newCourses.map((course, index) => ({
-      ...course,
-      courseOrderNumber: index + 1
-    }));
-
-    // Update local state immediately for better UX
-    setLearningPathData({
-      ...learningPathData,
-      courses: updatedCourses
-    });
-
-    // Send to API
-    try {
-      setIsReordering(true);
-      const courseIds = updatedCourses.map(course => course.courseId);
-      await roadmapService.reorderLearningPathCourses(learningPathData.id, courseIds);
-      console.log('✅ Course reorder successful');
-    } catch (error) {
-      console.error('❌ Error reordering courses:', error);
-      // Revert to original order on error
-      setLearningPathData({
-        ...learningPathData,
-        courses: learningPathData.courses
-      });
-    } finally {
-      setIsReordering(false);
-    }
-  };
+  const [currentStage, setCurrentStage] = useState(3); // State để quản lý stage hiện tại
 
   useEffect(() => {
-    const loadLearningPathDetail = async () => {
+    const loadRoadmapDetail = async () => {
       if (!id) {
         setError("ID lộ trình không hợp lệ");
         setIsLoading(false);
@@ -996,103 +831,33 @@ export function LearningPathDetailPage() {
       }
 
       try {
-        console.log('🔥 START loadLearningPathDetail - ID:', id);
-        
         setIsLoading(true);
         setError(null);
 
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         const token = localStorage.getItem('access_token');
-        
-        console.log('🔥 Auth Check - User:', user);
-        console.log('🔥 Auth Check - Token exists:', !!token);
-        console.log('🔥 Auth Check - user.id:', user.id);
-        console.log('🔥 Auth Check - user keys:', Object.keys(user));
-        console.log('🔥 Auth Check - Full user object:', JSON.stringify(user, null, 2));
-        
-        // Kiểm tra thêm các field có thể có
-        console.log('🔥 Auth Check - user.userId:', user.userId);
-        console.log('🔥 Auth Check - user.username:', user.username);
-        console.log('🔥 Auth Check - user.email:', user.email);
 
-        // Chỉ cần token vì JWT đã chứa thông tin user
-        if (token) {
-          console.log('🔥 AUTH SUCCESS - Using API with token');
-          // Gọi API thực để lấy chi tiết learning path
-          const response = await roadmapService.getLearningPathDetail(parseInt(id));
-          console.log('🔥 Full API Response:', response);
-          
-          const apiData = response.data as unknown as LearningPathApiResponse;
-          console.log('🔥 API Data:', apiData);
-          console.log('🔥 API Courses:', apiData.courses);
-          
-          // Sử dụng trực tiếp dữ liệu từ API response
-          const coursesWithProgress = apiData.courses.map((course, index) => ({
-            ...course,
-            // Thêm progress và status mock tạm thời
-            progress: Math.floor(Math.random() * 100),
-            status: (index === 0 ? "in_progress" : "not_started") as "not_started" | "in_progress" | "completed"
-          })) as CourseWithDetails[];
-          
-          console.log('🔥 Courses With Progress:', coursesWithProgress);
-
-          const realData: LearningPathData = {
-            id: apiData.id,
-            title: apiData.title,
-            description: apiData.description,
-            targetLevel: apiData.targetLevel,
-            primaryGoal: apiData.primaryGoal,
-            focusSkill: apiData.focusSkill,
-            status: apiData.status,
-            duration: apiData.duration,
-            userId: apiData.userId,
-            username: apiData.username,
-            courses: coursesWithProgress,
-            rating: 4.8, // Mock rating
-            students: 3530, // Mock students
-            overallProgress: Math.round(
-              coursesWithProgress.reduce((sum: number, course: CourseWithDetails) => sum + (course.progress || 0), 0) / coursesWithProgress.length
-            ),
-            goals: mockLearningGoals, // Keep mock goals for now
-            nextCourses: mockNextCourses, // Keep mock next courses for now
-            stats: {
-              completedLessons: 37,
-              studyHours: 95,
-              streakDays: 12,
-            },
-          };
-          
-          console.log('🔥 Final Real Data:', realData);
-          console.log('🔥 Final Courses:', realData.courses);
-          
-          setLearningPathData(realData);
-          return;
+        if (user.id && token) {
+          // Gọi API khi có user và token (hiện tại API chưa có)
+          await roadmapService.getRoadmapDetail(parseInt(id));
+          // Transform API response to match our interface
+          // Note: This will need to be updated when real API is available
         }
 
-        console.log('🚨 Using MOCK DATA - No token found');
-        console.log('🚨 User:', user);
-        console.log('🚨 Token:', token);
-        
         // Sử dụng mock data
         const overallProgress = Math.round(
-          mockCoursesWithDetails.reduce((sum, course) => sum + (course.progress || 0), 0) / mockCoursesWithDetails.length
+          mockCourseModules.reduce((sum, module) => sum + module.progress, 0) / mockCourseModules.length
         );
 
-        const mockData: LearningPathData = {
+        const mockData: RoadmapData = {
           id: parseInt(id),
           title: "Lộ trình N5 tiếng Nhật cơ bản",
           description: "Lộ trình học từng bước từ cơ bản đến nâng cao. Hiragana, Katakana và ngữ pháp cơ bản",
-          targetLevel: "N5",
-          primaryGoal: "Đạt chứng chỉ JLPT N5",
-          focusSkill: "Toàn diện",
-          status: "STUDYING",
-          duration: 99,
-          userId: 1,
-          username: "new user",
+          level: "N5",
           rating: 4.8,
           students: 3530,
           overallProgress,
-          courses: mockCoursesWithDetails,
+          modules: mockCourseModules,
           goals: mockLearningGoals,
           nextCourses: mockNextCourses,
           stats: {
@@ -1102,16 +867,16 @@ export function LearningPathDetailPage() {
           },
         };
 
-        setLearningPathData(mockData);
+        setRoadmapData(mockData);
       } catch (err) {
-        console.error('Error loading learning path detail:', err);
+        console.error('Error loading roadmap detail:', err);
         setError('Không thể tải chi tiết lộ trình học.');
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadLearningPathDetail();
+    loadRoadmapDetail();
   }, [id]);
 
   const getStatusBadge = (status: string) => {
@@ -1141,8 +906,8 @@ export function LearningPathDetailPage() {
     }
   };
 
-  const handleBackToLearningPath = () => {
-    navigate('/learning-path');
+  const handleBackToRoadmap = () => {
+    navigate('/roadmap');
   };
 
   if (isLoading) {
@@ -1156,10 +921,7 @@ export function LearningPathDetailPage() {
     );
   }
 
-  console.log('🔥 RENDER - learningPathData:', learningPathData);
-  console.log('🔥 RENDER - courses:', learningPathData?.courses);
-
-  if (error || !learningPathData) {
+  if (error || !roadmapData) {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="bg-white border-b border-gray-200 shadow-sm">
@@ -1167,7 +929,7 @@ export function LearningPathDetailPage() {
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"
-                onClick={handleBackToLearningPath}
+                onClick={handleBackToRoadmap}
                 className="p-2 hover:bg-gray-100 text-gray-600"
               >
                 <ArrowLeft className="h-5 w-5" />
@@ -1185,7 +947,7 @@ export function LearningPathDetailPage() {
             <h3 className="font-semibold">Lỗi</h3>
             <p className="mt-2 text-sm">{error || "Không tìm thấy lộ trình học."}</p>
             <Button 
-              onClick={handleBackToLearningPath}
+              onClick={handleBackToRoadmap}
               className="mt-4"
               size="sm"
             >
@@ -1205,7 +967,7 @@ export function LearningPathDetailPage() {
           <div className="flex items-center space-x-4">
             <Button 
               variant="ghost" 
-              onClick={handleBackToLearningPath} 
+              onClick={handleBackToRoadmap} 
               className="flex items-center space-x-2"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -1222,9 +984,9 @@ export function LearningPathDetailPage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-10 gap-4">
           {/* Main Content */}
-          <div className="lg:col-span-4 space-y-6">
+          <div className="lg:col-span-6 space-y-6">
             {/* Course Overview */}
             <Card className="border-blue-200 bg-blue-50">
               <CardContent className="p-6">
@@ -1234,22 +996,22 @@ export function LearningPathDetailPage() {
                       <BookOpen className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <h2 className="text-xl font-semibold text-gray-900">{learningPathData.title}</h2>
-                      <p className="text-gray-600 text-sm">{learningPathData.description}</p>
+                      <h2 className="text-xl font-semibold text-gray-900">{roadmapData.title}</h2>
+                      <p className="text-gray-600 text-sm">{roadmapData.description}</p>
                       <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
                         <span className="flex items-center gap-1">
                           <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                          {learningPathData.rating || 0} ({learningPathData.students?.toLocaleString() || 0} đánh giá)
+                          {roadmapData.rating} ({roadmapData.students.toLocaleString()} đánh giá)
                         </span>
                         <span className="flex items-center gap-1">
                           <Users className="h-4 w-4" />
-                          {learningPathData.students?.toLocaleString() || 0} học viên
+                          {roadmapData.students.toLocaleString()} học viên
                         </span>
                       </div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-blue-600">{learningPathData.overallProgress}%</div>
+                    <div className="text-2xl font-bold text-blue-600">{roadmapData.overallProgress}%</div>
                     <p className="text-sm text-gray-600">Hoàn thành</p>
                     <Button className="mt-2 bg-blue-600 hover:bg-blue-700">
                       <Play className="h-4 w-4 mr-2" />
@@ -1260,41 +1022,93 @@ export function LearningPathDetailPage() {
               </CardContent>
             </Card>
 
-            {/* Course Modules with Drag & Drop */}
+            {/* Course Modules */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <BookOpen className="h-5 w-5" />
-                  <span>Danh sách khóa học ({learningPathData.courses.length} khóa học)</span>
-                  {isReordering && (
-                    <div className="flex items-center space-x-2 text-sm text-blue-600">
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                      <span>Đang cập nhật thứ tự...</span>
-                    </div>
-                  )}
+                  <span>Lộ trình khóa học ({roadmapData.modules.length} khóa học)</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <DndContext 
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext 
-                    items={learningPathData.courses.map(course => course.courseId)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {learningPathData.courses.map((course) => (
-                      <SortableCourseItem
-                        key={course.courseId}
-                        course={course}
-                        getStatusBadge={getStatusBadge}
-                        getLevelColor={getLevelColor}
-                        navigate={navigate}
-                      />
-                    ))}
-                  </SortableContext>
-                </DndContext>
+                {roadmapData.modules.map((module, index) => (
+                  <div key={module.id} className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
+                    <div className="flex items-start space-x-4">
+                      {/* Module Number */}
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm font-medium text-blue-600">{index + 1}</span>
+                      </div>
+
+                      {/* Module Content */}
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h3 className="font-semibold text-gray-900">{module.title}</h3>
+                            <p className="text-sm text-gray-600">{module.description}</p>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-lg font-bold text-gray-900">{module.progress}%</div>
+                            {getStatusBadge(module.status)}
+                          </div>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="mb-3">
+                          <Progress value={module.progress} className="h-2" />
+                        </div>
+
+                        {/* Module Info */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-4 text-xs text-gray-600">
+                            <Badge className={getLevelColor(module.level)}>{module.level}</Badge>
+                            <span className="flex items-center space-x-1">
+                              <Clock className="h-3 w-3" />
+                              <span>{module.estimatedTime}</span>
+                            </span>
+                            <span className="flex items-center space-x-1">
+                              <BookOpen className="h-3 w-3" />
+                              <span>{module.totalLessons} bài</span>
+                            </span>
+                            <span className="flex items-center space-x-1">
+                              <Star className="h-3 w-3" />
+                              <span>{module.rating}</span>
+                            </span>
+                          </div>
+
+                          <div className="flex space-x-2">
+                            {module.status === "in_progress" && (
+                              <Button 
+                                size="sm" 
+                                className="bg-blue-600 hover:bg-blue-700" 
+                                onClick={() => navigate(`/courses/${module.id}`)}
+                              >
+                                Tiếp tục
+                              </Button>
+                            )}
+                            {module.status === "not_started" && (
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => navigate(`/courses/${module.id}`)}
+                              >
+                                Bắt đầu
+                              </Button>
+                            )}
+                            {module.status === "completed" && (
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => navigate(`/courses/${module.id}`)}
+                              >
+                                Ôn tập
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </CardContent>
             </Card>
 
@@ -1307,8 +1121,7 @@ export function LearningPathDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {learningPathData.nextCourses && learningPathData.nextCourses.length > 0 ? (
-                  learningPathData.nextCourses.map((course) => (
+                {roadmapData.nextCourses.map((course) => (
                   <div key={course.id} className="border rounded-lg p-4">
                     <div className="flex justify-between items-start">
                       <div>
@@ -1334,28 +1147,21 @@ export function LearningPathDetailPage() {
                       </div>
                     </div>
                   </div>
-                ))
-                ) : (
-                  <p className="text-gray-500 text-center py-4">Chưa có khóa học tiếp theo được đề xuất</p>
-                )}
+                ))}
               </CardContent>
             </Card>
           </div>
 
           {/* Sidebar */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Mini Learning Path Map */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <BookOpen className="h-5 w-5" />
-                  <span>Lộ trình tổng quan</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <MiniLearningPathMap onStageClick={setCurrentStage} />
-              </CardContent>
-            </Card>
+          <div className="lg:col-span-4 space-y-4">
+            {/* Mini Roadmap Map - Simplified without card wrapper */}
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-gray-900 flex items-center space-x-1">
+                <BookOpen className="h-4 w-4" />
+                <span>Lộ trình tổng quan</span>
+              </h3>
+              <MiniRoadmapMap onStageClick={setCurrentStage} />
+            </div>
 
             {/* Current Stage Units */}
             <Card>
@@ -1379,4 +1185,4 @@ export function LearningPathDetailPage() {
   );
 }
 
-export default LearningPathDetailPage;
+export default RoadmapDetailPage;

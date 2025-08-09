@@ -1,23 +1,20 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Badge } from "../components/ui/Badge";
 import { Alert } from "../components/ui/Alert";
-import { useToast } from "../hooks/useToast";
-import { roadmapService } from "../services/roadmapService";
-import type { LearningPath } from "../types/roadmap";
+import { learningPathService } from "../services/learningPathService";
+import type { LearningPath } from "../services/learningPathService";
+import api from "../api/axios";
 import {
   BookOpen,
   CheckCircle,
   RefreshCw,
-  MessageCircle,
-  X,
   Clock,
   Award,
   Play,
-  Send,
   ArrowLeft,
   AlertCircle,
   Flag
@@ -36,193 +33,8 @@ interface LearningModule {
   status: "PENDING" | "STUDYING" | "FINISHED"; // Ensures we use API status enum
 }
 
-interface ChatMessage {
-  id: number;
-  type: "user" | "ai";
-  content: string;
-  timestamp: string;
-}
-
-// Mẫu dữ liệu khi API không trả về kết quả - không sử dụng nữa
-// Không sử dụng dữ liệu mẫu nữa
-
-const initialMessages: ChatMessage[] = [
-  {
-    id: 1,
-    type: "ai",
-    content:
-      "Chào bạn! Tôi là AI trợ giáo. Bạn có thể hỏi tôi về bất kỳ câu hỏi nào liên quan đến lộ trình học. Tôi sẽ giúp bạn lựa chọn lộ trình phù hợp và theo dõi tiến độ học tập.",
-    timestamp: "9:34:50 PM",
-  },
-];
-
-// ChatWidget Component
-function ChatWidget() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Auto scroll to bottom when messages change
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const formatTime = (timestamp: string) => {
-    return timestamp;
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
-
-    const newMessage: ChatMessage = {
-      id: messages.length + 1,
-      type: "user",
-      content: input,
-      timestamp: new Date().toLocaleTimeString("vi-VN", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    };
-
-    setMessages(prev => [...prev, newMessage]);
-    setInput("");
-    setIsLoading(true);
-
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: ChatMessage = {
-        id: messages.length + 2,
-        type: "ai",
-        content: `Dựa trên câu hỏi của bạn, tôi khuyên bạn nên bắt đầu với lộ trình JLPT N5 nếu bạn là người mới học. Lộ trình này sẽ giúp bạn nắm vững các kiến thức cơ bản nhất. Bạn có muốn tôi giải thích chi tiết hơn không?`,
-        timestamp: new Date().toLocaleTimeString("vi-VN", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      };
-      setMessages(prev => [...prev, aiResponse]);
-      setIsLoading(false);
-    }, 1000);
-  };
-
-  return (
-    <>
-      {/* Chat Window */}
-      {isOpen && (
-        <div className="fixed bottom-24 right-6 z-50 w-80 h-96 bg-white rounded-lg shadow-2xl border border-red-100 flex flex-col overflow-hidden">
-          {/* Header */}
-          <div className="bg-red-500 text-white p-4 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-                <MessageCircle className="w-5 h-5 text-red-500" />
-              </div>
-              <span className="font-medium">AI Assistant</span>
-            </div>
-            <button onClick={() => setIsOpen(false)} className="text-white hover:text-red-200 transition-colors">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.map((message) => (
-              <div key={message.id} className="space-y-1">
-                <div className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className={`max-w-[80%] px-3 py-2 rounded-lg text-sm ${
-                      message.type === "user"
-                        ? "bg-red-500 text-white rounded-br-sm"
-                        : "bg-gray-100 text-gray-800 rounded-bl-sm"
-                    }`}
-                  >
-                    {message.content}
-                  </div>
-                </div>
-                <div className={`text-xs text-gray-400 ${message.type === "user" ? "text-right" : "text-left"}`}>
-                  {formatTime(message.timestamp)}
-                </div>
-              </div>
-            ))}
-
-            {isLoading && (
-              <div className="flex justify-start">
-                <div className="bg-gray-100 text-gray-800 px-3 py-2 rounded-lg rounded-bl-sm text-sm">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div
-                      className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                      style={{ animationDelay: "0.1s" }}
-                    ></div>
-                    <div
-                      className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                      style={{ animationDelay: "0.2s" }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            )}
-            
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Input */}
-          <div className="border-t border-gray-200 p-4">
-            <form onSubmit={handleSubmit} className="flex space-x-2">
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Nhập tin nhắn..."
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm"
-                disabled={isLoading}
-              />
-              <button
-                type="submit"
-                disabled={isLoading || !input.trim()}
-                className="bg-red-500 text-white p-2 rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Toggle Button - Always fixed position */}
-      <div className="fixed bottom-6 right-6 z-50">
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="w-14 h-14 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center group"
-        >
-          {/* Bạn có thể thay thế phần này bằng ảnh logo */}
-          <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
-            {isOpen ? <X className="w-5 h-5 text-red-500" /> : <MessageCircle className="w-5 h-5 text-red-500" />}
-          </div>
-
-          {/* Uncomment phần này nếu bạn muốn dùng ảnh logo thay vì icon */}
-          {/* 
-          <img 
-            src="/your-logo.png" 
-            alt="Logo" 
-            className="w-8 h-8 rounded-full"
-          />
-          */}
-        </button>
-
-        {/* Notification dot (optional) */}
-        {!isOpen && (
-          <div className="absolute -top-1 -right-1 w-4 h-4 bg-white border-2 border-red-500 rounded-full flex items-center justify-center">
-            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-          </div>
-        )}
-      </div>
-    </>
-  );
-}
-
 // Current Learning Roadmap Component
-function CurrentLearningRoadmap({ activePath }: Readonly<{ activePath: LearningPath | null }>) {
+function CurrentLearningRoadmap({ activePath }: { readonly activePath: LearningPath | null }) {
   const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(0);
 
@@ -508,7 +320,7 @@ function CurrentLearningRoadmap({ activePath }: Readonly<{ activePath: LearningP
           <Button 
             variant="outline" 
             className="bg-white text-xs px-3 py-1"
-            onClick={() => navigate(`/learning-path-detail/${activePath.id}`)}
+            onClick={() => navigate(`/roadmap-detail/${activePath.id}`)}
           >
             Chi tiết
           </Button>
@@ -520,7 +332,6 @@ function CurrentLearningRoadmap({ activePath }: Readonly<{ activePath: LearningP
 
 export function LearningPathPage() {
   const navigate = useNavigate();
-  const { showToast } = useToast();
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState("newest");
   const [modules, setModules] = useState<LearningModule[]>([]);
@@ -563,29 +374,55 @@ export function LearningPathPage() {
     try {
       // Sử dụng access_token theo convention
       const token = localStorage.getItem('access_token');
+      const userInfo = localStorage.getItem('userInfo') || localStorage.getItem('user');
+      
+      console.log('🔍 Loading roadmap data...', {
+        hasToken: !!token,
+        hasUserInfo: !!userInfo,
+        tokenLength: token?.length || 0,
+        tokenPrefix: token?.substring(0, 10) + '...',
+        userInfoObject: userInfo ? JSON.parse(userInfo) : null
+      });
       
       if (!token) {
-        console.log("No token found, checking for user info before redirecting");
+        console.log("❌ No token found, checking for user info before redirecting");
         // Kiểm tra xem có userInfo/user không trước khi chuyển hướng
-        const userInfo = localStorage.getItem('userInfo') || localStorage.getItem('user');
         if (!userInfo) {
-          console.log("No user info found, redirecting to login");
+          console.log("❌ No user info found, redirecting to login");
           navigate('/login');
           return;
         } else {
-          console.log("User info found but no token, will attempt to load data anyway");
+          console.log("⚠️ User info found but no token, will attempt to load data anyway");
         }
       }
 
       // Lấy danh sách lộ trình học từ API
       let response;
       try {
-        response = await roadmapService.getUserRoadmaps();
+        // Trước tiên test API profile để đảm bảo auth hoạt động
+        console.log('🔍 Testing auth with profile API first...');
+        try {
+          const profileResponse = await api.get('/users/profile');
+          console.log('✅ Profile API test successful:', profileResponse.data);
+        } catch (profileError) {
+          console.error('❌ Profile API test failed:', profileError);
+          // Nếu profile API thất bại, có thể là lỗi auth
+          setError("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+          setIsLoading(false);
+          return;
+        }
+        
+        console.log('🔍 Calling learningPathService.getUserLearningPaths()...');
+        response = await learningPathService.getUserLearningPaths();
         
         // Debug log để xem dữ liệu API trả về
-        console.log("API Response:", response);
+        console.log("✅ API Response received:", {
+          success: response.success,
+          dataLength: response.data?.length || 0,
+          data: response.data
+        });
       } catch (err) {
-        console.error("API error:", err);
+        console.error("❌ API error:", err);
         setError("Không thể tải dữ liệu lộ trình. Vui lòng đăng nhập lại.");
         setIsLoading(false);
         return;
@@ -594,14 +431,17 @@ export function LearningPathPage() {
       if (response.data && Array.isArray(response.data) && response.data.length > 0) {
         // Lưu trữ tất cả lộ trình
         const paths = response.data;
-        console.log("All learning paths:", paths);
+        console.log("🔍 Processing learning paths:", paths.length);
         
         // Tách riêng lộ trình đang học (STUDYING) và các lộ trình đang chờ (PENDING)
         const studyingPath = paths.find((path: LearningPath) => path.status === 'STUDYING');
         const pendingPaths = paths.filter((path: LearningPath) => path.status === 'PENDING');
         
-        console.log("Studying path:", studyingPath);
-        console.log("Pending paths:", pendingPaths);
+        console.log("📊 Path breakdown:", {
+          studying: studyingPath?.title || 'None',
+          pending: pendingPaths.length,
+          all: paths.length
+        });
         
         // Cập nhật state
         setActivePath(studyingPath || null);
@@ -626,14 +466,18 @@ export function LearningPathPage() {
           reviews: 0
         }));
         
-        console.log("Modules data for display:", modulesData);
+        console.log("✅ Modules data prepared:", modulesData.length);
         setModules(modulesData);
       } else {
-        console.log("No learning paths found or invalid response format:", response);
+        console.log("⚠️ No learning paths found or invalid response format:", {
+          hasData: !!response.data,
+          isArray: Array.isArray(response.data),
+          length: response.data?.length || 0
+        });
         setModules([]);
       }
     } catch (err) {
-      console.error('Error loading roadmap data:', err);
+      console.error('❌ Error loading roadmap data:', err);
       setError('Không thể tải dữ liệu lộ trình. Vui lòng thử lại sau.');
       setModules([]);
     } finally {
@@ -658,14 +502,12 @@ export function LearningPathPage() {
   const handleSetLearningPathActive = async (id: number) => {
     setIsLoading(true);
     try {
-      await roadmapService.setLearningPathActive(id);
-      showToast('success', 'Đã đặt lộ trình thành công!');
+      await learningPathService.setLearningPathActive(id);
       // Sau khi đặt thành công, load lại dữ liệu
       await loadRoadmapData();
     } catch (error) {
       console.error("Error setting learning path active:", error);
       setError("Không thể đặt lộ trình thành đang học. Vui lòng thử lại sau.");
-      showToast('error', 'Không thể đặt lộ trình thành đang học');
     } finally {
       setIsLoading(false);
     }
@@ -750,7 +592,7 @@ export function LearningPathPage() {
             size="sm"
             variant="outline"
             className="text-gray-600 bg-white border text-xs px-2 py-1 h-7"
-            onClick={() => navigate(`/learning-path-detail/${module.id}`)}
+            onClick={() => navigate(`/roadmap-detail/${module.id}`)}
           >
             Chi tiết
           </Button>
@@ -959,9 +801,6 @@ export function LearningPathPage() {
           </div>
         </div>
       </div>
-
-      {/* ChatWidget */}
-      <ChatWidget />
     </div>
   );
 }

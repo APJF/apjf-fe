@@ -275,16 +275,23 @@ const GeneralTab = ({ profile, onProfileUpdate }: { profile: UserProfile, onProf
   const handleSave = async () => {
     try {
       setIsLoading(true);
-      const response = await authService.updateProfile(formData);
+      // Chỉ cập nhật email, username, phone - không cập nhật avatar
+      const basicProfileData = {
+        email: formData.email,
+        username: formData.username,
+        phone: formData.phone
+      };
+      
+      const response = await authService.updateBasicProfile(basicProfileData);
       
       if (response.success) {
-        // Update parent component's profile state
+        // Update parent component's profile state (giữ nguyên avatar hiện tại)
         const updatedProfile = {
           ...profile,
           username: formData.username,
           email: formData.email,
-          phone: formData.phone,
-          avatar: formData.avatar
+          phone: formData.phone
+          // Không cập nhật avatar từ formData
         };
         onProfileUpdate(updatedProfile);
         
