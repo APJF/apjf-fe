@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { AlertCircle, ArrowLeft } from "lucide-react";
-import { ChapterList } from "../components/course/ChapterList";
-import { CourseHeaderInfo } from "../components/course/CourseHeaderInfo";
-import { CourseDetailTabs } from "../components/course/CourseDetailTabs";
-import { LearningPathSidebar } from "../components/course/LearningPathSidebar";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { AlertCircle, Clock, GraduationCap, Tag } from "lucide-react";
+import { StarDisplay } from "../components/ui/StarDisplay";
+import EnrollButton from "../components/course/EnrollButton";
+import CourseTabs from "../components/course/CourseTabs";
 import { CourseService } from "../services/courseService";
 import type { Course, Chapter } from "../types/course";
 
@@ -70,14 +69,11 @@ export default function CourseDetailPage() {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("content");
-  const [isEnrolled, setIsEnrolled] = useState(false);
 
   useEffect(() => {
     if (courseId) {
       console.log('Fetching course detail for ID:', courseId);
       fetchCourseDetail();
-      checkEnrollmentStatus();
     } else {
       console.error('Course ID is undefined');
       setError('ID khóa học không hợp lệ');
@@ -91,10 +87,10 @@ export default function CourseDetailPage() {
     try {
       console.log('Fetching course detail for ID:', courseId);
       
-      // Gọi song song 2 API mới
+      // Gọi song song 2 API
       const [courseRes, chaptersRes] = await Promise.all([
-        CourseService.getCourseDetail(courseId!), // Sử dụng API mới GET /api/course/{courseId}
-        CourseService.getChaptersByCourseId(courseId!) // Sử dụng API GET /api/chapters/course/{courseId}
+        CourseService.getCourseDetail(courseId!),
+        CourseService.getChaptersByCourseId(courseId!)
       ]);
       
       console.log('Course response:', courseRes);
@@ -108,60 +104,27 @@ export default function CourseDetailPage() {
       }
       
       if (chaptersRes.success) {
-        // Lọc chỉ lấy chapters có status ACTIVE
-        const activeChapters = chaptersRes.data.filter(chapter => chapter.status === "ACTIVE");
-        // Sắp xếp chapters theo thứ tự prerequisite
-        const sortedChapters = sortChaptersByPrerequisite(activeChapters);
+        const sortedChapters = sortChaptersByPrerequisite(chaptersRes.data || []);
         setChapters(sortedChapters);
       } else {
-        // Chapters không thành công không phải lỗi critical, chỉ log warning
-        console.warn('Failed to load chapters:', chaptersRes.message);
+        console.warn('Could not load chapters:', chaptersRes.message);
         setChapters([]);
       }
       
-    } catch (err: unknown) {
-      console.error("Error fetching course/chapter detail:", err);
-      
-      // Parse error message
-      let errorMessage = "Lỗi kết nối. Vui lòng thử lại.";
-      if (err && typeof err === 'object' && 'response' in err) {
-        const axiosError = err as { response?: { status?: number }; message?: string };
-        if (axiosError.response?.status === 404) {
-          errorMessage = "Không tìm thấy khóa học này.";
-        } else if (axiosError.response?.status === 500) {
-          errorMessage = "Lỗi server. Vui lòng thử lại sau.";
-        } else if (axiosError.message) {
-          errorMessage = axiosError.message;
-        }
-      }
-      
-      setError(errorMessage);
+    } catch (error) {
+      console.error('Error fetching course detail:', error);
+      setError('Có lỗi xảy ra khi tải khóa học. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
   };
 
-  const checkEnrollmentStatus = () => {
-    // Giả lập kiểm tra đã đăng ký khóa học hay chưa
-    const token = localStorage.getItem("access_token");
-    if (token) {
-      // Trong thực tế, bạn sẽ cần gọi API để kiểm tra
-      setIsEnrolled(true); 
-    }
-  };
-
-  const handleExamClick = (examId: string) => {
-    navigate(`/exam/${examId}/preparation`);
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="flex items-center justify-center py-20">
-          <div className="flex items-center gap-3">
-            <div className="w-6 h-6 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-            <span className="text-gray-600">Đang tải thông tin khóa học...</span>
-          </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <div className="w-6 h-6 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
+          <span className="text-gray-600">Đang tải khóa học...</span>
         </div>
       </div>
     );
@@ -169,116 +132,120 @@ export default function CourseDetailPage() {
 
   if (error || !course) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-0 sm:px-1 lg:px-2 py-12">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-6 flex items-center gap-3">
-            <AlertCircle className="h-6 w-6 text-red-500 flex-shrink-0" />
-            <div>
-              <p className="text-red-800 font-medium">Không thể tải thông tin khóa học</p>
-              <p className="text-red-600 text-sm">{error}</p>
-            </div>
-            <button
-              onClick={fetchCourseDetail}
-              className="ml-auto px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-            >
-              Thử lại
-            </button>
-          </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h1 className="text-xl font-semibold text-gray-900 mb-2">
+            Không thể tải khóa học
+          </h1>
+          <p className="text-gray-600 mb-6">
+            {error || 'Khóa học không tồn tại hoặc đã bị xóa.'}
+          </p>
+          <button
+            onClick={() => navigate('/courses')}
+            className="bg-rose-600 text-white px-6 py-2 rounded-lg hover:bg-rose-700 transition-colors"
+          >
+            Quay lại danh sách khóa học
+          </button>
         </div>
       </div>
     );
   }
 
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case "content":
-        return (
-          <div>
-            <div className="mb-6">
-              <h2 className="text-xl font-bold text-red-600 flex items-center gap-2 mb-4">
-                <span className="text-red-600">📚</span><span> Chương trình học</span>
-              </h2>
-            </div>
-            <ChapterList
-              chapters={chapters}
-              courseExams={course.exams || []}
-              isEnrolled={isEnrolled}
-              onExamClick={handleExamClick}
-              courseId={courseId!}
-            />
-          </div>
-        );
-      case "overview":
-        return (
-          <div className="bg-white rounded-xl shadow-sm p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Tổng quan khóa học</h2>
-            <div className="prose prose-gray max-w-none">
-              <p className="text-gray-600 leading-relaxed mb-6">{course.description}</p>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Mục tiêu khóa học</h3>
-              <ul className="space-y-2 text-gray-600">
-                <li>• Nắm vững kiến thức cơ bản về tiếng Nhật cấp độ {course.level}</li>
-                <li>• Đọc và viết được các ký tự Hiragana và Katakana</li>
-                <li>• Giao tiếp cơ bản trong các tình huống hàng ngày</li>
-                <li>• Chuẩn bị tốt cho kỳ thi JLPT {course.level}</li>
-              </ul>
-            </div>
-          </div>
-        );
-      case "reviews":
-        return (
-          <div className="bg-white rounded-xl shadow-sm p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Đánh giá từ học viên</h2>
-            <div className="text-center py-12">
-              <p className="text-gray-500">Chức năng đánh giá đang được phát triển</p>
-            </div>
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
+  // Mock data for demo (in real app, these would come from API)
+  const description = course.description || 
+    "Khóa học này cung cấp kiến thức toàn diện với các dự án thực hành, phương pháp tốt nhất và ví dụ thực tế để giúp bạn thành thạo chủ đề một cách hiệu quả.";
+    
+  const reviews = [
+    { id: 1, user: "Anh Trần", rating: 5, comment: "Khóa học rất chất lượng, giảng viên dễ hiểu.", date: "2025-05-12" },
+    { id: 2, user: "Minh Nguyễn", rating: 4.5, comment: "Nội dung đầy đủ, có thể thêm bài tập nâng cao.", date: "2025-04-03" },
+    { id: 3, user: "Lan Phạm", rating: 4, comment: "Tổng quan tốt, phần cuối hơi nhanh.", date: "2025-03-21" },
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Back Button */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-0 sm:px-1 lg:px-2 py-4">
-          <button
-            onClick={() => navigate("/courses")}
-            className="flex items-center gap-2 text-red-600 hover:text-red-700 transition-colors font-medium"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Quay lại danh sách khóa học</span>
-          </button>
-        </div>
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Breadcrumb */}
+      <div className="mb-4 text-sm">
+        <Link to="/courses" className="text-rose-700 hover:underline">
+          Khóa học
+        </Link>
+        <span className="mx-2 text-gray-400">/</span>
+        <span className="text-gray-700">{course.title}</span>
       </div>
 
-      <div className="max-w-7xl mx-auto px-0 sm:px-1 lg:px-2 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Course Header */}
-            <CourseHeaderInfo course={course} chaptersCount={chapters.length} />
+      {/* Layout 10 cột: trái 7/10 cho detail + tabs */}
+      <section className="grid grid-cols-1 lg:grid-cols-10 gap-8">
+        <div className="lg:col-span-7 space-y-6">
+          {/* Card detail */}
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            {/* Ảnh cover */}
+            <img
+              src={course.image || "/placeholder.svg"}
+              alt={course.title}
+              className="w-full h-56 sm:h-72 object-cover"
+            />
 
-            {/* Tabs */}
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <CourseDetailTabs activeTab={activeTab} onTabChange={setActiveTab} />
-              <div className="p-6">{renderTabContent()}</div>
+            {/* Nội dung detail */}
+            <div className="p-6">
+              <h1 className="text-2xl font-semibold text-gray-900">{course.title}</h1>
+
+              {/* Hàng 1: Duration + Level */}
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                <span className="inline-flex items-center gap-2 px-2 py-1 rounded-md bg-gray-100 text-gray-700">
+                  <Clock className="w-4 h-4 text-gray-500" />
+                  {Math.round((course.duration || 0) / 60)}h
+                </span>
+                <span className="inline-flex items-center gap-2 px-2 py-1 rounded-md bg-blue-100 text-blue-700">
+                  <GraduationCap className="w-4 h-4 text-blue-500" />
+                  {course.level}
+                </span>
+              </div>
+
+              {/* Hàng 2: Topics */}
+              {course.topics && course.topics.length > 0 && (
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                  {course.topics.map((topic) => (
+                    <span 
+                      key={topic.id} 
+                      className="inline-flex items-center gap-2 px-2 py-1 rounded-md bg-rose-100 text-rose-700"
+                    >
+                      <Tag className="w-4 h-4 text-rose-500" />
+                      {topic.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Rating ngay dưới */}
+              <div className="mt-3">
+                <StarDisplay rating={course.averageRating || 0} />
+              </div>
+
+              {/* Hàng: Giá + Enroll (cùng hàng) */}
+              <div className="mt-4 flex items-center gap-4">
+                <div className="text-2xl sm:text-3xl font-bold text-gray-900 tabular-nums">Miễn phí</div>
+                <div className="ml-auto">
+                  <EnrollButton courseId={course.id} courseTitle={course.title} />
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-8">
-              <LearningPathSidebar
-                chapters={chapters}
-                completedChapters={[]} // Tạm thời để trống
-                currentChapter={chapters[0]?.id}
-              />
-            </div>
-          </div>
+          {/* Tabs: Chapters / Overview / Reviews */}
+          <CourseTabs 
+            description={description} 
+            chapters={chapters.map(ch => ({
+              id: ch.id,
+              title: ch.title,
+              duration: 0 // Tạm thời set duration = 0, có thể tính từ units sau
+            }))} 
+            initialReviews={reviews} 
+          />
         </div>
-      </div>
-    </div>
+
+        {/* Cột phải 3/10 (để trống cho mở rộng sau) */}
+        <div className="hidden lg:block lg:col-span-3" />
+      </section>
+    </main>
   );
 }
