@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MessageCircle, X, Send, Plus, MoreVertical, Edit2, Trash2, ChevronDown } from 'lucide-react';
+import { MessageCircle, X, Send, Plus, MoreVertical, Edit2, Trash2, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { FloatingChatSession, AIFunction, FloatingMessage } from '../../types/floatingChat';
 
 interface FloatingChatButtonProps {
@@ -14,7 +14,7 @@ const AI_FUNCTIONS: AIFunction[] = [
   { id: 'analyst', name: 'Phân tích dữ liệu AI', description: 'Phân tích và báo cáo dữ liệu' }
 ];
 
-export function FloatingChatButton({ isOpen, onToggle }: FloatingChatButtonProps) {
+export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatButtonProps>) {
   const [sessions, setSessions] = useState<FloatingChatSession[]>([
     {
       id: '1',
@@ -35,8 +35,13 @@ export function FloatingChatButton({ isOpen, onToggle }: FloatingChatButtonProps
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [showFunctionDropdown, setShowFunctionDropdown] = useState(false);
+  const [isSessionsPanelCollapsed, setIsSessionsPanelCollapsed] = useState(false);
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
+
+  const toggleSessionsPanel = () => {
+    setIsSessionsPanelCollapsed(!isSessionsPanelCollapsed);
+  };
 
   const handleCreateNewSession = () => {
     const newSession: FloatingChatSession = {
@@ -143,14 +148,18 @@ export function FloatingChatButton({ isOpen, onToggle }: FloatingChatButtonProps
     <>
       {/* Chat Popup - Xuất hiện từ icon với animation */}
       {isOpen && (
-        <div className="fixed bottom-20 right-6 w-[800px] h-[400px] bg-white border border-gray-200 rounded-lg shadow-2xl z-50 flex animate-in slide-in-from-bottom-2 slide-in-from-right-2 duration-300">
+        <div className={`fixed bottom-20 right-6 bg-white border border-gray-200 rounded-lg shadow-2xl z-50 flex animate-in slide-in-from-bottom-2 slide-in-from-right-2 duration-300 transition-all ${
+          isSessionsPanelCollapsed ? 'w-[480px] h-[400px]' : 'w-[800px] h-[400px]'
+        }`}>
           {/* Thêm arrow pointing xuống icon */}
           <div className="absolute -bottom-2 right-8 w-4 h-4 bg-white border-r border-b border-gray-200 transform rotate-45"></div>
           
-          {/* Sidebar - 40% width */}
-          <div className="w-2/5 bg-white border-r border-gray-200 flex flex-col rounded-l-lg">
+          {/* Sidebar - Responsive width with slide animation */}
+          <div className={`bg-white border-r border-gray-200 flex flex-col rounded-l-lg transition-all duration-300 overflow-hidden ${
+            isSessionsPanelCollapsed ? 'w-0 border-r-0' : 'w-2/5'
+          }`}>
             {/* Header */}
-            <div className="p-3 border-b border-gray-200">
+            <div className="p-3 border-b border-gray-200 flex-shrink-0">
               <button
                 onClick={handleCreateNewSession}
                 className="w-full flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
@@ -252,42 +261,62 @@ export function FloatingChatButton({ isOpen, onToggle }: FloatingChatButtonProps
             </div>
           </div>
 
-          {/* Main Chat - 60% width */}
-          <div className="w-3/5 flex flex-col bg-white rounded-r-lg">
-            {/* Header with close button and function selector */}
+          {/* Main Chat - Responsive width */}
+          <div className={`flex flex-col bg-white rounded-r-lg transition-all duration-300 ${
+            isSessionsPanelCollapsed ? 'w-full' : 'w-3/5'
+          }`}>
+            {/* Header with close button, toggle button, and function selector */}
             <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-red-600 text-white rounded-tr-lg">
-              <div className="relative flex-1">
+              {/* Left side - Toggle button and function selector */}
+              <div className="flex items-center gap-2">
+                {/* Toggle Sessions Panel Button */}
                 <button
-                  onClick={() => setShowFunctionDropdown(!showFunctionDropdown)}
-                  className="flex items-center gap-2 px-3 py-1 bg-red-700 rounded-lg hover:bg-red-800 transition-colors text-sm"
+                  onClick={toggleSessionsPanel}
+                  className="p-1 hover:bg-red-700 rounded transition-colors"
+                  title={isSessionsPanelCollapsed ? 'Mở rộng sessions' : 'Thu gọn sessions'}
                 >
-                  <span className="font-medium truncate">
-                    {currentFunction.name.split(' ')[0]} AI
-                  </span>
-                  <ChevronDown size={14} />
+                  {isSessionsPanelCollapsed ? (
+                    <ChevronRight size={16} />
+                  ) : (
+                    <ChevronLeft size={16} />
+                  )}
                 </button>
 
-                {showFunctionDropdown && (
-                  <div className="absolute top-8 left-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-48">
-                    {AI_FUNCTIONS.map((func) => (
-                      <button
-                        key={func.id}
-                        onClick={() => handleFunctionChange(func)}
-                        className={`w-full text-left px-3 py-2 hover:bg-gray-50 transition-colors text-sm ${
-                          currentFunction.id === func.id ? 'bg-red-50 text-red-800' : 'text-gray-700'
-                        }`}
-                      >
-                        <div className="font-medium">{func.name}</div>
-                        <div className="text-xs text-gray-500 mt-1">{func.description}</div>
-                      </button>
-                    ))}
-                  </div>
-                )}
+                {/* Function Selector */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowFunctionDropdown(!showFunctionDropdown)}
+                    className="flex items-center gap-2 px-3 py-1 bg-red-700 rounded-lg hover:bg-red-800 transition-colors text-sm"
+                  >
+                    <span className="font-medium truncate">
+                      {currentFunction.name.split(' ')[0]} AI
+                    </span>
+                    <ChevronDown size={14} />
+                  </button>
+
+                  {showFunctionDropdown && (
+                    <div className="absolute top-8 left-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-48">
+                      {AI_FUNCTIONS.map((func) => (
+                        <button
+                          key={func.id}
+                          onClick={() => handleFunctionChange(func)}
+                          className={`w-full text-left px-3 py-2 hover:bg-gray-50 transition-colors text-sm ${
+                            currentFunction.id === func.id ? 'bg-red-50 text-red-800' : 'text-gray-700'
+                          }`}
+                        >
+                          <div className="font-medium">{func.name}</div>
+                          <div className="text-xs text-gray-500 mt-1">{func.description}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               
+              {/* Right side - Close button */}
               <button
                 onClick={onToggle}
-                className="p-1 hover:bg-red-700 rounded transition-colors ml-2"
+                className="p-1 hover:bg-red-700 rounded transition-colors"
               >
                 <X size={16} />
               </button>

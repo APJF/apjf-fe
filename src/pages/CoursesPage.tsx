@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { Search, Star, Clock, BookOpen, AlertCircle } from "lucide-react"
+import PaginationButton from "../components/ui/PaginationButton"
 import type { Course } from '../types/course'
 import { CourseService } from '../services/courseService'
 
@@ -49,12 +50,11 @@ const StarRating: React.FC<{ rating: number; onRatingChange: (rating: number) =>
   }
 
   return (
-    <div 
+    <fieldset 
       className="flex items-center gap-2" 
       onMouseLeave={() => setHover(0)}
-      role="radiogroup"
-      aria-label="Rating filter"
     >
+      <legend className="sr-only">Rating filter</legend>
       <div className="flex items-center gap-1">
         {[1, 2, 3, 4, 5].map((i) => (
           <button
@@ -70,7 +70,7 @@ const StarRating: React.FC<{ rating: number; onRatingChange: (rating: number) =>
         ))}
       </div>
       <span className="text-[11px] text-gray-600">{rating > 0 ? `${rating}+` : "Any"}</span>
-    </div>
+    </fieldset>
   )
 }
 
@@ -81,20 +81,11 @@ const CourseCard: React.FC<{ course: ProcessedCourse }> = ({ course }) => {
     navigate(`/courses/${course.id}`)
   }
 
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault()
-      handleCourseClick()
-    }
-  }
-
   return (
-    <div 
-      className="group bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-rose-300 cursor-pointer"
+    <button 
+      type="button"
+      className="group bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-rose-300 cursor-pointer w-full text-left"
       onClick={handleCourseClick}
-      onKeyDown={handleKeyDown}
-      tabIndex={0}
-      role="button"
       aria-label={`Xem chi tiết khóa học ${course.title}`}
     >
       <div className="relative overflow-hidden">
@@ -130,7 +121,7 @@ const CourseCard: React.FC<{ course: ProcessedCourse }> = ({ course }) => {
         </div>
 
       </div>
-    </div>
+    </button>
   )
 }
 
@@ -143,26 +134,6 @@ const Pagination: React.FC<{ currentPage: number; totalPages: number; onPageChan
   const left = currentPage - 1 >= 1 ? currentPage - 1 : null
   const center = currentPage
   const right = currentPage + 1 <= totalPages ? currentPage + 1 : null
-
-  const Slot = ({
-    page,
-    isActive,
-    onClick,
-  }: { page: number | null; isActive?: boolean; onClick?: (p: number) => void }) => {
-    if (page === null)
-      return <span aria-hidden="true" className="w-10 h-10 rounded-lg border border-transparent opacity-0" />
-    return (
-      <button
-        onClick={() => onClick?.(page)}
-        className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${
-          isActive ? "bg-rose-700 text-white" : "text-gray-800 bg-white border border-gray-300 hover:bg-gray-50"
-        }`}
-        aria-current={isActive ? "page" : undefined}
-      >
-        {page}
-      </button>
-    )
-  }
 
   return (
     <div className="flex items-center justify-center gap-3 mt-10">
@@ -185,9 +156,9 @@ const Pagination: React.FC<{ currentPage: number; totalPages: number; onPageChan
       </button>
 
       <div className="grid grid-cols-3 gap-2">
-        <Slot page={left} onClick={onPageChange} />
-        <Slot page={center} isActive onClick={onPageChange} />
-        <Slot page={right} onClick={onPageChange} />
+        <PaginationButton page={left} onClick={onPageChange} />
+        <PaginationButton page={center} isActive onClick={onPageChange} />
+        <PaginationButton page={right} onClick={onPageChange} />
       </div>
 
       <button
@@ -328,18 +299,21 @@ export default function CoursesPage() {
           {/* Row 1: Search + Sort (compact) */}
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="relative sm:w-[70%]">
+              <label htmlFor="search-input" className="sr-only">Tìm kiếm khóa học</label>
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
+                id="search-input"
                 type="text"
                 placeholder="Tìm kiếm khóa học..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="h-9 w-full pl-9 pr-3 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-rose-700 focus:border-transparent outline-none"
-                aria-label="Search courses"
               />
             </div>
             <div className="sm:w-[30%]">
+              <label htmlFor="sort-select" className="sr-only">Sắp xếp theo</label>
               <select
+                id="sort-select"
                 value={`${sortBy}-${sortOrder}`}
                 onChange={(e) => {
                   const [f, o] = e.target.value.split("-")
@@ -347,7 +321,6 @@ export default function CoursesPage() {
                   setSortOrder(o as "asc" | "desc")
                 }}
                 className="h-9 w-full px-3 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-rose-700 focus:border-transparent"
-                aria-label="Sort by"
               >
                 <option value="rating-desc">Đánh giá: Cao đến thấp</option>
                 <option value="rating-asc">Đánh giá: Thấp đến cao</option>
@@ -363,12 +336,12 @@ export default function CoursesPage() {
           <div className="mt-3 flex flex-wrap items-end gap-3">
             {/* Topic */}
             <div className="flex flex-col min-w-[160px]">
-              <label className="text-xs font-semibold text-gray-600 mb-1">Chủ đề</label>
+              <label htmlFor="topic-select" className="text-xs font-semibold text-gray-600 mb-1">Chủ đề</label>
               <select
+                id="topic-select"
                 value={filterTopic}
                 onChange={(e) => setFilterTopic(e.target.value)}
                 className="h-9 px-3 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-rose-700 focus:border-transparent"
-                aria-label="Filter by topic"
               >
                 {topics.map((t) => (
                   <option key={t} value={t}>
@@ -380,12 +353,12 @@ export default function CoursesPage() {
 
             {/* Level */}
             <div className="flex flex-col min-w-[150px]">
-              <label className="text-xs font-semibold text-gray-600 mb-1">Trình độ</label>
+              <label htmlFor="level-select" className="text-xs font-semibold text-gray-600 mb-1">Trình độ</label>
               <select
+                id="level-select"
                 value={filterLevel}
                 onChange={(e) => setFilterLevel(e.target.value)}
                 className="h-9 px-3 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-rose-700 focus:border-transparent"
-                aria-label="Filter by level"
               >
                 {levels.map((lv) => (
                   <option key={lv} value={lv}>
@@ -397,7 +370,7 @@ export default function CoursesPage() {
 
             {/* Rating */}
             <div className="flex flex-col min-w-[180px]">
-              <label className="text-xs font-semibold text-gray-600 mb-1">Đánh giá tối thiểu</label>
+              <span className="text-xs font-semibold text-gray-600 mb-1">Đánh giá tối thiểu</span>
               <div className="h-9 flex items-center px-3 border border-gray-300 rounded-lg focus-within:ring-1 focus-within:ring-rose-700">
                 <StarRating rating={minRating} onRatingChange={setMinRating} />
               </div>
@@ -405,7 +378,7 @@ export default function CoursesPage() {
 
             {/* Clear ngay cạnh Rating */}
             <div className="flex flex-col min-w-[92px]">
-              <label className="text-xs font-semibold text-gray-600 mb-1 invisible">Clear</label>
+              <span className="text-xs font-semibold text-gray-600 mb-1 invisible">Clear</span>
               <button
                 type="button"
                 onClick={clearAll}
@@ -417,7 +390,7 @@ export default function CoursesPage() {
 
             {/* Results giống các cột khác */}
             <div className="ml-auto flex flex-col min-w-[130px]">
-              <label className="text-xs font-semibold text-gray-600 mb-1">Kết quả</label>
+              <span className="text-xs font-semibold text-gray-600 mb-1">Kết quả</span>
               <div className="h-9 flex items-center px-3 border border-gray-300 rounded-lg text-sm bg-white">
                 <span className="font-semibold text-gray-900">{filteredAndSorted.length}</span>
                 <span className="ml-1 text-gray-700">khóa học</span>

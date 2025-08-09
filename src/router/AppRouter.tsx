@@ -7,40 +7,40 @@ import HomePage from "../pages/HomePage";
 import CoursesPage from "../pages/CoursesPage";
 import CourseDetailPage from "../pages/CourseDetailPage";
 import ChapterDetailPage from "../pages/ChapterDetailPage";
-import LearningPathPage from "../pages/LearningPathPage";
-import RoadmapDetailPage from "../pages/LearningPathDetailPage";
-import LoginPage from "../pages/LoginPage";
-import RegisterPage from "../pages/RegisterPage";
-import ForgotPasswordPage from "../pages/ForgotPasswordPage";
-import ResetPasswordPage from "../pages/ResetPasswordPage";
-import { VerifyOtpPage } from "../pages/VerifyOtpPage";
+import LearningPathPage from "../pages/learning_path/LearningPathPage";
+import LearningPathDetailPage from "../pages/learning_path/LearningPathDetailPage";
+import LoginPage from "../pages/auth-user_profile/LoginPage";
+import RegisterPage from "../pages/auth-user_profile/RegisterPage";
+import ForgotPasswordPage from "../pages/auth-user_profile/ForgotPasswordPage";
+import ResetPasswordPage from "../pages/auth-user_profile/ResetPasswordPage";
+import { VerifyOtpPage } from "../pages/auth-user_profile/VerifyOtpPage";
 import ChatbotPage from "../pages/ChatbotPage";
-import UserProfilePage from "../pages/UserProfilePage";
-import ManagerDashboardPage from "../pages/ManagerDashboardPage";
-import StaffDashboardPage from "../pages/StaffDashboardPage";
-import StaffCoursesPage from "../pages/StaffCoursesPage";
-import StaffCourseDetailPage from "../pages/StaffCourseDetailPage";
-import StaffChapterDetailPage from "../pages/StaffChapterDetailPage";
-import StaffUnitDetailPage from "../pages/StaffUnitDetailPage";
-import StaffCreateCoursePage from "../pages/StaffCreateCoursePage";
-import StaffUpdateCoursePage from "../pages/StaffUpdateCoursePage";
-import StaffUpdateChapterPage from "../pages/StaffUpdateChapterPage";
-import StaffCreateChapterPage from "../pages/StaffCreateChapterPage";
-import StaffCreateUnitPage from "../pages/StaffCreateUnitPage";
-import StaffUpdateUnitPage from "../pages/StaffUpdateUnitPage";
-import StaffCreateExamPage from "../pages/StaffCreateExamPage";
-import StaffUpdateExamPage from "../pages/StaffUpdateExamPage";
-import StaffStudentFeedbackPage from "../pages/StaffStudentFeedbackPage";
-import StaffRequestsPage from "../pages/StaffRequestsPage";
-import ManagerApprovalRequestsPage from "../pages/ManagerApprovalRequestsPage";
-import { ExamPreparationPage } from '../pages/ExamPreparationPage';
-import { ExamDoingPage } from '../pages/ExamDoingPage';
-import { ExamResultPage } from '../pages/ExamResultPage';
-import { ExamAnswerReviewPage } from '../pages/ExamAnswerReviewPage';
+import UserProfilePage from "../pages/auth-user_profile/UserProfilePage";
+import ManagerDashboardPage from "../pages/manager/ManagerDashboardPage";
+import StaffDashboardPage from "../pages/staff/StaffDashboardPage";
+import StaffCoursesPage from "../pages/staff/StaffCoursesPage";
+import StaffCourseDetailPage from "../pages/staff/StaffCourseDetailPage";
+import StaffChapterDetailPage from "../pages/staff/StaffChapterDetailPage";
+import StaffUnitDetailPage from "../pages/staff/StaffUnitDetailPage";
+import StaffCreateCoursePage from "../pages/staff/StaffCreateCoursePage";
+import StaffUpdateCoursePage from "../pages/staff/StaffUpdateCoursePage";
+import StaffUpdateChapterPage from "../pages/staff/StaffUpdateChapterPage";
+import StaffCreateChapterPage from "../pages/staff/StaffCreateChapterPage";
+import StaffCreateUnitPage from "../pages/staff/StaffCreateUnitPage";
+import StaffUpdateUnitPage from "../pages/staff/StaffUpdateUnitPage";
+import StaffCreateExamPage from "../pages/staff/StaffCreateExamPage";
+import StaffUpdateExamPage from "../pages/staff/StaffUpdateExamPage";
+import StaffStudentFeedbackPage from "../pages/staff/StaffStudentFeedbackPage";
+import StaffRequestsPage from "../pages/staff/StaffRequestsPage";
+import ManagerApprovalRequestsPage from "../pages/manager/ManagerApprovalRequestsPage";
+import { ExamPreparationPage } from '../pages/exam/ExamPreparationPage';
+import { ExamDoingPage } from '../pages/exam/ExamDoingPage';
+import { ExamResultPage } from '../pages/exam/ExamResultPage';
+import { ExamAnswerReviewPage } from '../pages/exam/ExamAnswerReviewPage';
 import ForumPage from "../components/forum/Forum";
-import ExamHistoryPage from '../pages/ExamHistoryPage';
-import AdminDashboardPage from "../pages/AdminDashboardPage";
-import AdminManageAccountPage from "../pages/AdminManageAccountPage";
+import ExamHistoryPage from '../pages/exam/ExamHistoryPage';
+import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
+import AdminManageAccountPage from "../pages/admin/AdminManageAccountPage";
 /**
  * Router Configuration - Cấu hình routing cho ứng dụng
  * Sử dụng React Router v6 với createBrowserRouter
@@ -79,7 +79,7 @@ const router = createBrowserRouter([
     path: "/roadmap-detail/:id",
     element: (
       <Layout>
-        <RoadmapDetailPage />
+        <LearningPathDetailPage />
       </Layout>
     ),
   },

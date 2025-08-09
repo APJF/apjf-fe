@@ -4,7 +4,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/Tabs"
 import { Avatar, AvatarFallback } from "../ui/Avatar"
 import { StarDisplay } from "../ui/StarDisplay"
 import ReviewForm, { type NewReviewInput } from "./ReviewForm"
+import MinStarFilter from "./MinStarFilter"
 import { useMemo, useState } from "react"
+import { useNavigate } from "react-router-dom"
 
 export interface Chapter {
   id: string
@@ -24,11 +26,14 @@ export default function CourseTabs({
   description,
   chapters,
   initialReviews,
+  courseId,
 }: Readonly<{
   description: string
   chapters: Chapter[]
   initialReviews: ReviewItem[]
+  courseId: string
 }>) {
+  const navigate = useNavigate()
   const [reviews, setReviews] = useState<ReviewItem[]>(initialReviews)
 
   // Controls: sort and min rating filter
@@ -51,49 +56,6 @@ export default function CourseTabs({
     return filtered.sort((a, b) => (sortOrder === "desc" ? b.rating - a.rating : a.rating - b.rating))
   }, [reviews, sortOrder, minStars])
 
-  function MinStarFilter({
-    value,
-    onChange,
-  }: {
-    value: number
-    onChange: (v: number) => void
-  }) {
-    return (
-      <div className="flex items-center gap-1">
-        {[1, 2, 3, 4, 5].map((n) => (
-          <button
-            key={n}
-            type="button"
-            onClick={() => onChange(value === n ? 0 : n)}
-            className={`h-8 px-2 rounded-md text-xs font-medium border ${
-              value === n
-                ? "bg-rose-700 text-white border-rose-700"
-                : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-            }`}
-            aria-pressed={value === n}
-            aria-label={`Filter ${n}+ stars`}
-            title={`${n}+`}
-          >
-            {n}+
-          </button>
-        ))}
-        <button
-          type="button"
-          onClick={() => onChange(0)}
-          className={`h-8 px-2 rounded-md text-xs font-medium border ${
-            value === 0
-              ? "bg-rose-50 text-rose-700 border-rose-200"
-              : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-          }`}
-          aria-label="No minimum rating"
-          title="Any"
-        >
-          Tất cả
-        </button>
-      </div>
-    )
-  }
-
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6">
       <Tabs defaultValue="chapters" className="w-full">
@@ -109,7 +71,8 @@ export default function CourseTabs({
             {chapters.map((ch) => (
               <li
                 key={ch.id}
-                className="group flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-rose-300 hover:bg-rose-50/50 transition-colors"
+                className="group flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-rose-300 hover:bg-rose-50/50 transition-colors cursor-pointer"
+                onClick={() => navigate(`/courses/${courseId}/chapters/${ch.id}`)}
               >
                 <span className="flex-none inline-flex items-center justify-center w-7 h-7 rounded-full bg-rose-50 text-rose-700 text-xs font-semibold">
                   {chapters.indexOf(ch) + 1}

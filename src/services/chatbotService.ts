@@ -50,12 +50,12 @@ export const chatbotService = {
     return response.data;
   },
 
-  invoke: async (sessionId: number, userInput: string) => {
-    const response = await aiInstance.post('/chat/invoke', { session_id: sessionId.toString(), user_input: userInput });
+  invoke: async (sessionId: string, userInput: string) => {
+    const response = await aiInstance.post('/chat/invoke', { session_id: sessionId, user_input: userInput });
     return response.data;
   },
 
-  editAndResubmit: async (sessionId: number, correctedInput: string) => {
+  editAndResubmit: async (sessionId: string, correctedInput: string) => {
     const response = await aiInstance.post('/chat/edit_and_resubmit', { session_id: sessionId, corrected_input: correctedInput });
     return response.data;
   },
@@ -70,17 +70,17 @@ export const chatbotService = {
     return response.data;
   },
 
-  getSessionHistory: async (sessionId: number) => {
+  getSessionHistory: async (sessionId: string) => {
     const response = await aiInstance.get(`/sessions/${sessionId}/history`);
     return response.data;
   },
 
-  deleteSession: async (sessionId: number) => {
+  deleteSession: async (sessionId: string) => {
     const response = await aiInstance.delete(`/sessions/${sessionId}`);
     return response.data;
   },
 
-  renameSession: async (sessionId: number, newName: string) => {
+  renameSession: async (sessionId: string, newName: string) => {
     const response = await aiInstance.put(`/sessions/${sessionId}/rename`, { new_name: newName });
     return response.data;
   },

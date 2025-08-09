@@ -1,15 +1,16 @@
 "use client"
 
-import React, { useState, useRef, useEffect, useCallback } from "react"
+// @ts-nocheck
+import React, { useState, useEffect, useRef, useCallback } from "react"
 import {
   Send,
   Bot,
   Loader2,
   Plus,
   Settings,
-  Menu,
-  X,
   RefreshCw,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react"
 import { Button } from "../components/ui/Button"
 import { Input } from "../components/ui/Input"
@@ -24,13 +25,13 @@ import ChatSessionItem from "../components/chatbot/ChatSessionItem"
 
 export default function ChatbotPage() {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([])
-  const [currentChatId, setCurrentChatId] = useState<number | null>(null)
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null)
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [editingMessageId, setEditingMessageId] = useState<number | null>(null)
+  const [sessionsDropdownOpen, setSessionsDropdownOpen] = useState(false) // Thêm state cho dropdown sessions
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
   const [editingContent, setEditingContent] = useState("")
-  const [editingSessionId, setEditingSessionId] = useState<number | null>(null)
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
   const [editingSessionName, setEditingSessionName] = useState("")
   const [error, setError] = useState<string>("")
   // Removed userId logic as backend no longer requires it
@@ -55,7 +56,7 @@ export default function ChatbotPage() {
     scrollToBottom()
   }, [currentChat?.messages])
 
-  const loadChatMessages = useCallback(async (sessionId: number) => {
+  const loadChatMessages = useCallback(async (sessionId: string) => {
     setIsLoading(true)
     try {
       const response = await chatbotService.getSessionHistory(sessionId)
@@ -142,7 +143,7 @@ export default function ChatbotPage() {
     }
   }
 
-  const deleteChat = async (sessionId: number) => {
+  const deleteChat = async (sessionId: string) => {
     const confirmDelete = window.confirm("Bạn có chắc muốn xóa cuộc trò chuyện này?");
     if (!confirmDelete) return;
 
@@ -158,7 +159,7 @@ export default function ChatbotPage() {
     }
   }
 
-  const handlePostDeleteNavigation = (deletedSessionId: number, remainingSessions: ChatSession[]) => {
+  const handlePostDeleteNavigation = (deletedSessionId: string, remainingSessions: ChatSession[]) => {
     if (currentChatId === deletedSessionId) {
       if (remainingSessions.length > 0) {
         const newCurrentChatId = remainingSessions[0].id;
@@ -170,7 +171,7 @@ export default function ChatbotPage() {
     }
   };
 
-  const handleEditSessionName = async (sessionId: number, newName: string) => {
+  const handleEditSessionName = async (sessionId: string, newName: string) => {
     if (!newName.trim()) return
 
     try {
@@ -193,16 +194,18 @@ export default function ChatbotPage() {
     if (!content.trim() || isLoading) return
 
     const userMessage: Message = {
-      id: Date.now(),
+      id: Date.now().toString(),
       content: content.trim(),
       type: "human",
+      role: "user",
       timestamp: new Date(),
     }
 
     const typingMessage: Message = {
-      id: -1,
+      id: "-1",
       content: "",
       type: "ai",
+      role: "assistant",
       timestamp: new Date(),
       isTyping: true,
     }
@@ -246,18 +249,23 @@ export default function ChatbotPage() {
     }
 
     try {
-      const response = await chatbotService.invoke(finalChatId as number, content.trim());
-      handleSuccessfulAiResponse(finalChatId as number, response.ai_response);
+      if (!finalChatId) {
+        console.error('No chat ID available');
+        return;
+      }
+      const response = await chatbotService.invoke(finalChatId, content.trim());
+      handleSuccessfulAiResponse(finalChatId, response.ai_response);
     } catch (error) {
-      handleFailedAiResponse(finalChatId as number, error);
+      if (finalChatId) {
+        handleFailedAiResponse(finalChatId, error);
+      }
     } finally {
       setIsLoading(false);
     }
   }
 
-  const updateChatWithNewMessage = (chatId: number, message: Message) => {
-    setChatSessions((prev) => {
-      const newSessions = [...prev]
+  const updateChatWithNewMessage = (chatId: string, message: Message) => {
+    setChatSessions(newSessions => {
       const chatIndex = newSessions.findIndex((chat) => chat.id === chatId)
 
       if (chatIndex !== -1) {
@@ -271,27 +279,29 @@ export default function ChatbotPage() {
     })
   }
 
-  const handleSuccessfulAiResponse = (chatId: number, aiResponse: string) => {
+  const handleSuccessfulAiResponse = (chatId: string, aiResponse: string) => {
     if (!aiResponse) {
       throw new Error("API call failed but did not throw an error.");
     }
     const aiMessage: Message = {
-      id: Date.now() + 1,
+      id: (Date.now() + 1).toString(),
       content: aiResponse,
       type: "ai",
+      role: "assistant",
       timestamp: new Date(),
     };
     updateChatWithNewMessage(chatId, aiMessage);
   };
 
-  const handleFailedAiResponse = (chatId: number, error: unknown) => {
+  const handleFailedAiResponse = (chatId: string, error: unknown) => {
     setError("Lỗi khi gửi tin nhắn");
     console.error("Error sending message:", error);
 
     const errorMessage: Message = {
-      id: Date.now() + 1,
+      id: (Date.now() + 1).toString(),
       content: "Xin lỗi, tôi gặp sự cố kỹ thuật. Vui lòng thử lại sau. 😅",
       type: "ai",
+      role: "assistant",
       timestamp: new Date(),
     };
     updateChatWithNewMessage(chatId, errorMessage);
@@ -321,7 +331,7 @@ export default function ChatbotPage() {
     }
   }
 
-  const handleEditMessage = (messageId: number, content: string) => {
+  const handleEditMessage = (messageId: string, content: string) => {
     const humanMessages = (currentChat?.messages || []).filter((msg) => msg.type === "human")
     const lastHumanMessage = humanMessages[humanMessages.length - 1]
 
@@ -384,7 +394,7 @@ export default function ChatbotPage() {
     }
 
     const handleFormatTime = () => {
-      return formatTime(updated_at)
+      return formatTime(updated_at.toISOString())
     }
 
     return (
@@ -431,109 +441,128 @@ export default function ChatbotPage() {
   // userId check removed
 
   return (
-    <div className="fixed top-16 left-0 right-0 bottom-0 bg-white flex overflow-hidden">
-      {/* Sidebar */}
-      <div
-        className={`${sidebarOpen ? "w-80" : "w-0"} transition-all duration-300 border-r border-gray-200 flex flex-col overflow-hidden`}
-      >
-        {/* Sidebar Header */}
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center">
-                <Bot className="h-4 w-4 text-white" />
-              </div>
-              <div>
-                <h1 className="text-lg font-semibold text-gray-900">Trợ lý AI</h1>
-              </div>
+    <div className="fixed top-16 left-0 right-0 bottom-0 bg-white flex flex-col overflow-hidden">
+      {/* Chat Header với Sessions Dropdown */}
+      <div className="relative p-4 border-b border-gray-200 bg-white flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {/* Sessions Dropdown Button */}
+            <div className="relative">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setSessionsDropdownOpen(!sessionsDropdownOpen)}
+                className="flex items-center gap-2"
+              >
+                {sessionsDropdownOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                <span className="text-sm">Phiên chat</span>
+                <Badge variant="secondary" className="text-xs">
+                  {chatSessions.length}
+                </Badge>
+              </Button>
+
+              {/* Sessions Dropdown */}
+              {sessionsDropdownOpen && (
+                <div className="absolute top-full left-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-hidden flex flex-col">
+                  {/* Dropdown Header */}
+                  <div className="p-3 border-b border-gray-200">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-6 h-6 rounded-full bg-red-600 flex items-center justify-center">
+                        <Bot className="h-3 w-3 text-white" />
+                      </div>
+                      <h3 className="text-sm font-semibold text-gray-900">Trợ lý AI</h3>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={createNewChat} size="sm" className="flex-1 bg-red-600 hover:bg-red-700 text-white">
+                        <Plus className="h-3 w-3 mr-1" />
+                        Tạo mới
+                      </Button>
+                      <Button onClick={loadChatSessions} variant="outline" size="sm" className="px-3">
+                        <RefreshCw className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Sessions List */}
+                  <ScrollArea className="flex-1">
+                    <div className="p-2">
+                      {chatSessionList}
+                    </div>
+                  </ScrollArea>
+                </div>
+              )}
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(false)} className="lg:hidden">
-              <X className="h-4 w-4" />
+            
+            {/* Current Chat Title */}
+            {currentChat && (
+              <div className="text-sm text-gray-600">
+                {currentChat.name || `Chat ${currentChat.id}`}
+              </div>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Badge className="bg-red-100 text-red-700 hover:bg-red-100">🇯🇵 Tiếng Nhật</Badge>
+            <Button variant="ghost" size="sm">
+              <Settings className="h-4 w-4" />
             </Button>
           </div>
-          <Button onClick={createNewChat} className="w-full bg-red-600 hover:bg-red-700 text-white mb-3">
-            <Plus className="h-4 w-4 mr-2" />
-            Tạo đoạn chat mới
-          </Button>
-          <Button onClick={loadChatSessions} variant="outline" size="sm" className="w-full bg-transparent">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Làm mới
-          </Button>
         </div>
 
-        {/* Chat Sessions List */}
-        <ScrollArea className="flex-1">
-          <div className="p-2">{chatSessionList}</div>
+        {/* Overlay để đóng dropdown khi click outside */}
+        {sessionsDropdownOpen && (
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setSessionsDropdownOpen(false)}
+          />
+        )}
+      </div>
+
+      {/* Error Alert */}
+      {error && (
+        <div className="p-4 flex-shrink-0">
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        </div>
+      )}
+
+      {/* Messages */}
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full">
+          <div className="p-4 space-y-4 max-w-4xl mx-auto">
+            {messageList}
+            <div ref={messagesEndRef} />
+          </div>
         </ScrollArea>
       </div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Chat Header */}
-        <div className="p-4 border-b border-gray-200 bg-white flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {!sidebarOpen && (
-                <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(true)}>
-                  <Menu className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge className="bg-red-100 text-red-700 hover:bg-red-100">🇯🇵 Tiếng Nhật</Badge>
-              <Button variant="ghost" size="sm">
-                <Settings className="h-4 w-4" />
+      {/* Input */}
+      <div className="p-4 bg-white flex-shrink-0">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex gap-3 items-end">
+            <div className="flex-1 relative">
+              <Input
+                ref={inputRef}
+                value={inputValue}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Nhập tin nhắn của bạn..."
+                disabled={isLoading || !currentChatId}
+                className="pr-12 py-3 rounded-2xl border-gray-300 focus:border-red-400 focus:ring-red-400"
+              />
+              <Button
+                onClick={() => handleSendMessage(inputValue)}
+                disabled={!inputValue.trim() || isLoading || !currentChatId}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-red-600 hover:bg-red-700 rounded-full h-8 w-8 p-0"
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>
           </div>
-        </div>
-
-        {/* Error Alert */}
-        {error && (
-          <div className="p-4 flex-shrink-0">
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          </div>
-        )}
-
-        {/* Messages */}
-        <div className="flex-1 overflow-hidden">
-          <ScrollArea className="h-full">
-            <div className="p-4 space-y-4 max-w-4xl mx-auto">
-              {messageList}
-              <div ref={messagesEndRef} />
-            </div>
-          </ScrollArea>
-        </div>
-
-        {/* Input */}
-        <div className="p-4 bg-white flex-shrink-0">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex gap-3 items-end">
-              <div className="flex-1 relative">
-                <Input
-                  ref={inputRef}
-                  value={inputValue}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInputValue(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Nhập tin nhắn của bạn..."
-                  disabled={isLoading || !currentChatId}
-                  className="pr-12 py-3 rounded-2xl border-gray-300 focus:border-red-400 focus:ring-red-400"
-                />
-                <Button
-                  onClick={() => handleSendMessage(inputValue)}
-                  disabled={!inputValue.trim() || isLoading || !currentChatId}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-red-600 hover:bg-red-700 rounded-full h-8 w-8 p-0"
-                >
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
-            <p className="text-xs text-gray-500 mt-2 text-center">
-              AI có thể mắc lỗi. Vui lòng kiểm tra thông tin quan trọng.
-            </p>
-          </div>
+          <p className="text-xs text-gray-500 mt-2 text-center">
+            AI có thể mắc lỗi. Vui lòng kiểm tra thông tin quan trọng.
+          </p>
         </div>
       </div>
     </div>

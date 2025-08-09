@@ -4,7 +4,6 @@ import { useState } from "react"
 import { Check, Loader2 } from "lucide-react"
 
 export default function EnrollButton({
-  courseId: _courseId,
   courseTitle,
 }: Readonly<{
   courseId: string
