@@ -4,11 +4,11 @@ import Layout from "../components/layout/Layout";
 import { ProtectedRoute } from "../components/auth/ProtectedRoute";
 import OAuthCallback from "../components/auth/OAuthCallback";
 import HomePage from "../pages/HomePage";
-import CoursesPage from "../pages/study/CoursesPage";
-import CourseDetailPage from "../pages/study/CourseDetailPage";
-import ChapterDetailPage from "../pages/study/ChapterDetailPage";
+import CoursesPage from "../pages/CoursesPage";
+import CourseDetailPage from "../pages/CourseDetailPage";
+import ChapterDetailPage from "../pages/ChapterDetailPage";
 import LearningPathPage from "../pages/learning_path/LearningPathPage";
-import RoadmapDetailPage from "../pages/learning_path/LearningPathDetailPage";
+import LearningPathDetailPage from "../pages/learning_path/LearningPathDetailPage";
 import LoginPage from "../pages/auth-user_profile/LoginPage";
 import RegisterPage from "../pages/auth-user_profile/RegisterPage";
 import ForgotPasswordPage from "../pages/auth-user_profile/ForgotPasswordPage";
@@ -79,7 +79,7 @@ const router = createBrowserRouter([
     path: "/roadmap-detail/:id",
     element: (
       <Layout>
-        <RoadmapDetailPage />
+        <LearningPathDetailPage />
       </Layout>
     ),
   },

@@ -61,7 +61,7 @@ export function ManagerApprovalRequestsPage() {
   const [rejectFeedback, setRejectFeedback] = useState("")
   const [currentTab, setCurrentTab] = useState("all")
   const [unitMaterials, setUnitMaterials] = useState<Material[]>([])
-  const [isLoadingMaterials, setIsLoadingMaterials] = useState(false)
+  const [isLoadingMaterials] = useState(false)
   
   // State để lưu thông tin chi tiết
   const [targetDetails, setTargetDetails] = useState<{

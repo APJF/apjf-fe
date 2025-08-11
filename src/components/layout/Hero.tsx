@@ -4,7 +4,7 @@ import NhatBanImg from "../../assets/NhatBan.webp";
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-red-50 via-white to-pink-50 py-20 lg:py-32">
+    <section className="relative overflow-hidden bg-gradient-to-br from-red-50 via-white to-pink-50 py-28 lg:py-44">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-5">
         <div className="absolute top-10 left-10 text-6xl">あ</div>
