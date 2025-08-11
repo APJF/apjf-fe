@@ -1,365 +1,1033 @@
-import { useState } from "react"
-import { StaffNavigation } from "../../components/layout/StaffNavigation"
-import { Card, CardContent, CardHeader } from "../../components/ui/Card"
-import { Button } from "../../components/ui/Button"
-import { Badge } from "../../components/ui/Badge"
+import { useState, useEffect, useMemo } from 'react'
+import { Button } from '../../components/ui/Button'
+import { Input } from '../../components/ui/Input'
+import { Card } from '../../components/ui/Card'
+import { Badge } from '../../components/ui/Badge'
+import { Alert } from '../../components/ui/Alert'
+import { StaffNavigation } from '../../components/layout/StaffNavigation'
+import { useAuth } from '../../hooks/useAuth'
+import { useToast } from '../../hooks/useToast'
 import {
-  MessageSquare,
-  ThumbsDown,
-  Star,
-  Filter,
   Search,
-  Eye,
-  Reply,
-  Calendar,
-  User,
-  AlertTriangle,
+  Clock,
   CheckCircle,
-  Clock
-} from "lucide-react"
+  XCircle,
+  Eye,
+  TrendingUp,
+  Calendar,
+  RefreshCw,
+  FileText,
+  Layers,
+  BookOpen,
+  Package,
+  MessageCircle,
+  User,
+  ChevronLeft,
+  ChevronRight
+} from 'lucide-react'
+import { ApprovalRequestService } from '../../services/approvalRequestService'
+import { CourseService } from '../../services/courseService'
+import { StaffChapterService } from '../../services/staffChapterService'
+import { StaffUnitService } from '../../services/staffUnitService'
+import { MaterialService } from '../../services/materialService'
+import type { ApprovalRequest } from '../../types/approvalRequest'
+import type { Course } from '../../types/course'
+import type { Chapter } from '../../types/chapter'
+import type { UnitDetail } from '../../types/unit'
 
-interface ManagerFeedback {
+// Material type definition from API
+interface Material {
   id: string
-  type: "approval" | "revision" | "rejection" | "question"
-  status: "new" | "read" | "responded"
-  priority: "low" | "medium" | "high"
-  course: string
-  lesson?: string
-  subject: string
-  message: string
-  managerName: string
-  createdAt: string
-  dueDate?: string
-  rating?: number
+  description: string
+  type: string
+  fileUrl: string
 }
 
-const FeedbackCard = ({ feedback }: { feedback: ManagerFeedback }) => {
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case "approval": return <CheckCircle className="h-5 w-5 text-green-600" />
-      case "revision": return <AlertTriangle className="h-5 w-5 text-yellow-600" />
-      case "rejection": return <ThumbsDown className="h-5 w-5 text-red-600" />
-      case "question": return <MessageSquare className="h-5 w-5 text-blue-600" />
-      default: return <MessageSquare className="h-5 w-5 text-gray-600" />
+export function StaffManagerFeedbackPage() {
+  const [requests, setRequests] = useState<ApprovalRequest[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [typeFilter, setTypeFilter] = useState<string>("all")
+  const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest")
+  const [currentPage, setCurrentPage] = useState(1)
+  const [selectedRequest, setSelectedRequest] = useState<ApprovalRequest | null>(null)
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false)
+  const [currentTab, setCurrentTab] = useState("all")
+  const [unitMaterials, setUnitMaterials] = useState<Material[]>([])
+  
+  // State để lưu thông tin chi tiết
+  const [targetDetails, setTargetDetails] = useState<{
+    course?: Course
+    chapter?: Chapter
+    unit?: UnitDetail
+  }>({})
+  const [isLoadingTargetDetails, setIsLoadingTargetDetails] = useState(false)
+  const [courseImageError, setCourseImageError] = useState(false)
+  
+  const itemsPerPage = 6
+
+  const { user } = useAuth()
+  const { showToast } = useToast()
+
+  // Fetch requests data for current user
+  const fetchRequests = async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+
+      if (!user?.id) {
+        throw new Error('Không tìm thấy thông tin người dùng')
+      }
+
+      const response = await ApprovalRequestService.getRequestsByCreator(String(user.id))
+      console.log('📋 Staff API Response:', response)
+      setRequests(response)
+    } catch (err) {
+      console.error('Error fetching requests:', err)
+      setError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi tải dữ liệu')
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case "approval": return "bg-green-100 text-green-800"
-      case "revision": return "bg-yellow-100 text-yellow-800"
-      case "rejection": return "bg-red-100 text-red-800"
-      case "question": return "bg-blue-100 text-blue-800"
-      default: return "bg-gray-100 text-gray-800"
+  // Fetch target details based on targetType and targetId
+  const fetchCourseDetails = async (targetId: string) => {
+    try {
+      const courseResponse = await CourseService.getCourseDetail(targetId)
+      if (courseResponse.success) {
+        setTargetDetails(prev => ({ ...prev, course: courseResponse.data }))
+      }
+    } catch (error) {
+      console.error('Error fetching course details:', error)
     }
   }
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high": return "bg-red-500"
-      case "medium": return "bg-yellow-500"
-      case "low": return "bg-green-500"
-      default: return "bg-gray-500"
+  const fetchChapterDetails = async (targetId: string) => {
+    try {
+      const chapterResponse = await StaffChapterService.getChapterDetail(targetId)
+      if (chapterResponse.success) {
+        setTargetDetails(prev => ({ ...prev, chapter: chapterResponse.data }))
+      }
+    } catch (error) {
+      console.error('Error fetching chapter details:', error)
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "new": return "bg-blue-100 text-blue-800"
-      case "read": return "bg-gray-100 text-gray-800"
-      case "responded": return "bg-green-100 text-green-800"
-      default: return "bg-gray-100 text-gray-800"
+  const fetchUnitDetails = async (targetId: string) => {
+    try {
+      const [unitResponse, materialsResponse] = await Promise.all([
+        StaffUnitService.getUnitDetail(targetId),
+        MaterialService.getMaterialsByUnit(targetId)
+      ])
+      
+      if (unitResponse.success) {
+        setTargetDetails(prev => ({ ...prev, unit: unitResponse.data }))
+      }
+      
+      if (materialsResponse.success) {
+        setUnitMaterials(materialsResponse.data)
+      }
+    } catch (error) {
+      console.error('Error fetching unit details:', error)
     }
   }
 
-  const getTypeName = (type: string) => {
-    switch (type) {
-      case "approval": return "Phê duyệt"
-      case "revision": return "Yêu cầu sửa đổi"
-      case "rejection": return "Từ chối"
-      case "question": return "Câu hỏi"
-      default: return "Khác"
+  const fetchTargetDetails = async (targetType: string, targetId: string) => {
+    try {
+      setIsLoadingTargetDetails(true)
+      setTargetDetails({}) // Reset previous details
+      setCourseImageError(false) // Reset image error
+      
+      switch (targetType) {
+        case 'COURSE':
+          await fetchCourseDetails(targetId)
+          break
+        case 'CHAPTER':
+          await fetchChapterDetails(targetId)
+          break
+        case 'UNIT':
+          await fetchUnitDetails(targetId)
+          break
+        default:
+          console.warn('Unknown targetType:', targetType)
+      }
+    } catch (error) {
+      console.error('Error fetching target details:', error)
+      showToast('error', 'Không thể tải thông tin chi tiết')
+    } finally {
+      setIsLoadingTargetDetails(false)
     }
   }
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case "new": return "Mới"
-      case "read": return "Đã đọc"
-      case "responded": return "Đã phản hồi"
-      default: return "Không xác định"
+  useEffect(() => {
+    if (user?.id) {
+      fetchRequests()
+    }
+  }, [user?.id])
+
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const total = requests.length
+    const pending = requests.filter((item) => item.decision === "PENDING").length
+    const approved = requests.filter((item) => item.decision === "APPROVED").length
+    const rejected = requests.filter((item) => item.decision === "REJECTED").length
+
+    return { total, pending, approved, rejected }
+  }, [requests])
+
+  // Filter and sort data
+  const filteredData = useMemo(() => {
+    let filtered = requests.filter((item) => {
+      const matchesSearch =
+        (item.targetTitle?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (item.targetId?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (item.createdBy?.toLowerCase() || '').includes(searchTerm.toLowerCase())
+
+      const matchesStatus = statusFilter === "all" || 
+        (statusFilter === "PENDING" && item.decision === "PENDING") ||
+        (statusFilter === "APPROVED" && item.decision === "APPROVED") ||
+        (statusFilter === "REJECTED" && item.decision === "REJECTED")
+
+      let matchesType = true
+      if (typeFilter !== "all") {
+        if (currentTab !== "all") {
+          const typeMap = { 
+            subjects: "COURSE", 
+            chapters: "CHAPTER", 
+            units: "UNIT" 
+          }
+          matchesType = item.targetType === typeMap[currentTab as keyof typeof typeMap]
+        } else {
+          matchesType = item.targetType === typeFilter
+        }
+      }
+
+      // Tab filtering
+      if (currentTab !== "all") {
+        const typeMap = { 
+          subjects: "COURSE", 
+          chapters: "CHAPTER", 
+          units: "UNIT" 
+        }
+        const tabMatches = item.targetType === typeMap[currentTab as keyof typeof typeMap]
+        return matchesSearch && matchesStatus && matchesType && tabMatches
+      }
+
+      return matchesSearch && matchesStatus && matchesType
+    })
+
+    // Sort by time
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime()
+      const dateB = new Date(b.createdAt).getTime()
+      
+      if (sortBy === "newest") {
+        return dateB - dateA
+      } else {
+        return dateA - dateB
+      }
+    })
+
+    return filtered
+  }, [requests, searchTerm, statusFilter, typeFilter, sortBy, currentTab])
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, statusFilter, typeFilter, currentTab])
+
+  // Pagination
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentData = filteredData.slice(startIndex, endIndex)
+
+  // Helper functions
+  const getDecisionColor = (decision: string) => {
+    switch (decision) {
+      case "APPROVED":
+        return "bg-emerald-100 text-emerald-800 border-emerald-200"
+      case "REJECTED":
+        return "bg-red-100 text-red-800 border-red-200"
+      case "PENDING":
+        return "bg-amber-100 text-amber-800 border-amber-200"
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200"
     }
   }
 
-  return (
-    <Card className={`transition-all hover:shadow-md ${
-      feedback.status === "new" ? "ring-2 ring-blue-200" : ""
-    }`}>
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-start gap-3">
-            <div className="flex items-center gap-2">
-              {getTypeIcon(feedback.type)}
-              <div className="flex items-center gap-2">
-                <Badge className={getTypeColor(feedback.type)}>
-                  {getTypeName(feedback.type)}
-                </Badge>
-                <Badge className={getStatusColor(feedback.status)}>
-                  {getStatusText(feedback.status)}
-                </Badge>
-              </div>
-            </div>
-            <div className={`w-2 h-2 rounded-full ${getPriorityColor(feedback.priority)}`} 
-                 title={`Priority: ${feedback.priority}`} />
-          </div>
-          <div className="text-right">
-            <div className="flex items-center gap-1 text-sm text-gray-500">
-              <Calendar className="h-4 w-4" />
-              {feedback.createdAt}
-            </div>
-            {feedback.dueDate && (
-              <div className="flex items-center gap-1 text-sm text-amber-600 mt-1">
-                <Clock className="h-4 w-4" />
-                Due: {feedback.dueDate}
-              </div>
-            )}
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div>
-            <h3 className="font-semibold text-gray-900 mb-1">{feedback.subject}</h3>
-            <div className="text-sm text-gray-600 mb-2">
-              <span className="font-medium">Khóa học:</span> {feedback.course}
-              {feedback.lesson && (
-                <>
-                  <span className="mx-2">•</span>
-                  <span className="font-medium">Bài học:</span> {feedback.lesson}
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="bg-gray-50 rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <User className="h-4 w-4 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">{feedback.managerName}</span>
-              {feedback.rating && (
-                <div className="flex items-center gap-1 ml-auto">
-                  <Star className="h-4 w-4 text-yellow-500 fill-current" />
-                  <span className="text-sm">{feedback.rating}/5</span>
-                </div>
-              )}
-            </div>
-            <p className="text-gray-700 text-sm leading-relaxed">{feedback.message}</p>
-          </div>
-
-          <div className="flex gap-3">
-            <Button size="sm" variant="outline" className="flex items-center gap-1">
-              <Eye className="h-4 w-4" />
-              Xem chi tiết
-            </Button>
-            {feedback.status !== "responded" && (
-              <Button size="sm" className="flex items-center gap-1">
-                <Reply className="h-4 w-4" />
-                Phản hồi
-              </Button>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-export default function StaffManagerFeedbackPage() {
-  const [selectedFilter, setSelectedFilter] = useState("all")
-  const [searchQuery, setSearchQuery] = useState("")
-
-  const mockFeedback: ManagerFeedback[] = [
-    {
-      id: "1",
-      type: "revision",
-      status: "new",
-      priority: "high",
-      course: "N5 - Tiếng Nhật Cơ Bản",
-      lesson: "Bài 3: Giới thiệu bản thân",
-      subject: "Cần bổ sung ví dụ thực tế",
-      message: "Bài học này cần thêm nhiều ví dụ hội thoại thực tế hơn. Học viên phản ánh khó áp dụng vào cuộc sống hàng ngày. Đề nghị thêm 3-5 ví dụ tình huống cụ thể.",
-      managerName: "Nguyễn Văn Minh",
-      createdAt: "2 giờ trước",
-      dueDate: "3 ngày nữa"
-    },
-    {
-      id: "2",
-      type: "approval",
-      status: "read",
-      priority: "medium",
-      course: "N4 - Tiếng Nhật Sơ Cấp",
-      lesson: "Bài 12: Kanji về thời tiết",
-      subject: "Bài học được phê duyệt",
-      message: "Nội dung bài học rất hay và phù hợp với trình độ N4. Cách giải thích Kanji rõ ràng, dễ hiểu. Có thể publish ngay.",
-      managerName: "Trần Thị Hoa",
-      createdAt: "1 ngày trước",
-      rating: 5
-    },
-    {
-      id: "3",
-      type: "question",
-      status: "new",
-      priority: "medium",
-      course: "Kanji cho Người Mới Bắt Đầu",
-      subject: "Thứ tự dạy Kanji",
-      message: "Bạn có nghĩ nên dạy Kanji theo thứ tự stroke count hay theo frequency of use? Tôi thấy approach hiện tại có thể gây khó khăn cho học viên.",
-      managerName: "Lê Minh Đức",
-      createdAt: "2 ngày trước",
-      dueDate: "1 tuần nữa"
-    },
-    {
-      id: "4",
-      type: "rejection",
-      status: "responded",
-      priority: "high",
-      course: "N3 - Tiếng Nhật Trung Cấp",
-      lesson: "Bài 5: Ngữ pháp nâng cao",
-      subject: "Nội dung quá khó cho N3",
-      message: "Nội dung bài học này phù hợp hơn với N2. Đề nghị đơn giản hóa hoặc chuyển sang khóa học khác. Ngữ pháp quá phức tạp cho học viên N3.",
-      managerName: "Phạm Văn Tuấn",
-      createdAt: "1 tuần trước"
-    },
-    {
-      id: "5",
-      type: "approval",
-      status: "read",
-      priority: "low",
-      course: "Văn Hóa Nhật Bản",
-      lesson: "Bài 8: Lễ hội truyền thống",
-      subject: "Nội dung hay và phong phú",
-      message: "Bài học về văn hóa rất thú vị. Hình ảnh đẹp, nội dung phong phú. Học viên sẽ rất thích. Chỉ cần check lại một vài từ vựng khó.",
-      managerName: "Vũ Thị Lan",
-      createdAt: "3 ngày trước",
-      rating: 4
+  const getDecisionText = (decision: string) => {
+    switch (decision) {
+      case "APPROVED":
+        return "Đã duyệt"
+      case "REJECTED":
+        return "Từ chối"
+      case "PENDING":
+        return "Chờ duyệt"
+      default:
+        return decision
     }
-  ]
+  }
 
-  const filteredFeedback = mockFeedback.filter(feedback => {
-    if (selectedFilter !== "all" && feedback.type !== selectedFilter) return false
-    if (searchQuery && !feedback.subject.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !feedback.course.toLowerCase().includes(searchQuery.toLowerCase())) return false
-    return true
-  })
+  const getDecisionIcon = (decision: string) => {
+    switch (decision) {
+      case "APPROVED":
+        return <CheckCircle className="h-4 w-4 text-emerald-600" />
+      case "REJECTED":
+        return <XCircle className="h-4 w-4 text-red-600" />
+      case "PENDING":
+        return <Clock className="h-4 w-4 text-amber-600" />
+      default:
+        return null
+    }
+  }
 
-  const stats = {
-    total: mockFeedback.length,
-    new: mockFeedback.filter(f => f.status === "new").length,
-    pending: mockFeedback.filter(f => f.status === "new" || f.status === "read").length,
-    highPriority: mockFeedback.filter(f => f.priority === "high").length
+  const getTargetTypeIcon = (targetType: string) => {
+    switch (targetType) {
+      case "COURSE":
+        return <BookOpen className="h-4 w-4" />
+      case "CHAPTER":
+        return <Layers className="h-4 w-4" />
+      case "UNIT":
+        return <FileText className="h-4 w-4" />
+      default:
+        return <FileText className="h-4 w-4" />
+    }
+  }
+
+  const getTargetTypeText = (targetType: string) => {
+    switch (targetType) {
+      case "COURSE":
+        return "Khóa học"
+      case "CHAPTER":
+        return "Chương"
+      case "UNIT":
+        return "Bài học"
+      default:
+        return targetType
+    }
+  }
+
+  const handleRowClick = async (request: ApprovalRequest) => {
+    setSelectedRequest(request)
+    setIsDetailDialogOpen(true)
+    
+    // Fetch target details based on targetType and targetId
+    await fetchTargetDetails(request.targetType, request.targetId)
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-6">
+        <Alert className="max-w-md">
+          <XCircle className="h-4 w-4" />
+          <h3 className="font-semibold">Chưa đăng nhập</h3>
+          <p className="mt-2 text-sm">Vui lòng đăng nhập để xem phản hồi từ manager.</p>
+        </Alert>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-6">
+        <Alert variant="destructive" className="max-w-md">
+          <XCircle className="h-4 w-4" />
+          <h3 className="font-semibold">Có lỗi xảy ra</h3>
+          <p className="mt-2 text-sm">{error}</p>
+          <Button 
+            onClick={fetchRequests} 
+            className="mt-4"
+            size="sm"
+          >
+            Thử lại
+          </Button>
+        </Alert>
+      </div>
+    )
   }
 
   return (
     <StaffNavigation>
-      <div className="p-4 sm:p-6 lg:p-8">
-        <div className="max-w-6xl mx-auto">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-              Manager's Feedback
-            </h1>
-            <p className="text-gray-600">
-              Theo dõi và phản hồi feedback từ manager về nội dung khóa học
-            </p>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-            <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
-                <div className="text-sm text-gray-600">Tổng feedback</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-blue-600">{stats.new}</div>
-                <div className="text-sm text-gray-600">Chưa đọc</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-                <div className="text-sm text-gray-600">Cần xử lý</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4 text-center">
-                <div className="text-2xl font-bold text-red-600">{stats.highPriority}</div>
-                <div className="text-sm text-gray-600">Ưu tiên cao</div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Filters and Search */}
-          <div className="mb-6 space-y-4">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Tìm kiếm theo tiêu đề hoặc khóa học..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                />
+      <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen">
+        {/* Header */}
+        <div className="bg-white/80 backdrop-blur-sm border-b border-blue-200 shadow-sm">
+          <div className="max-w-7xl mx-auto px-6 py-8">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="bg-gradient-to-br from-purple-600 to-pink-600 p-3 rounded-xl shadow-lg">
+                  <MessageCircle className="h-8 w-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-blue-900">My Requests</h1>
+                  <p className="text-blue-600 font-medium mt-1">
+                    Xem các phản hồi và trạng thái yêu cầu của bạn
+                  </p>
+                </div>
               </div>
-              <Button variant="outline" className="flex items-center gap-2">
-                <Filter className="h-4 w-4" />
-                Lọc nâng cao
+              <Button
+                onClick={fetchRequests}
+                disabled={isLoading}
+                className="flex items-center gap-2"
+                variant="outline"
+              >
+                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                Làm mới
               </Button>
             </div>
-
-            <div className="flex flex-wrap gap-2">
-              {[
-                { key: "all", label: "Tất cả", count: stats.total },
-                { key: "approval", label: "Phê duyệt", count: mockFeedback.filter(f => f.type === "approval").length },
-                { key: "revision", label: "Yêu cầu sửa", count: mockFeedback.filter(f => f.type === "revision").length },
-                { key: "question", label: "Câu hỏi", count: mockFeedback.filter(f => f.type === "question").length },
-                { key: "rejection", label: "Từ chối", count: mockFeedback.filter(f => f.type === "rejection").length },
-              ].map(filter => (
-                <Button
-                  key={filter.key}
-                  variant={selectedFilter === filter.key ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedFilter(filter.key)}
-                >
-                  {filter.label} ({filter.count})
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {/* Feedback List */}
-          <div className="space-y-6">
-            {filteredFeedback.length > 0 ? (
-              filteredFeedback.map((feedback) => (
-                <FeedbackCard key={feedback.id} feedback={feedback} />
-              ))
-            ) : (
-              <div className="text-center py-12">
-                <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  Không có feedback nào
-                </h3>
-                <p className="text-gray-600">
-                  {searchQuery || selectedFilter !== "all" 
-                    ? "Không tìm thấy feedback phù hợp với bộ lọc"
-                    : "Chưa có feedback từ manager"
-                  }
-                </p>
-              </div>
-            )}
           </div>
         </div>
+
+        <div className="max-w-7xl mx-auto p-6">
+          {/* Statistics Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm hover:shadow-2xl transition-all duration-300">
+              <div className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 rounded-xl shadow-lg">
+                    <TrendingUp className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-blue-600 font-medium text-sm">Tổng yêu cầu</p>
+                    <p className="text-3xl font-bold text-blue-900">{stats.total}</p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm hover:shadow-2xl transition-all duration-300">
+              <div className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="bg-gradient-to-br from-amber-500 to-amber-600 p-3 rounded-xl shadow-lg">
+                    <Clock className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-amber-600 font-medium text-sm">Chờ duyệt</p>
+                    <p className="text-3xl font-bold text-amber-900">{stats.pending}</p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm hover:shadow-2xl transition-all duration-300">
+              <div className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-3 rounded-xl shadow-lg">
+                    <CheckCircle className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-emerald-600 font-medium text-sm">Đã duyệt</p>
+                    <p className="text-3xl font-bold text-emerald-900">{stats.approved}</p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm hover:shadow-2xl transition-all duration-300">
+              <div className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="bg-gradient-to-br from-red-500 to-red-600 p-3 rounded-xl shadow-lg">
+                    <XCircle className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-red-600 font-medium text-sm">Từ chối</p>
+                    <p className="text-3xl font-bold text-red-900">{stats.rejected}</p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Filters */}
+          <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm mb-8">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="bg-gradient-to-br from-purple-600 to-pink-600 p-2 rounded-lg">
+                  <Search className="h-5 w-5 text-white" />
+                </div>
+                <h2 className="text-lg font-bold text-blue-900">Bộ lọc và tìm kiếm</h2>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-blue-400" />
+                  <Input
+                    placeholder="Tìm kiếm yêu cầu..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 border-blue-300 focus:border-blue-500 focus:ring-blue-500 bg-white/80 backdrop-blur-sm"
+                  />
+                </div>
+
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80 backdrop-blur-sm"
+                >
+                  <option value="all">Tất cả trạng thái</option>
+                  <option value="PENDING">Chờ duyệt</option>
+                  <option value="APPROVED">Đã duyệt</option>
+                  <option value="REJECTED">Từ chối</option>
+                </select>
+
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                  className="px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80 backdrop-blur-sm"
+                >
+                  <option value="all">Tất cả loại</option>
+                  <option value="COURSE">Khóa học</option>
+                  <option value="CHAPTER">Chương</option>
+                  <option value="UNIT">Bài học</option>
+                </select>
+
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as "newest" | "oldest")}
+                  className="px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80 backdrop-blur-sm"
+                >
+                  <option value="newest">Mới nhất</option>
+                  <option value="oldest">Cũ nhất</option>
+                </select>
+
+                <div className="text-right">
+                  <span className="text-sm text-blue-600 bg-blue-100 px-3 py-2 rounded-full font-medium">
+                    Tìm thấy {filteredData.length} yêu cầu
+                  </span>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Loading State */}
+          {isLoading && (
+            <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm">
+              <div className="p-12 text-center">
+                <RefreshCw className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+                <p className="text-blue-600 font-medium">Đang tải dữ liệu...</p>
+              </div>
+            </Card>
+          )}
+
+          {/* Empty State */}
+          {!isLoading && currentData.length === 0 && (
+            <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm">
+              <div className="p-12 text-center">
+                <MessageCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  {filteredData.length === 0 && requests.length === 0
+                    ? "Chưa có yêu cầu nào"
+                    : "Không tìm thấy kết quả"
+                  }
+                </h3>
+                <p className="text-gray-500 mb-6">
+                  {filteredData.length === 0 && requests.length === 0
+                    ? "Bạn chưa gửi yêu cầu nào cho manager."
+                    : "Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm."
+                  }
+                </p>
+                {filteredData.length === 0 && requests.length > 0 && (
+                  <Button
+                    onClick={() => {
+                      setSearchTerm("")
+                      setStatusFilter("all")
+                      setTypeFilter("all")
+                      setCurrentTab("all")
+                    }}
+                    variant="outline"
+                  >
+                    Xóa bộ lọc
+                  </Button>
+                )}
+              </div>
+            </Card>
+          )}
+
+          {/* Requests Table */}
+          {!isLoading && currentData.length > 0 && (
+            <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm mb-8">
+              <div className="p-0">
+                {/* Table Header */}
+                <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white">
+                  <div className="grid grid-cols-12 gap-4 px-6 py-4 text-sm font-medium">
+                    <div className="col-span-1">STT</div>
+                    <div className="col-span-2">ID / Loại</div>
+                    <div className="col-span-3">Tiêu đề</div>
+                    <div className="col-span-2">Thời gian</div>
+                    <div className="col-span-2">Người duyệt</div>
+                    <div className="col-span-1">Trạng thái</div>
+                    <div className="col-span-1">Chi tiết</div>
+                  </div>
+                </div>
+
+                {/* Table Body */}
+                <div className="divide-y divide-blue-100">
+                  {currentData.map((request, index) => (
+                    <button
+                      key={request.id}
+                      className="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-blue-50/50 transition-colors cursor-pointer w-full text-left"
+                      onClick={() => handleRowClick(request)}
+                    >
+                      {/* STT */}
+                      <div className="col-span-1 flex items-center">
+                        <span className="text-sm font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                          {startIndex + index + 1}
+                        </span>
+                      </div>
+
+                      {/* ID / Loại */}
+                      <div className="col-span-2 flex items-center gap-2">
+                        <div className="flex-shrink-0">
+                          {getTargetTypeIcon(request.targetType)}
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {getTargetTypeText(request.targetType)}
+                          </div>
+                          <div className="text-xs text-gray-500 truncate">
+                            ID: {request.targetId}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Tiêu đề */}
+                      <div className="col-span-3 flex items-center">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium text-gray-900 truncate">
+                            {request.targetTitle || 'Không có tiêu đề'}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            Tạo bởi: {request.createdBy}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Thời gian */}
+                      <div className="col-span-2 flex items-center">
+                        <div>
+                          <div className="text-sm text-gray-900 flex items-center gap-1">
+                            <Calendar className="h-3 w-3 text-gray-400" />
+                            {new Date(request.createdAt).toLocaleDateString('vi-VN')}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {new Date(request.createdAt).toLocaleTimeString('vi-VN', { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Người duyệt */}
+                      <div className="col-span-2 flex items-center">
+                        <div>
+                          <div className="text-sm text-gray-900">
+                            {request.reviewedBy || 'Chưa có'}
+                          </div>
+                          {request.reviewedAt && (
+                            <div className="text-xs text-gray-500">
+                              {new Date(request.reviewedAt).toLocaleDateString('vi-VN')}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Trạng thái */}
+                      <div className="col-span-1 flex items-center">
+                        <Badge className={`flex items-center gap-1 ${getDecisionColor(request.decision)}`}>
+                          {getDecisionIcon(request.decision)}
+                          <span className="hidden sm:inline">{getDecisionText(request.decision)}</span>
+                        </Badge>
+                      </div>
+
+                      {/* Chi tiết */}
+                      <div className="col-span-1 flex items-center">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="w-full flex items-center justify-center gap-1 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleRowClick(request)
+                          }}
+                        >
+                          <Eye className="h-3 w-3" />
+                          <span className="hidden sm:inline">Chi tiết</span>
+                        </Button>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="bg-blue-50/50 border-t border-blue-200 px-6 py-4">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-gray-600">
+                        Hiển thị {startIndex + 1}-{Math.min(endIndex, filteredData.length)} của {filteredData.length} kết quả
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                          disabled={currentPage === 1}
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center gap-1"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          Trước
+                        </Button>
+
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            let pageNumber
+                            if (totalPages <= 5) {
+                              pageNumber = i + 1
+                            } else if (currentPage <= 3) {
+                              pageNumber = i + 1
+                            } else if (currentPage > totalPages - 3) {
+                              pageNumber = totalPages - 4 + i
+                            } else {
+                              pageNumber = currentPage - 2 + i
+                            }
+
+                            return (
+                              <Button
+                                key={pageNumber}
+                                onClick={() => setCurrentPage(pageNumber)}
+                                variant={currentPage === pageNumber ? "default" : "outline"}
+                                size="sm"
+                                className="w-8 h-8 p-0 flex items-center justify-center"
+                              >
+                                {pageNumber}
+                              </Button>
+                            )
+                          })}
+                        </div>
+
+                        <Button
+                          onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                          disabled={currentPage === totalPages}
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center gap-1"
+                        >
+                          Sau
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
+
+          {/* Pagination */}
+          {!isLoading && totalPages > 1 && (
+            <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm">
+              <div className="p-6">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-gray-600">
+                    Hiển thị {startIndex + 1}-{Math.min(endIndex, filteredData.length)} của {filteredData.length} kết quả
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                      disabled={currentPage === 1}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Trước
+                    </Button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <Button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        className="min-w-[2.5rem]"
+                      >
+                        {page}
+                      </Button>
+                    ))}
+                    <Button
+                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                      disabled={currentPage === totalPages}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Sau
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )}
+        </div>
+
+        {/* Detail Dialog */}
+        {isDetailDialogOpen && selectedRequest && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl border-0 bg-white">
+              <div className="p-6">
+                {/* Dialog Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    {getTargetTypeIcon(selectedRequest.targetType)}
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      Chi tiết yêu cầu {getTargetTypeText(selectedRequest.targetType)}
+                    </h2>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      setIsDetailDialogOpen(false)
+                      setSelectedRequest(null)
+                      setTargetDetails({})
+                      setUnitMaterials([])
+                    }}
+                    variant="ghost"
+                    size="sm"
+                  >
+                    <XCircle className="h-5 w-5" />
+                  </Button>
+                </div>
+
+                {/* Request Info */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-3">Thông tin yêu cầu</h3>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-600">Trạng thái:</span>
+                        <Badge className={`flex items-center gap-1 ${getDecisionColor(selectedRequest.decision)}`}>
+                          {getDecisionIcon(selectedRequest.decision)}
+                          {getDecisionText(selectedRequest.decision)}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm text-gray-600">Ngày tạo:</span>
+                        <span className="text-sm font-medium">
+                          {new Date(selectedRequest.createdAt).toLocaleDateString('vi-VN', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      </div>
+                      {selectedRequest.reviewedAt && (
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-gray-500" />
+                          <span className="text-sm text-gray-600">Ngày duyệt:</span>
+                          <span className="text-sm font-medium">
+                            {new Date(selectedRequest.reviewedAt).toLocaleDateString('vi-VN', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </span>
+                        </div>
+                      )}
+                      {selectedRequest.reviewedBy && (
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-gray-500" />
+                          <span className="text-sm text-gray-600">Người duyệt:</span>
+                          <span className="text-sm font-medium">{selectedRequest.reviewedBy}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-3">Target Info</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <span className="text-sm text-gray-600">Target ID:</span>
+                        <p className="text-sm font-medium">{selectedRequest.targetId}</p>
+                      </div>
+                      <div>
+                        <span className="text-sm text-gray-600">Target Title:</span>
+                        <p className="text-sm font-medium">{selectedRequest.targetTitle || 'Không có tiêu đề'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Feedback Section */}
+                {selectedRequest.feedback && (
+                  <div className="mb-8">
+                    <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <MessageCircle className="h-4 w-4" />
+                      Phản hồi từ Manager
+                    </h3>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                        {selectedRequest.feedback}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Target Details */}
+                {isLoadingTargetDetails && (
+                  <div className="text-center py-8">
+                    <RefreshCw className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+                    <p className="text-blue-600 font-medium">Đang tải thông tin chi tiết...</p>
+                  </div>
+                )}
+
+                {/* Course Details */}
+                {targetDetails.course && (
+                  <div className="mb-8">
+                    <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                      <BookOpen className="h-4 w-4" />
+                      Thông tin Khóa học
+                    </h3>
+                    <Card className="border border-gray-200">
+                      <div className="p-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                          <div>
+                            <h4 className="font-semibold text-lg text-gray-900 mb-3">
+                              {targetDetails.course.title}
+                            </h4>
+                            <div className="space-y-2">
+                              <p className="text-sm text-gray-600">
+                                <span className="font-medium">Mô tả:</span> {targetDetails.course.description}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                <span className="font-medium">Cấp độ:</span> {targetDetails.course.level}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                <span className="font-medium">Thời gian:</span> {targetDetails.course.duration} phút
+                              </p>
+                            </div>
+                          </div>
+                          
+                          {targetDetails.course.image && (
+                            <div className="flex justify-center">
+                              <div className="w-full max-w-sm">
+                                {!courseImageError ? (
+                                  <img
+                                    src={targetDetails.course.image}
+                                    alt={targetDetails.course.title}
+                                    className="w-full h-48 object-cover rounded-lg shadow-md"
+                                    onError={() => setCourseImageError(true)}
+                                  />
+                                ) : (
+                                  <div className="w-full h-48 bg-gray-200 rounded-lg flex items-center justify-center">
+                                    <div className="text-center">
+                                      <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                                      <p className="text-sm text-gray-500">Không thể tải ảnh</p>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Chapter Details */}
+                {targetDetails.chapter && (
+                  <div className="mb-8">
+                    <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                      <Layers className="h-4 w-4" />
+                      Thông tin Chương
+                    </h3>
+                    <Card className="border border-gray-200">
+                      <div className="p-6">
+                        <h4 className="font-semibold text-lg text-gray-900 mb-3">
+                          {targetDetails.chapter.title}
+                        </h4>
+                        <div className="space-y-2">
+                          <p className="text-sm text-gray-600">
+                            <span className="font-medium">Mô tả:</span> {targetDetails.chapter.description}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            <span className="font-medium">Khóa học ID:</span> {targetDetails.chapter.courseId}
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Unit Details */}
+                {targetDetails.unit && (
+                  <div className="mb-8">
+                    <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Thông tin Bài học
+                    </h3>
+                    <Card className="border border-gray-200">
+                      <div className="p-6">
+                        <h4 className="font-semibold text-lg text-gray-900 mb-3">
+                          {targetDetails.unit.title}
+                        </h4>
+                        <div className="space-y-2 mb-4">
+                          <p className="text-sm text-gray-600">
+                            <span className="font-medium">Mô tả:</span> {targetDetails.unit.description}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            <span className="font-medium">Chương ID:</span> {targetDetails.unit.chapterId}
+                          </p>
+                        </div>
+
+                        {/* Materials */}
+                        {unitMaterials.length > 0 && (
+                          <div>
+                            <h5 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+                              <Package className="h-4 w-4" />
+                              Tài liệu ({unitMaterials.length})
+                            </h5>
+                            <div className="grid grid-cols-1 gap-3">
+                              {unitMaterials.map((material) => (
+                                <div key={material.id} className="bg-gray-50 p-3 rounded-lg">
+                                  <div className="flex items-start gap-3">
+                                    <FileText className="h-4 w-4 text-gray-500 mt-1" />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium text-gray-900 truncate">
+                                        {material.description}
+                                      </p>
+                                      <p className="text-xs text-gray-500 mt-1">
+                                        Loại: {material.type}
+                                      </p>
+                                      {material.fileUrl && (
+                                        <a
+                                          href={material.fileUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-xs text-blue-600 hover:text-blue-800 underline mt-1 inline-block"
+                                        >
+                                          Xem file
+                                        </a>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  </div>
+                )}
+              </div>
+            </Card>
+          </div>
+        )}
       </div>
     </StaffNavigation>
   )
