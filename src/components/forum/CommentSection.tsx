@@ -19,11 +19,9 @@ interface Comment {
 interface CommentSectionProps {
   readonly comments: Comment[]
   readonly commentInput: string
-  readonly showCommentMenus: { [key: string]: boolean }
   readonly onCommentInputChange: (value: string) => void
   readonly onAddComment: () => void
   readonly onLikeComment: (commentId: string) => void
-  readonly onToggleCommentMenu: (commentId: string) => void
   readonly onDeleteComment: (commentId: string) => void
   readonly onReportComment: (commentId: string, reason: string) => void
   readonly currentUserEmail?: string
@@ -33,11 +31,9 @@ interface CommentSectionProps {
 export function CommentSection({
   comments,
   commentInput,
-  showCommentMenus: _showCommentMenus,
   onCommentInputChange,
   onAddComment,
   onLikeComment,
-  onToggleCommentMenu: _onToggleCommentMenu,
   onDeleteComment,
   onReportComment,
   currentUserEmail,

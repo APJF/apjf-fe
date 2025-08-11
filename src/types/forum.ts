@@ -31,6 +31,7 @@ export interface Comment {
   timestamp: string
   likes: number
   isLiked: boolean
+  postId: string
 }
 
 export interface Post {
@@ -43,6 +44,7 @@ export interface Post {
   isLiked: boolean
   comments: Comment[]
   showComments: boolean
+  commentsCount: number
 }
 
 export interface ForumPost {

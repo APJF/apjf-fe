@@ -6,6 +6,7 @@ import { Search, Star, Clock, BookOpen, AlertCircle } from "lucide-react"
 import PaginationButton from "../components/ui/PaginationButton"
 import type { Course } from '../types/course'
 import { CourseService } from '../services/courseService'
+import { Breadcrumb, type BreadcrumbItem } from '../components/ui/Breadcrumb'
 
 interface ProcessedCourse {
   id: string
@@ -287,9 +288,18 @@ export default function CoursesPage() {
     fetchCourses()
   }, [fetchCourses])
 
+  // Create breadcrumb items
+  const breadcrumbItems: BreadcrumbItem[] = [
+    { label: 'Trang chủ', href: '/' },
+    { label: 'Khóa học' } // Current page - no href
+  ];
+
   return (
     <div className="min-h-screen bg-gray-50">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Breadcrumb */}
+        <Breadcrumb items={breadcrumbItems} />
+        
         <section className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 sm:p-5 mb-8">
           {/* Row 1: Search + Sort (compact) */}
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

@@ -1,10 +1,11 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/Avatar"
 import { Button } from "../ui/Button"
 import { Card, CardContent, CardHeader } from "../ui/Card"
-import { Input } from "../ui/Input"
-import { Heart, MessageCircle, MoreHorizontal, Trash2, Flag, Send } from "lucide-react"
+import { Textarea } from "../ui/Textarea"
+import { Heart, MessageCircle, MoreHorizontal, Trash2, Flag, Edit, Save, X } from "lucide-react"
 import { CommentSection } from "./CommentSection"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/DropdownMenu"
 
@@ -28,6 +29,7 @@ interface Post {
   isLiked: boolean
   comments: Comment[]
   showComments: boolean
+  commentsCount: number
 }
 
 export function PostCard({
@@ -40,7 +42,7 @@ export function PostCard({
   onAddComment,
   onReport,
   onDelete,
-  onToggleCommentMenu,
+  onEdit,
   onDeleteComment,
   onReportComment,
   currentUserEmail,
@@ -58,13 +60,45 @@ export function PostCard({
   onToggleReportMenu: () => void
   onReport: (reason: string) => void
   onDelete: () => void
-  onToggleCommentMenu: (commentId: string) => void
+  onEdit?: (newContent: string) => void
   onDeleteComment: (commentId: string) => void
   onReportComment: (commentId: string, reason: string) => void
   currentUserEmail?: string
   userAvatar?: string
 }>) {
   const canModifyPost = currentUserEmail === post.author
+  const [isEditing, setIsEditing] = useState(false)
+  const [editContent, setEditContent] = useState(post.content)
+
+  // Debug logging
+  console.log(`📝 PostCard ${post.id}: isEditing=${isEditing}, editContent="${editContent.substring(0, 20)}...", post.content="${post.content.substring(0, 20)}..."`);
+
+  // Only sync editContent when not in editing mode
+  useEffect(() => {
+    if (!isEditing) {
+      console.log(`🔄 PostCard ${post.id}: Syncing editContent with post.content`);
+      setEditContent(post.content)
+    }
+  }, [post.content, post.id, isEditing])
+
+  const handleSaveEdit = () => {
+    console.log(`💾 PostCard ${post.id}: Saving edit`);
+    if (onEdit && editContent.trim() !== post.content) {
+      onEdit(editContent.trim())
+    }
+    setIsEditing(false)
+  }
+
+  const handleCancelEdit = () => {
+    console.log(`❌ PostCard ${post.id}: Canceling edit`);
+    setEditContent(post.content)
+    setIsEditing(false)
+  }
+
+  const handleStartEdit = () => {
+    console.log(`✏️ PostCard ${post.id}: Starting edit mode`);
+    setIsEditing(true);
+  }
 
   return (
     <Card className="bg-white shadow-lg border border-gray-100 hover:shadow-xl transition-shadow duration-300">
@@ -90,23 +124,60 @@ export function PostCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-48">
-              {canModifyPost && (
-                <DropdownMenuItem onClick={onDelete} className="text-red-600">
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Xóa bài viết
+              {canModifyPost ? (
+                <>
+                  <DropdownMenuItem onClick={handleStartEdit} className="text-blue-600">
+                    <Edit className="mr-2 h-4 w-4" />
+                    Sửa bài viết
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onDelete} className="text-red-600">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Xóa bài viết
+                  </DropdownMenuItem>
+                </>
+              ) : (
+                <DropdownMenuItem onClick={() => onReport("Nội dung không phù hợp")}>
+                  <Flag className="mr-2 h-4 w-4" />
+                  Báo cáo
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem onClick={() => onReport("Nội dung không phù hợp")}>
-                <Flag className="mr-2 h-4 w-4" />
-                Báo cáo
-              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </CardHeader>
 
       <CardContent className="pt-0">
-        <p className="text-gray-800 mb-4 leading-relaxed">{post.content}</p>
+        {isEditing ? (
+          <div className="space-y-3">
+            <Textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              className="min-h-[100px] resize-none"
+              placeholder="Nội dung bài viết..."
+            />
+            <div className="flex justify-end space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCancelEdit}
+              >
+                <X className="h-4 w-4 mr-1" />
+                Hủy
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSaveEdit}
+                disabled={!editContent.trim() || editContent.trim() === post.content}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Save className="h-4 w-4 mr-1" />
+                Lưu
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-gray-800 mb-4 leading-relaxed">{post.content}</p>
+        )}
         
         {/* Action Buttons */}
         <div className="flex items-center space-x-6 py-2 border-t border-gray-100">
@@ -129,7 +200,7 @@ export function PostCard({
             className="flex items-center space-x-2 text-gray-500 hover:text-blue-500"
           >
             <MessageCircle className="w-5 h-5" />
-            <span>{post.comments.length}</span>
+            <span>{post.commentsCount}</span>
           </Button>
         </div>
 
@@ -140,48 +211,14 @@ export function PostCard({
             <CommentSection
               comments={post.comments}
               commentInput={commentInput}
-              showCommentMenus={{}}
               onCommentInputChange={onCommentInputChange}
               onAddComment={onAddComment}
               onLikeComment={onLikeComment}
-              onToggleCommentMenu={onToggleCommentMenu}
               onDeleteComment={onDeleteComment}
               onReportComment={onReportComment}
               currentUserEmail={currentUserEmail}
               userAvatar={userAvatar}
             />
-            
-            {/* Add New Comment */}
-            <div className="flex items-center space-x-3 mt-4">
-              <Avatar className="w-10 h-10">
-                <AvatarImage src={userAvatar} alt="Your avatar" />
-                <AvatarFallback>
-                  {currentUserEmail?.charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 flex space-x-2">
-                <Input
-                  placeholder="Viết bình luận..."
-                  value={commentInput}
-                  onChange={(e) => onCommentInputChange(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      onAddComment()
-                    }
-                  }}
-                  className="rounded-full bg-gray-50 border-gray-200"
-                />
-                <Button
-                  size="sm"
-                  onClick={onAddComment}
-                  disabled={!commentInput.trim()}
-                  className="rounded-full bg-blue-500 hover:bg-blue-600"
-                >
-                  <Send className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
           </div>
         )}
       </CardContent>

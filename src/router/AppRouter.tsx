@@ -14,7 +14,7 @@ import RegisterPage from "../pages/auth-user_profile/RegisterPage";
 import ForgotPasswordPage from "../pages/auth-user_profile/ForgotPasswordPage";
 import ResetPasswordPage from "../pages/auth-user_profile/ResetPasswordPage";
 import { VerifyOtpPage } from "../pages/auth-user_profile/VerifyOtpPage";
-import ChatbotPage from "../pages/ChatbotPage";
+// import ChatbotPage from "../pages/ChatbotPage";
 import UserProfilePage from "../pages/auth-user_profile/UserProfilePage";
 import ManagerDashboardPage from "../pages/manager/ManagerDashboardPage";
 import StaffDashboardPage from "../pages/staff/StaffDashboardPage";
@@ -38,7 +38,7 @@ import { ExamPreparationPage } from '../pages/exam/ExamPreparationPage';
 import { ExamDoingPage } from '../pages/exam/ExamDoingPage';
 import { ExamResultPage } from '../pages/exam/ExamResultPage';
 import { ExamAnswerReviewPage } from '../pages/exam/ExamAnswerReviewPage';
-import ForumPage from "../components/forum/Forum";
+import ForumPage from "../pages/ForumPage";
 import ExamHistoryPage from '../pages/exam/ExamHistoryPage';
 import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
 import AdminManageAccountPage from "../pages/admin/AdminManageAccountPage";
@@ -132,14 +132,14 @@ const router = createBrowserRouter([
     path: "/oauth2/redirect",
     element: <OAuthCallback />,
   },
-  {
-    path: "/chatbot",
-    element: (
-      <Layout>
-        <ChatbotPage />
-      </Layout>
-    ),
-  },
+  // {
+  //   path: "/chatbot",
+  //   element: (
+  //     <Layout>
+  //       <ChatbotPage />
+  //     </Layout>
+  //   ),
+  // },
   {
     path: "/profile",
     element: (

@@ -8,6 +8,7 @@ import { Alert } from "../../components/ui/Alert";
 import { learningPathService } from "../../services/learningPathService";
 import type { LearningPath } from "../../services/learningPathService";
 import api from "../../api/axios";
+import { Breadcrumb, type BreadcrumbItem } from '../../components/ui/Breadcrumb';
 import {
   BookOpen,
   CheckCircle,
@@ -338,6 +339,11 @@ export function LearningPathPage() {
   const [activePath, setActivePath] = useState<LearningPath | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const breadcrumbItems: BreadcrumbItem[] = [
+    { label: 'Trang chủ', href: '/' },
+    { label: 'Lộ trình học tập' }
+  ];
 
   // Color utility functions using unified red theme
   const getLevelColor = (level: string) => {
@@ -693,6 +699,11 @@ export function LearningPathPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-0 py-1">
+        {/* Breadcrumb */}
+        <div className="mb-4">
+          <Breadcrumb items={breadcrumbItems} />
+        </div>
+
         {/* Main Layout: Left (List) - Right (Current Roadmap) */}
         <div className="flex gap-1">
           {/* Left Side: Search + Learning Modules List */}

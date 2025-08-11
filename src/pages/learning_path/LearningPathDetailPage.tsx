@@ -6,6 +6,7 @@ import { Badge } from "../../components/ui/Badge";
 import { Progress } from "../../components/ui/Progress";
 import { Alert } from "../../components/ui/Alert";
 import { roadmapService } from "../../services/roadmapService";
+import { Breadcrumb, type BreadcrumbItem } from '../../components/ui/Breadcrumb';
 import {
   ArrowLeft,
   BookOpen,
@@ -822,6 +823,12 @@ export function RoadmapDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [currentStage, setCurrentStage] = useState(3); // State để quản lý stage hiện tại
 
+  const breadcrumbItems: BreadcrumbItem[] = [
+    { label: 'Trang chủ', href: '/' },
+    { label: 'Lộ trình học tập', href: '/roadmap' },
+    { label: roadmapData?.title || 'Chi tiết lộ trình' }
+  ];
+
   useEffect(() => {
     const loadRoadmapDetail = async () => {
       if (!id) {
@@ -962,6 +969,9 @@ export function RoadmapDetailPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
+        {/* Breadcrumb */}
+        <Breadcrumb items={breadcrumbItems} />
+
         {/* Header */}
         <div className="flex justify-between items-center">
           <div className="flex items-center space-x-4">

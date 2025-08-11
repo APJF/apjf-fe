@@ -20,6 +20,7 @@ import { PDFViewer } from "../../components/chapter/PDFViewer"
 import { ScriptViewer } from "../../components/chapter/ScriptViewer"
 import { getChapterById, getUnitsByChapterId, getMaterialsByUnitId } from '../../services/chapterDetailService'
 import type { Material, MaterialType } from '../../types/material'
+import { Breadcrumb, type BreadcrumbItem } from '../../components/ui/Breadcrumb'
 
 // Updated types based on API
 interface ChapterDetail {
@@ -236,19 +237,19 @@ export default function ChapterDetailPage() {
     return text.length > maxLength ? text.substring(0, maxLength) + "..." : text
   }
 
+  // Create breadcrumb items
+  const breadcrumbItems: BreadcrumbItem[] = [
+    { label: 'Trang chủ', href: '/' },
+    { label: 'Khóa học', href: '/courses' },
+    { label: 'Khóa học N5', href: `/courses/${courseId}` },
+    { label: chapterData.title } // Current page - no href
+  ]
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-3">
         {/* Breadcrumb */}
-        <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-4">
-          <Link to="/" className="hover:text-gray-800 cursor-pointer transition-colors">Trang chủ</Link>
-          <ChevronRight className="w-3 h-3" />
-          <Link to="/courses" className="hover:text-gray-800 cursor-pointer transition-colors">Khóa học</Link>
-          <ChevronRight className="w-3 h-3" />
-          <Link to={`/courses/${courseId}`} className="hover:text-gray-800 cursor-pointer transition-colors">Khóa học N5</Link>
-          <ChevronRight className="w-3 h-3" />
-          <span className="text-gray-800 font-medium">{chapterData.title}</span>
-        </nav>
+        <Breadcrumb items={breadcrumbItems} />
 
         {/* Chapter Header */}
         <Card className="border-gray-200 shadow-md bg-gradient-to-r from-white via-blue-50 to-white mb-6">

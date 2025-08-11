@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { AlertCircle, Clock, GraduationCap, Tag } from "lucide-react";
 import { StarDisplay } from "../../components/ui/StarDisplay";
 import EnrollButton from "../../components/course/EnrollButton";
 import CourseTabs from "../../components/course/CourseTabs";
 import { CourseService } from "../../services/courseService";
 import type { Course, Chapter } from "../../types/course";
+import { Breadcrumb, type BreadcrumbItem } from '../../components/ui/Breadcrumb';
 
 // Function to sort chapters by prerequisite order
 function sortChaptersByPrerequisite(chapters: Chapter[]): Chapter[] {
@@ -162,16 +163,17 @@ export default function CourseDetailPage() {
     { id: 3, user: "Lan Phạm", rating: 4, comment: "Tổng quan tốt, phần cuối hơi nhanh.", date: "2025-03-21" },
   ];
 
+  // Create breadcrumb items
+  const breadcrumbItems: BreadcrumbItem[] = [
+    { label: 'Trang chủ', href: '/' },
+    { label: 'Khóa học', href: '/courses' },
+    { label: course.title } // Current page - no href
+  ];
+
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Breadcrumb */}
-      <div className="mb-4 text-sm">
-        <Link to="/courses" className="text-rose-700 hover:underline">
-          Khóa học
-        </Link>
-        <span className="mx-2 text-gray-400">/</span>
-        <span className="text-gray-700">{course.title}</span>
-      </div>
+      <Breadcrumb items={breadcrumbItems} />
 
       {/* Layout 10 cột: trái 7/10 cho detail + tabs */}
       <section className="grid grid-cols-1 lg:grid-cols-10 gap-8">
