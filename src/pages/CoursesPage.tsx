@@ -85,7 +85,7 @@ const CourseCard: React.FC<{ course: ProcessedCourse }> = ({ course }) => {
       type="button"
       className="group bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-rose-300 cursor-pointer w-full text-left"
       onClick={handleCourseClick}
-      aria-label={`Xem chi tiết khóa học ${course.title}`}
+      aria-label={`Xem chi tiết khóa học ${course.id}`}
     >
       <div className="relative overflow-hidden">
         <img
@@ -96,18 +96,15 @@ const CourseCard: React.FC<{ course: ProcessedCourse }> = ({ course }) => {
         <div className="absolute top-4 right-4 bg-rose-700 text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg">
           Miễn phí
         </div>
-        <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md text-xs font-medium text-gray-700">
-          {course.level}
-        </div>
       </div>
       <div className="p-5">
         <div className="flex items-start justify-between mb-3">
-          <h3 className="font-semibold text-gray-900 text-lg leading-tight line-clamp-2 flex-1 mr-2">{course.title}</h3>
+          <h3 className="font-semibold text-gray-900 text-lg leading-tight line-clamp-1 flex-1 mr-2">{course.id}</h3>
           <span className="text-rose-700 text-xs font-medium bg-rose-50 px-2 py-1 rounded-full whitespace-nowrap">
             {course.level}
           </span>
         </div>
-        <p className="text-gray-600 text-sm mb-4 line-clamp-2">{course.description || "Khóa học tiếng Nhật chất lượng cao"}</p>
+        <p className="text-gray-600 text-sm mb-4 line-clamp-2">{course.title}</p>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
             <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
@@ -462,6 +459,12 @@ export default function CoursesPage() {
       </footer>
 
       <style>{`
+        .line-clamp-1 {
+          display: -webkit-box;
+          -webkit-line-clamp: 1;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
         .line-clamp-2 {
           display: -webkit-box;
           -webkit-line-clamp: 2;

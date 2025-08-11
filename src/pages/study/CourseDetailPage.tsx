@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { AlertCircle, Clock, GraduationCap, Tag } from "lucide-react";
-import { StarDisplay } from "../components/ui/StarDisplay";
-import EnrollButton from "../components/course/EnrollButton";
-import CourseTabs from "../components/course/CourseTabs";
-import { CourseService } from "../services/courseService";
-import type { Course, Chapter } from "../types/course";
+import { StarDisplay } from "../../components/ui/StarDisplay";
+import EnrollButton from "../../components/course/EnrollButton";
+import CourseTabs from "../../components/course/CourseTabs";
+import { CourseService } from "../../services/courseService";
+import type { Course, Chapter } from "../../types/course";
 
 // Function to sort chapters by prerequisite order
 function sortChaptersByPrerequisite(chapters: Chapter[]): Chapter[] {
@@ -187,7 +187,8 @@ export default function CourseDetailPage() {
 
             {/* Nội dung detail */}
             <div className="p-6">
-              <h1 className="text-2xl font-semibold text-gray-900">{course.title}</h1>
+              <h1 className="text-2xl font-semibold text-gray-900">{course.id}</h1>
+              <p className="text-lg text-gray-600 mt-2">{course.title}</p>
 
               {/* Hàng 1: Duration + Level */}
               <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">

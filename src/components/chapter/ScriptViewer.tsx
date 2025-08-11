@@ -4,7 +4,8 @@ import { Button } from "../ui/Button"
 import { Languages, Eye, EyeOff } from "lucide-react"
 
 interface ScriptViewerProps {
-  materialId: string
+  script: string
+  translation: string
 }
 
 interface ScriptItem {
@@ -15,40 +16,36 @@ interface ScriptItem {
   timeEnd: number
 }
 
-const mockScript: ScriptItem[] = [
-  {
-    id: 1,
-    japanese: "はじめまして。私の名前は田中です。",
-    vietnamese: "Xin chào lần đầu gặp mặt. Tôi tên là Tanaka.",
-    timeStart: 0,
-    timeEnd: 3,
-  },
-  {
-    id: 2,
-    japanese: "どうぞよろしくお願いします。",
-    vietnamese: "Rất hân hạnh được làm quen.",
-    timeStart: 4,
-    timeEnd: 7,
-  },
-  {
-    id: 3,
-    japanese: "私は学生です。大学で日本語を勉強しています。",
-    vietnamese: "Tôi là sinh viên. Tôi đang học tiếng Nhật ở đại học.",
-    timeStart: 8,
-    timeEnd: 12,
-  },
-  {
-    id: 4,
-    japanese: "趣味は読書と映画鑑賞です。",
-    vietnamese: "Sở thích của tôi là đọc sách và xem phim.",
-    timeStart: 13,
-    timeEnd: 16,
-  },
-]
+// Function to parse script and translation into structured data
+const parseScriptData = (script: string, translation: string): ScriptItem[] => {
+  // If script or translation is empty, return empty array
+  if (!script || !translation) return []
 
-export default function ScriptViewer({ materialId }: ScriptViewerProps) {
-  // materialId can be used to fetch different scripts
-  console.log('Material ID:', materialId) // Temporary to use the parameter
+  // Split by lines and filter empty lines
+  const scriptLines = script.split('\n').filter(line => line.trim())
+  const translationLines = translation.split('\n').filter(line => line.trim())
+
+  // Create script items (assuming each line is a sentence)
+  const items: ScriptItem[] = []
+  const maxLines = Math.max(scriptLines.length, translationLines.length)
+
+  for (let i = 0; i < maxLines; i++) {
+    items.push({
+      id: i + 1,
+      japanese: scriptLines[i] || '',
+      vietnamese: translationLines[i] || '',
+      timeStart: i * 5, // Estimate 5 seconds per sentence
+      timeEnd: (i + 1) * 5 - 1,
+    })
+  }
+
+  return items
+}
+
+export function ScriptViewer({ script, translation }: ScriptViewerProps) {
+  // Parse script data from props
+  const scriptData = parseScriptData(script, translation)
+  
   const [hasFinishedAudio] = useState(true) // Mock: assume audio finished
   const [showVietnamese, setShowVietnamese] = useState<number[]>([])
   const [showAllVietnamese, setShowAllVietnamese] = useState(false)
@@ -63,7 +60,7 @@ export default function ScriptViewer({ materialId }: ScriptViewerProps) {
     if (showAllVietnamese) {
       setShowVietnamese([])
     } else {
-      setShowVietnamese(mockScript.map((s) => s.id))
+      setShowVietnamese(scriptData.map((s) => s.id))
     }
     setShowAllVietnamese(!showAllVietnamese)
   }
@@ -101,14 +98,15 @@ export default function ScriptViewer({ materialId }: ScriptViewerProps) {
 
       {/* Script Content */}
       <div className="space-y-3">
-        {mockScript.map((sentence) => (
-          <div
-            key={sentence.id}
-            className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-all duration-200 shadow-sm"
-          >
-            <div className="flex items-start justify-between mb-3">
-              <Badge variant="outline" className="text-xs border-gray-300 text-gray-600 bg-gray-50 px-2 py-1">
-                {sentence.timeStart}s - {sentence.timeEnd}s
+        {scriptData.length > 0 ? (
+          scriptData.map((sentence) => (
+            <div
+              key={sentence.id}
+              className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-all duration-200 shadow-sm"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <Badge variant="outline" className="text-xs border-gray-300 text-gray-600 bg-gray-50 px-2 py-1">
+                  {sentence.timeStart}s - {sentence.timeEnd}s
               </Badge>
               <Button
                 variant="ghost"
@@ -130,7 +128,12 @@ export default function ScriptViewer({ materialId }: ScriptViewerProps) {
               )}
             </div>
           </div>
-        ))}
+          ))
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <p>Không có script nào để hiển thị</p>
+          </div>
+        )}
       </div>
 
       <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">

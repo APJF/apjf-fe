@@ -1,48 +1,85 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Play, Pause, SkipBack, SkipForward, Volume2 } from "lucide-react"
 import { Button } from "../ui/Button"
 import { Slider } from "../ui/Slider"
 
 interface AudioPlayerProps {
-  materialId: string
+  fileUrl: string
 }
 
-export default function AudioPlayer({ materialId }: AudioPlayerProps) {
+export function AudioPlayer({ fileUrl }: AudioPlayerProps) {
+  const audioRef = useRef<HTMLAudioElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [volume, setVolume] = useState(70)
   const [hasFinished, setHasFinished] = useState(false)
 
-  // Mock audio duration
   useEffect(() => {
-    setDuration(180) // 3 minutes
-  }, [materialId])
+    const audio = audioRef.current
+    if (!audio) return
+
+    const handleLoadedMetadata = () => {
+      setDuration(audio.duration)
+    }
+
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime)
+    }
+
+    const handleEnded = () => {
+      setIsPlaying(false)
+      setHasFinished(true)
+    }
+
+    const handleLoadStart = () => {
+      // Audio loading started
+    }
+
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata)
+    audio.addEventListener('timeupdate', handleTimeUpdate)
+    audio.addEventListener('ended', handleEnded)
+    audio.addEventListener('loadstart', handleLoadStart)
+
+    return () => {
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
+      audio.removeEventListener('timeupdate', handleTimeUpdate)
+      audio.removeEventListener('ended', handleEnded)
+      audio.removeEventListener('loadstart', handleLoadStart)
+    }
+  }, [fileUrl])
+
+  useEffect(() => {
+    const audio = audioRef.current
+    if (audio) {
+      audio.volume = volume / 100
+    }
+  }, [volume])
 
   const togglePlay = () => {
-    setIsPlaying(!isPlaying)
-    if (!isPlaying) {
-      // Simulate audio playing
-      const interval = setInterval(() => {
-        setCurrentTime((prev) => {
-          if (prev >= duration) {
-            setIsPlaying(false)
-            setHasFinished(true)
-            clearInterval(interval)
-            return duration
-          }
-          return prev + 1
-        })
-      }, 1000)
+    const audio = audioRef.current
+    if (!audio) return
+
+    if (isPlaying) {
+      audio.pause()
+    } else {
+      audio.play()
     }
+    setIsPlaying(!isPlaying)
   }
 
   const skipBackward = () => {
-    setCurrentTime(Math.max(0, currentTime - 10))
+    const audio = audioRef.current
+    if (audio) {
+      audio.currentTime = Math.max(0, audio.currentTime - 10)
+    }
   }
 
   const skipForward = () => {
-    setCurrentTime(Math.min(duration, currentTime + 10))
+    const audio = audioRef.current
+    if (audio) {
+      audio.currentTime = Math.min(audio.duration, audio.currentTime + 10)
+    }
   }
 
   const formatTime = (time: number) => {
@@ -52,11 +89,22 @@ export default function AudioPlayer({ materialId }: AudioPlayerProps) {
   }
 
   const handleProgressChange = (value: number[]) => {
-    setCurrentTime(value[0])
+    const audio = audioRef.current
+    if (audio) {
+      audio.currentTime = value[0]
+      setCurrentTime(value[0])
+    }
   }
 
   return (
     <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+      {/* Hidden audio element */}
+      <audio 
+        ref={audioRef}
+        src={fileUrl}
+        preload="metadata"
+      />
+      
       {/* Progress bar lên trên */}
       <div className="mb-4">
         <div className="flex items-center space-x-3">

@@ -2,10 +2,19 @@ export type MaterialType = 'KANJI' | 'GRAMMAR' | 'VOCAB' | 'LISTENING' | 'READIN
 
 export interface Material {
   id: string;
+  title: string;
   fileUrl: string;
   type: MaterialType;
-  description: string;
-  script?: string;
-  translation?: string;
+  format: string;
+  script: string;
+  translation: string;
   unitId?: string;
+}
+
+// API Response for Materials
+export interface MaterialsApiResponse {
+  success: boolean;
+  message: string;
+  data: Material[];
+  timestamp: number;
 }

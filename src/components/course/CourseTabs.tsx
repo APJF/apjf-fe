@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from "../ui/Avatar"
 import { StarDisplay } from "../ui/StarDisplay"
 import ReviewForm, { type NewReviewInput } from "./ReviewForm"
 import { useMemo, useState } from "react"
+import { useNavigate, useParams } from "react-router-dom"
 
 export interface Chapter {
   id: string
@@ -30,6 +31,8 @@ export default function CourseTabs({
   initialReviews: ReviewItem[]
 }>) {
   const [reviews, setReviews] = useState<ReviewItem[]>(initialReviews)
+  const navigate = useNavigate()
+  const { courseId } = useParams()
 
   // Controls: sort and min rating filter
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc")
@@ -44,6 +47,10 @@ export default function CourseTabs({
       date: new Date().toISOString(),
     }
     setReviews((prev) => [newItem, ...prev])
+  }
+
+  const handleChapterClick = (chapterId: string) => {
+    navigate(`/courses/${courseId}/chapters/${chapterId}`)
   }
 
   const visibleReviews = useMemo(() => {
@@ -105,11 +112,13 @@ export default function CourseTabs({
 
         {/* Chapters - one column, number badge + title only */}
         <TabsContent value="chapters" className="mt-4">
-          <ul className="space-y-3">
+          <div className="space-y-3">
             {chapters.map((ch) => (
-              <li
+              <button
                 key={ch.id}
-                className="group flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-rose-300 hover:bg-rose-50/50 transition-colors"
+                type="button"
+                onClick={() => handleChapterClick(ch.id)}
+                className="group flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-rose-300 hover:bg-rose-50/50 transition-colors cursor-pointer w-full text-left"
               >
                 <span className="flex-none inline-flex items-center justify-center w-7 h-7 rounded-full bg-rose-50 text-rose-700 text-xs font-semibold">
                   {chapters.indexOf(ch) + 1}
@@ -117,9 +126,9 @@ export default function CourseTabs({
                 <div className="min-w-0">
                   <div className="text-sm text-gray-900 font-medium break-words">{ch.title}</div>
                 </div>
-              </li>
+              </button>
             ))}
-          </ul>
+          </div>
         </TabsContent>
 
         {/* Overview */}
