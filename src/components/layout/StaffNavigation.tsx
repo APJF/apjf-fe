@@ -86,6 +86,11 @@ export const StaffNavigation: React.FC<StaffNavigationProps> = ({ children }) =>
       label: 'Create Course'
     },
     {
+      to: '/staff/create-question',
+      icon: <FileText className="h-5 w-5" />,
+      label: 'Tạo câu hỏi'
+    },
+    {
       to: '/staff/manager-feedback',
       icon: <FileText className="h-5 w-5" />,
       label: "My Requests"
