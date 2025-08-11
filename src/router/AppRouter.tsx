@@ -31,7 +31,7 @@ import StaffUpdateUnitPage from "../pages/staff/StaffUpdateUnitPage";
 import StaffCreateExamPage from "../pages/staff/StaffCreateExamPage";
 import StaffUpdateExamPage from "../pages/staff/StaffUpdateExamPage";
 import StaffStudentFeedbackPage from "../pages/staff/StaffStudentFeedbackPage";
-import StaffRequestsPage from "../pages/staff/StaffRequestsPage";
+import { StaffManagerFeedbackPage } from "../pages/staff/StaffManagerFeedbackPage";
 import ManagerApprovalRequestsPage from "../pages/manager/ManagerApprovalRequestsPage";
 import { ExamPreparationPage } from '../pages/exam/ExamPreparationPage';
 import { ExamDoingPage } from '../pages/exam/ExamDoingPage';
@@ -262,18 +262,18 @@ const router = createBrowserRouter([
     ),
   },
   {
-    path: "/staff/requests",
-    element: (
-      <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
-        <StaffRequestsPage />
-      </ProtectedRoute>
-    ),
-  },
-  {
     path: "/staff/student-feedback",
     element: (
       <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
         <StaffStudentFeedbackPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/staff/manager-feedback",
+    element: (
+      <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
+        <StaffManagerFeedbackPage />
       </ProtectedRoute>
     ),
   },
