@@ -1,5 +1,11 @@
 "use client"
 
+import React, { useState } from 'react'
+import { Star } from 'lucide-react'
+
+// Helper function to clamp value between 0 and 100
+const clamp = (value: number): number => Math.max(0, Math.min(100, value))
+
 // Interactive star picker with half-star support (clean half-fill, no shrinking)
 export function StarInput({
   value = 0,
@@ -10,11 +16,6 @@ export function StarInput({
   onChange: (rating: number) => void
   size?: number
 }>) {
-}: {
-  value?: number
-  onChange: (v: number) => void
-  size?: number
-}) {
   const [hover, setHover] = useState<number | null>(null)
   const display = hover ?? value
 
