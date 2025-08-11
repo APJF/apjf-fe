@@ -13,7 +13,6 @@ interface ProcessedCourse {
   image: string | null
   rating: number
   duration: number // hours
-  instructor: string
   price: number
   topic: string
   level: "N5" | "N4" | "N3" | "N2" | "N1"
@@ -105,14 +104,14 @@ const CourseCard: React.FC<{ course: ProcessedCourse }> = ({ course }) => {
         <div className="flex items-start justify-between mb-3">
           <h3 className="font-semibold text-gray-900 text-lg leading-tight line-clamp-2 flex-1 mr-2">{course.title}</h3>
           <span className="text-rose-700 text-xs font-medium bg-rose-50 px-2 py-1 rounded-full whitespace-nowrap">
-            {course.topic}
+            {course.level}
           </span>
         </div>
-        <p className="text-gray-600 text-sm mb-4">by {course.instructor}</p>
+        <p className="text-gray-600 text-sm mb-4 line-clamp-2">{course.description || "Khóa học tiếng Nhật chất lượng cao"}</p>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
             <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-            <span className="text-sm font-medium text-gray-700">{course.rating}</span>
+            <span className="text-sm font-medium text-gray-700">{course.rating || "Chưa có"}</span>
           </div>
           <div className="flex items-center gap-1 text-gray-500">
             <Clock className="w-4 h-4" />
@@ -203,8 +202,7 @@ export default function CoursesPage() {
       title: course.title,
       image: course.image,
       rating: course.averageRating || 0,
-      duration: Math.round((course.duration || 0) / 60), // Convert minutes to hours
-      instructor: "Giảng viên", // Default instructor name
+      duration: course.duration || 0, // Use hours from API directly
       price: 0, // All courses are free
       topic: course.topics?.[0]?.name || "Tiếng Nhật",
       level: course.level,
@@ -212,7 +210,7 @@ export default function CoursesPage() {
     }))
   }, [allCourses])
 
-  const topics = ["all", ...Array.from(new Set(processedCourses.map((c) => c.topic)))]
+  const topics = ["all", "Tiếng Nhật"] // Simplified since API doesn't return topics
   const levels = ["all", "N5", "N4", "N3", "N2", "N1"]
 
   const filteredAndSorted = useMemo(() => {
