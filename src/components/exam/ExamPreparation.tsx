@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Clock, FileText, CheckCircle, AlertCircle, ArrowLeft, Play, Loader2 } from "lucide-react";
 import { ExamService } from "../../services/examService";
-import type { Exam } from "../../types/exam";
+import type { ExamOverview } from "../../types/exam";
 
 interface ExamPreparationProps {
   examId: string;
@@ -10,7 +10,7 @@ interface ExamPreparationProps {
 }
 
 export function ExamPreparation({ examId, onStart, onBack }: Readonly<ExamPreparationProps>) {
-  const [exam, setExam] = useState<Exam | null>(null);
+  const [exam, setExam] = useState<ExamOverview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,16 +26,11 @@ export function ExamPreparation({ examId, onStart, onBack }: Readonly<ExamPrepar
       setIsLoading(true);
       setError(null);
 
-      const response = await ExamService.getExamDetail(examId);
-      
-      if (!response.success) {
-        throw new Error(response.message || "Không thể tải thông tin bài kiểm tra");
-      }
-
-      setExam(response.data);
-    } catch (err) {
-      console.error("Error fetching exam details:", err);
-      setError(err instanceof Error ? err.message : "Không thể tải thông tin bài kiểm tra");
+      const examData = await ExamService.getExamOverview(examId);
+      setExam(examData);
+    } catch (error: any) {
+      console.error("Error fetching exam detail:", error);
+      setError(error.message || "Không thể tải thông tin bài kiểm tra");
     } finally {
       setIsLoading(false);
     }
@@ -53,12 +48,20 @@ export function ExamPreparation({ examId, onStart, onBack }: Readonly<ExamPrepar
       setIsStarting(true);
       setError(null);
       
-      const response = await ExamService.startExam(exam.id);
-      if (!response.success) {
-        throw new Error(response.message || "Không thể bắt đầu bài kiểm tra");
-      }
+      // Gọi API start exam và lưu dữ liệu vào localStorage để ExamDoing sử dụng
+      const startResponse = await ExamService.startExam(exam.examId);
+      console.log("Exam started successfully:", startResponse);
+      console.log("Start response type:", typeof startResponse);
+      console.log("Has questionResults:", !!startResponse.questionResults);
+      console.log("QuestionResults type:", typeof startResponse.questionResults);
+      console.log("Is questionResults array:", Array.isArray(startResponse.questionResults));
       
-      console.log("Exam started successfully:", response.data);
+      // Lưu thời gian bắt đầu và exam data vào localStorage
+      const startTime = new Date().toISOString();
+      localStorage.setItem('examStartedAt', startTime);
+      localStorage.setItem('currentExamData', JSON.stringify(startResponse));
+      
+      // Chuyển hướng sang trang làm bài
       onStart();
     } catch (apiError) {
       console.error("Error starting exam:", apiError);
@@ -121,9 +124,22 @@ export function ExamPreparation({ examId, onStart, onBack }: Readonly<ExamPrepar
     );
   }
 
+  const getExamTypeDisplay = (type: string) => {
+    switch (type) {
+      case 'MULTIPLE_CHOICE':
+        return 'Trắc nghiệm';
+      case 'ESSAY':
+        return 'Tự luận';
+      case 'MIXED':
+        return 'Trắc nghiệm + Tự luận';
+      default:
+        return type;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8">
-      <div className="max-w-4xl mx-auto px-0">
+      <div className="max-w-4xl mx-auto px-4">
         {/* Header với nút back */}
         {onBack && (
           <button
@@ -165,7 +181,7 @@ export function ExamPreparation({ examId, onStart, onBack }: Readonly<ExamPrepar
                 <CheckCircle className="h-8 w-8 text-purple-600" />
                 <div>
                   <h3 className="font-semibold text-gray-900">Loại bài thi</h3>
-                  <p className="text-gray-600">{exam.examScopeType}</p>
+                  <p className="text-gray-600">{getExamTypeDisplay(exam.type)}</p>
                 </div>
               </div>
             </div>

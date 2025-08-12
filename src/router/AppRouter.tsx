@@ -39,7 +39,7 @@ import { ExamDoingPage } from '../pages/exam/ExamDoingPage';
 import { ExamResultPage } from '../pages/exam/ExamResultPage';
 import { ExamAnswerReviewPage } from '../pages/exam/ExamAnswerReviewPage';
 import ForumPage from "../pages/ForumPage";
-import ExamHistoryPage from '../pages/exam/ExamHistoryPage';
+import { ExamHistoryPage } from '../pages/exam/ExamHistoryPage';
 import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
 import AdminManageAccountPage from "../pages/admin/AdminManageAccountPage";
 /**
@@ -312,6 +312,10 @@ const router = createBrowserRouter([
   },
   {
     path: '/exam/:examId/result',
+    element: <Layout><ExamResultPage /></Layout>,
+  },
+  {
+    path: '/exam/:examId/result/:resultId',
     element: <Layout><ExamResultPage /></Layout>,
   },
   {

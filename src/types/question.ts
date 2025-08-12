@@ -29,10 +29,39 @@ export interface CreateQuestionRequest {
 
 export type UpdateQuestionRequest = CreateQuestionRequest
 
+export interface PageableSort {
+  sorted: boolean;
+  unsorted: boolean;
+  empty: boolean;
+}
+
+export interface Pageable {
+  pageNumber: number;
+  pageSize: number;
+  sort: PageableSort;
+  offset: number;
+  paged: boolean;
+  unpaged: boolean;
+}
+
+export interface PagedQuestions {
+  content: Question[];
+  pageable: Pageable;
+  totalElements: number;
+  totalPages: number;
+  last: boolean;
+  first: boolean;
+  numberOfElements: number;
+  size: number;
+  number: number;
+  sort: PageableSort;
+  empty: boolean;
+}
+
 export interface QuestionsResponse {
   success: boolean;
   message: string;
-  data: Question[];
+  data: PagedQuestions;
   timestamp: number;
 }
 
