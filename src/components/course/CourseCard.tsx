@@ -2,12 +2,14 @@ import React from 'react';
 import { Clock, BookOpen, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { Course } from '../../types/course';
+import { useLanguage } from '../../contexts/LanguageContext';
 
 interface CourseCardProps {
   course: Course
 }
 
 export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
+  const { t } = useLanguage();
   const getLevelColor = (level: string) => {
     switch (level) {
       case "N5":
@@ -28,8 +30,8 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
   const formatDuration = (duration: number) => {
     const hours = Math.floor(duration)
     const minutes = Math.round((duration - hours) * 60)
-    if (hours === 0) return `${minutes} phút`
-    if (minutes === 0) return `${hours} giờ`
+    if (hours === 0) return `${minutes} ${t('common.minutes')}`
+    if (minutes === 0) return `${hours} ${t('courses.hours')}`
     return `${hours}h ${minutes}m`
   }
 
@@ -99,7 +101,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
           to={`/courses/${course.id}`}
           className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg font-medium transition-colors text-center block"
         >
-          Xem chi tiết
+          {t('courses.viewDetails')}
         </Link>
       </div>
     </div>

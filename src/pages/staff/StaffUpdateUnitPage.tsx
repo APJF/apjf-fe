@@ -20,9 +20,9 @@ import api from '../../api/axios'
 import { type AxiosResponse } from 'axios'
 
 // Define detailed types based on base types for this page's context
-export interface ChapterDetail extends Chapter {}
+export type ChapterDetail = Chapter
 
-export interface StaffCourseDetail extends Course {}
+export type StaffCourseDetail = Course
 
 interface LocationState {
   unit?: UnitDetail

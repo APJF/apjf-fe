@@ -75,7 +75,7 @@ export class ForumAPIService {
         keys: avatarKeys
       };
       
-      const response = await api.post<PresignResponse>('/media/presign/avatars', requestBody);
+      const response = await api.post<PresignResponse>('/media/presign', requestBody);
       return response.data;
     } catch (error) {
       console.error('Error fetching avatar presigned URLs:', error);

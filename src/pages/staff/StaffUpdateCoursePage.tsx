@@ -203,7 +203,7 @@ const StaffUpdateCoursePage: React.FC = () => {
     
     // Extract object name from signed URL
     // Example: https://s3.amazonaws.com/bucket/course_image_xxx?signature -> course_image_xxx
-    const match = imageUrl.match(/course_image_[a-f0-9\-]{36}/)
+    const match = imageUrl.match(/course_image_[a-f0-9-]{36}/)
     const extracted = match ? match[0] : null
     
     console.log('🔍 Image URL processing:', {

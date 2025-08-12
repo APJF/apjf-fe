@@ -28,6 +28,13 @@ interface ManagerNavItemProps {
   isCollapsed: boolean;
 }
 
+interface NavigationItem {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  to?: string;
+}
+
 const ManagerNavItem: React.FC<ManagerNavItemProps> = ({
   to,
   icon,
@@ -159,7 +166,7 @@ export const ManagerNavigation: React.FC<ManagerNavigationProps> = ({
     return false;
   };
 
-  const handleItemClick = (item: any) => {
+  const handleItemClick = (item: NavigationItem) => {
     if (item.to) {
       navigate(item.to);
     } else if (onTabChange) {

@@ -7,6 +7,7 @@ import PaginationButton from "../components/ui/PaginationButton"
 import type { Course } from '../types/course'
 import { CourseService } from '../services/courseService'
 import { Breadcrumb, type BreadcrumbItem } from '../components/ui/Breadcrumb'
+import { useLanguage } from '../contexts/LanguageContext'
 
 interface ProcessedCourse {
   id: string
@@ -122,10 +123,11 @@ const CourseCard: React.FC<{ course: ProcessedCourse }> = ({ course }) => {
   )
 }
 
-const Pagination: React.FC<{ currentPage: number; totalPages: number; onPageChange: (p: number) => void }> = ({
+const Pagination: React.FC<{ currentPage: number; totalPages: number; onPageChange: (p: number) => void; t: (key: string) => string }> = ({
   currentPage,
   totalPages,
   onPageChange,
+  t,
 }) => {
   if (totalPages <= 1) return null
   const left = currentPage - 1 >= 1 ? currentPage - 1 : null
@@ -149,7 +151,7 @@ const Pagination: React.FC<{ currentPage: number; totalPages: number; onPageChan
         >
           <path d="M15 18l-6-6 6-6" />
         </svg>
-        Previous
+        {t('courses.previous')}
       </button>
 
       <div className="grid grid-cols-3 gap-2">
@@ -164,7 +166,7 @@ const Pagination: React.FC<{ currentPage: number; totalPages: number; onPageChan
         className="w-28 inline-flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
         aria-label="Next page"
       >
-        Next
+        {t('courses.next')}
         <svg
           xmlns="http://www.w3.org/2000/svg"
           className="w-4 h-4"
@@ -180,6 +182,7 @@ const Pagination: React.FC<{ currentPage: number; totalPages: number; onPageChan
 }
 
 export default function CoursesPage() {
+  const { t } = useLanguage()
   const [allCourses, setAllCourses] = useState<Course[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -273,7 +276,7 @@ export default function CoursesPage() {
         const activeCourses = coursesData.filter(course => course.status === "ACTIVE")
         setAllCourses(activeCourses)
       } else {
-        setError(response.message || "Không thể tải danh sách khóa học")
+        setError(response.message || t('courses.errorOccurred'))
         setAllCourses([])
       }
     } catch (err) {
@@ -282,7 +285,7 @@ export default function CoursesPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     fetchCourses()
@@ -290,8 +293,8 @@ export default function CoursesPage() {
 
   // Create breadcrumb items
   const breadcrumbItems: BreadcrumbItem[] = [
-    { label: 'Trang chủ', href: '/' },
-    { label: 'Khóa học' } // Current page - no href
+    { label: t('header.home'), href: '/' },
+    { label: t('courses.title') } // Current page - no href
   ];
 
   return (
@@ -304,19 +307,19 @@ export default function CoursesPage() {
           {/* Row 1: Search + Sort (compact) */}
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="relative sm:w-[70%]">
-              <label htmlFor="search-input" className="sr-only">Tìm kiếm khóa học</label>
+              <label htmlFor="search-input" className="sr-only">{t('courses.searchPlaceholder')}</label>
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 id="search-input"
                 type="text"
-                placeholder="Tìm kiếm khóa học..."
+                placeholder={t('courses.searchPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="h-9 w-full pl-9 pr-3 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-rose-700 focus:border-transparent outline-none"
               />
             </div>
             <div className="sm:w-[30%]">
-              <label htmlFor="sort-select" className="sr-only">Sắp xếp theo</label>
+              <label htmlFor="sort-select" className="sr-only">{t('courses.sortBy')}</label>
               <select
                 id="sort-select"
                 value={`${sortBy}-${sortOrder}`}
@@ -327,12 +330,12 @@ export default function CoursesPage() {
                 }}
                 className="h-9 w-full px-3 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-rose-700 focus:border-transparent"
               >
-                <option value="rating-desc">Đánh giá: Cao đến thấp</option>
-                <option value="rating-asc">Đánh giá: Thấp đến cao</option>
-                <option value="duration-asc">Thời lượng: Ngắn đến dài</option>
-                <option value="duration-desc">Thời lượng: Dài đến ngắn</option>
-                <option value="title-asc">Tiêu đề: A đến Z</option>
-                <option value="title-desc">Tiêu đề: Z đến A</option>
+                <option value="rating-desc">{t('courses.rating')}: {t('courses.newest')}</option>
+                <option value="rating-asc">{t('courses.rating')}: {t('courses.oldest')}</option>
+                <option value="duration-asc">{t('courses.hours')}: {t('courses.oldest')}</option>
+                <option value="duration-desc">{t('courses.hours')}: {t('courses.newest')}</option>
+                <option value="title-asc">A-Z</option>
+                <option value="title-desc">Z-A</option>
               </select>
             </div>
           </div>
@@ -341,16 +344,16 @@ export default function CoursesPage() {
           <div className="mt-3 flex flex-wrap items-end gap-3">
             {/* Topic */}
             <div className="flex flex-col min-w-[160px]">
-              <label htmlFor="topic-select" className="text-xs font-semibold text-gray-600 mb-1">Chủ đề</label>
+              <label htmlFor="topic-select" className="text-xs font-semibold text-gray-600 mb-1">{t('courses.topic')}</label>
               <select
                 id="topic-select"
                 value={filterTopic}
                 onChange={(e) => setFilterTopic(e.target.value)}
                 className="h-9 px-3 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-rose-700 focus:border-transparent"
               >
-                {topics.map((t) => (
-                  <option key={t} value={t}>
-                    {t === "all" ? "Tất cả chủ đề" : t}
+                {topics.map((topic) => (
+                  <option key={topic} value={topic}>
+                    {topic === "all" ? t('courses.allTopics') : topic}
                   </option>
                 ))}
               </select>
@@ -358,7 +361,7 @@ export default function CoursesPage() {
 
             {/* Level */}
             <div className="flex flex-col min-w-[150px]">
-              <label htmlFor="level-select" className="text-xs font-semibold text-gray-600 mb-1">Trình độ</label>
+              <label htmlFor="level-select" className="text-xs font-semibold text-gray-600 mb-1">{t('courses.level')}</label>
               <select
                 id="level-select"
                 value={filterLevel}
@@ -367,7 +370,7 @@ export default function CoursesPage() {
               >
                 {levels.map((lv) => (
                   <option key={lv} value={lv}>
-                    {lv === "all" ? "Tất cả trình độ" : lv}
+                    {lv === "all" ? t('courses.allLevels') : lv}
                   </option>
                 ))}
               </select>
@@ -375,7 +378,7 @@ export default function CoursesPage() {
 
             {/* Rating */}
             <div className="flex flex-col min-w-[180px]">
-              <span className="text-xs font-semibold text-gray-600 mb-1">Đánh giá tối thiểu</span>
+              <span className="text-xs font-semibold text-gray-600 mb-1">{t('courses.minRating')}</span>
               <div className="h-9 flex items-center px-3 border border-gray-300 rounded-lg focus-within:ring-1 focus-within:ring-rose-700">
                 <StarRating rating={minRating} onRatingChange={setMinRating} />
               </div>
@@ -389,16 +392,16 @@ export default function CoursesPage() {
                 onClick={clearAll}
                 className="h-9 px-3 text-sm font-medium text-rose-800 bg-rose-50 hover:bg-rose-100 rounded-lg"
               >
-                Xóa bộ lọc
+                {t('courses.clearFilters')}
               </button>
             </div>
 
             {/* Results giống các cột khác */}
             <div className="ml-auto flex flex-col min-w-[130px]">
-              <span className="text-xs font-semibold text-gray-600 mb-1">Kết quả</span>
+              <span className="text-xs font-semibold text-gray-600 mb-1">{t('courses.results')}</span>
               <div className="h-9 flex items-center px-3 border border-gray-300 rounded-lg text-sm bg-white">
                 <span className="font-semibold text-gray-900">{filteredAndSorted.length}</span>
-                <span className="ml-1 text-gray-700">khóa học</span>
+                <span className="ml-1 text-gray-700">{t('courses.coursesText')}</span>
               </div>
             </div>
           </div>
@@ -409,7 +412,7 @@ export default function CoursesPage() {
           <div className="flex items-center justify-center py-12">
             <div className="flex items-center gap-3">
               <div className="w-6 h-6 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
-              <span className="text-gray-600">Đang tải khóa học...</span>
+              <span className="text-gray-600">{t('courses.loading')}</span>
             </div>
           </div>
         )}
@@ -419,14 +422,14 @@ export default function CoursesPage() {
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3 mb-8">
             <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
             <div>
-              <p className="text-red-800 font-medium">Có lỗi xảy ra</p>
+              <p className="text-red-800 font-medium">{t('courses.errorOccurred')}</p>
               <p className="text-red-600 text-sm">{error}</p>
             </div>
             <button
               onClick={fetchCourses}
               className="ml-auto px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
             >
-              Thử lại
+              {t('courses.retry')}
             </button>
           </div>
         )}
@@ -441,20 +444,20 @@ export default function CoursesPage() {
                     <CourseCard key={c.id} course={c} />
                   ))}
                 </div>
-                <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+                <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} t={t} />
               </>
             ) : (
               <div className="text-center py-16 bg-white border border-gray-200 rounded-xl">
                 <div className="text-gray-400 mb-4">
                   <BookOpen className="w-16 h-16 mx-auto" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Không tìm thấy khóa học</h3>
-                <p className="text-gray-600 mb-6">Thử điều chỉnh tiêu chí tìm kiếm hoặc bộ lọc của bạn</p>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('courses.noCoursesFound')}</h3>
+                <p className="text-gray-600 mb-6">{t('courses.adjustSearchCriteria')}</p>
                 <button
                   onClick={clearAll}
                   className="inline-flex items-center px-4 py-2 bg-rose-700 text-white rounded-lg hover:bg-rose-800 transition-colors"
                 >
-                  Đặt lại bộ lọc
+                  {t('courses.resetFilters')}
                 </button>
               </div>
             )}
@@ -464,7 +467,7 @@ export default function CoursesPage() {
 
       <footer className="bg-white border-t border-gray-200 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 text-center text-sm text-gray-600">
-          © 2025 Khóa học tiếng Nhật
+          {t('courses.copyright')}
         </div>
       </footer>
 

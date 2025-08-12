@@ -19,7 +19,7 @@ export type CommentType = {
 
 export type WebSocketMessage = {
   type: "NEW_POST" | "NEW_COMMENT" | "NEW_REPLY" | "CREATE_POST"
-  data: any
+  data: Post | Comment | CommentType | { title: string; content: string; author: string }
 }
 
 // New types for the updated forum design

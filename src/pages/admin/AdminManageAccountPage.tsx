@@ -92,32 +92,11 @@ export const AdminManageAccountPage: React.FC = () => {
 
   // Filter users based on current filters
   useEffect(() => {
-    let filtered = users.filter(user => {
-      // Status filter
-      if (filters.status === 'active' && !user.enabled) return false
-      if (filters.status === 'inactive' && user.enabled) return false
-
-      // Role filter
-      if (filters.role !== 'all') {
-        const roleMap: Record<string, string> = {
-          user: 'ROLE_USER',
-          staff: 'ROLE_STAFF', 
-          admin: 'ROLE_ADMIN'
-        }
-        if (!user.roles.includes(roleMap[filters.role])) return false
-      }
-
-      // Search filter
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase()
-        return (
-          user.email.toLowerCase().includes(searchLower) ||
-          user.name?.toLowerCase().includes(searchLower) ||
-          user.username?.toLowerCase().includes(searchLower)
-        )
-      }
-
-      return true
+    const filtered = accounts.filter(account => {
+      const matchesSearch = account.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          account.email.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesRole = filterRole === 'all' || account.roles.includes(filterRole as any)
+      return matchesSearch && matchesRole
     })
 
     setFilteredUsers(filtered)

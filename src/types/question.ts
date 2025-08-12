@@ -27,7 +27,7 @@ export interface CreateQuestionRequest {
   unitIds: string[];
 }
 
-export interface UpdateQuestionRequest extends CreateQuestionRequest {}
+export type UpdateQuestionRequest = CreateQuestionRequest
 
 export interface QuestionsResponse {
   success: boolean;

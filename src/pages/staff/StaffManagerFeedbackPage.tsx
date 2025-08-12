@@ -179,7 +179,7 @@ export function StaffManagerFeedbackPage() {
 
   // Filter and sort data
   const filteredData = useMemo(() => {
-    let filtered = requests.filter((item) => {
+    const filtered = requests.filter((item) => {
       const matchesSearch =
         (item.targetTitle?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
         (item.targetId?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||

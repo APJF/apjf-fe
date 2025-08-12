@@ -7,6 +7,7 @@ import CourseTabs from "../../components/course/CourseTabs";
 import { CourseService } from "../../services/courseService";
 import type { Course, Chapter } from "../../types/course";
 import { Breadcrumb, type BreadcrumbItem } from '../../components/ui/Breadcrumb';
+import { useLanguage } from "../../contexts/LanguageContext";
 
 // Function to sort chapters by prerequisite order
 function sortChaptersByPrerequisite(chapters: Chapter[]): Chapter[] {
@@ -64,6 +65,7 @@ function sortChaptersByPrerequisite(chapters: Chapter[]): Chapter[] {
 }
 
 export default function CourseDetailPage() {
+  const { t } = useLanguage();
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const [course, setCourse] = useState<Course | null>(null);
@@ -77,7 +79,7 @@ export default function CourseDetailPage() {
       fetchCourseDetail();
     } else {
       console.error('Course ID is undefined');
-      setError('ID khóa học không hợp lệ');
+      setError(t('courseDetail.invalidCourseId'));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [courseId]);
@@ -114,7 +116,7 @@ export default function CourseDetailPage() {
       
     } catch (error) {
       console.error('Error fetching course detail:', error);
-      setError('Có lỗi xảy ra khi tải khóa học. Vui lòng thử lại.');
+      setError(t('courseDetail.errorLoading'));
     } finally {
       setLoading(false);
     }
@@ -125,7 +127,7 @@ export default function CourseDetailPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex items-center gap-3">
           <div className="w-6 h-6 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
-          <span className="text-gray-600">Đang tải khóa học...</span>
+          <span className="text-gray-600">{t('courseDetail.loading')}</span>
         </div>
       </div>
     );
@@ -137,16 +139,16 @@ export default function CourseDetailPage() {
         <div className="text-center max-w-md mx-auto">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h1 className="text-xl font-semibold text-gray-900 mb-2">
-            Không thể tải khóa học
+            {t('courseDetail.cannotLoadCourse')}
           </h1>
           <p className="text-gray-600 mb-6">
-            {error || 'Khóa học không tồn tại hoặc đã bị xóa.'}
+            {error || t('courseDetail.courseNotFound')}
           </p>
           <button
             onClick={() => navigate('/courses')}
             className="bg-rose-600 text-white px-6 py-2 rounded-lg hover:bg-rose-700 transition-colors"
           >
-            Quay lại danh sách khóa học
+            {t('courseDetail.backToCourses')}
           </button>
         </div>
       </div>
@@ -154,8 +156,7 @@ export default function CourseDetailPage() {
   }
 
   // Mock data for demo (in real app, these would come from API)
-  const description = course.description || 
-    "Khóa học này cung cấp kiến thức toàn diện với các dự án thực hành, phương pháp tốt nhất và ví dụ thực tế để giúp bạn thành thạo chủ đề một cách hiệu quả.";
+  const description = course.description || t('courseDetail.defaultDescription');
     
   const reviews = [
     { id: 1, user: "Anh Trần", rating: 5, comment: "Khóa học rất chất lượng, giảng viên dễ hiểu.", date: "2025-05-12" },
@@ -165,8 +166,8 @@ export default function CourseDetailPage() {
 
   // Create breadcrumb items
   const breadcrumbItems: BreadcrumbItem[] = [
-    { label: 'Trang chủ', href: '/' },
-    { label: 'Khóa học', href: '/courses' },
+    { label: t('header.home'), href: '/' },
+    { label: t('courses.title'), href: '/courses' },
     { label: course.title } // Current page - no href
   ];
 
@@ -226,7 +227,7 @@ export default function CourseDetailPage() {
 
               {/* Hàng: Giá + Enroll (cùng hàng) */}
               <div className="mt-4 flex items-center gap-4">
-                <div className="text-2xl sm:text-3xl font-bold text-gray-900 tabular-nums">Miễn phí</div>
+                <div className="text-2xl sm:text-3xl font-bold text-gray-900 tabular-nums">{t('courseDetail.free')}</div>
                 <div className="ml-auto">
                   <EnrollButton courseId={course.id} courseTitle={course.title} />
                 </div>

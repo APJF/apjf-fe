@@ -21,6 +21,7 @@ import { ScriptViewer } from "../../components/chapter/ScriptViewer"
 import { getChapterById, getUnitsByChapterId, getMaterialsByUnitId } from '../../services/chapterDetailService'
 import type { Material, MaterialType } from '../../types/material'
 import { Breadcrumb, type BreadcrumbItem } from '../../components/ui/Breadcrumb'
+import { useLanguage } from '../../contexts/LanguageContext'
 
 // Updated types based on API
 interface ChapterDetail {
@@ -88,6 +89,7 @@ const materialTypeIcons: Record<MaterialType, typeof FileText> = {
 }
 
 export default function ChapterDetailPage() {
+  const { t } = useLanguage()
   const { courseId, chapterId } = useParams<{ courseId: string; chapterId: string }>()
   
   // State management - All hooks must be at the top
@@ -162,7 +164,7 @@ export default function ChapterDetailPage() {
         
       } catch (err) {
         console.error('Error fetching chapter data:', err)
-        setError('Không thể tải dữ liệu chapter')
+        setError(t('chapterDetail.cannotLoadData'))
       } finally {
         setLoading(false)
       }

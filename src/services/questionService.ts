@@ -28,9 +28,10 @@ export class QuestionService {
       } else {
         throw new Error(response.data.message);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching questions:', error);
-      throw new Error(error.response?.data?.message || 'Không thể tải danh sách câu hỏi');
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      throw new Error(axiosError.response?.data?.message || 'Không thể tải danh sách câu hỏi');
     }
   }
 
@@ -47,9 +48,10 @@ export class QuestionService {
       } else {
         throw new Error(response.data.message);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating question:', error);
-      throw new Error(error.response?.data?.message || 'Không thể tạo câu hỏi');
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      throw new Error(axiosError.response?.data?.message || 'Không thể tạo câu hỏi');
     }
   }
 
@@ -66,9 +68,10 @@ export class QuestionService {
       } else {
         throw new Error(response.data.message);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error updating question:', error);
-      throw new Error(error.response?.data?.message || 'Không thể cập nhật câu hỏi');
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      throw new Error(axiosError.response?.data?.message || 'Không thể cập nhật câu hỏi');
     }
   }
 
@@ -82,9 +85,10 @@ export class QuestionService {
       if (!response.data.success) {
         throw new Error(response.data.message);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting question:', error);
-      throw new Error(error.response?.data?.message || 'Không thể xóa câu hỏi');
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      throw new Error(axiosError.response?.data?.message || 'Không thể xóa câu hỏi');
     }
   }
 }

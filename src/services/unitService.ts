@@ -35,9 +35,10 @@ export class UnitService {
       } else {
         throw new Error(response.data.message);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching units:', error);
-      throw new Error(error.response?.data?.message || 'Không thể tải danh sách units');
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      throw new Error(axiosError.response?.data?.message || 'Không thể tải danh sách units');
     }
   }
 }
