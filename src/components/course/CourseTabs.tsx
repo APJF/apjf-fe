@@ -4,8 +4,10 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/Tabs"
 import { Avatar, AvatarFallback } from "../ui/Avatar"
 import { StarDisplay } from "../ui/StarDisplay"
 import ReviewForm, { type NewReviewInput } from "./ReviewForm"
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
+import { ExamService, type CourseExam } from "../../services/examService"
+import { Clock, FileText, AlertCircle } from "lucide-react"
 
 export interface Chapter {
   id: string
@@ -31,12 +33,43 @@ export default function CourseTabs({
   initialReviews: ReviewItem[]
 }>) {
   const [reviews, setReviews] = useState<ReviewItem[]>(initialReviews)
+  const [exams, setExams] = useState<CourseExam[]>([])
+  const [examsLoading, setExamsLoading] = useState(false)
+  const [examsError, setExamsError] = useState<string | null>(null)
   const navigate = useNavigate()
   const { courseId } = useParams()
 
   // Controls: sort and min rating filter
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc")
   const [minStars, setMinStars] = useState<number>(0)
+
+  // Fetch exams khi component mount hoặc courseId thay đổi
+  useEffect(() => {
+    const fetchExams = async () => {
+      if (!courseId) return
+      
+      setExamsLoading(true)
+      setExamsError(null)
+      
+      try {
+        const response = await ExamService.getExamsByCourseId(courseId)
+        if (response.success) {
+          setExams(response.data)
+        } else {
+          setExamsError(response.message || "Không thể tải danh sách bài kiểm tra")
+        }
+      } catch (error) {
+        console.error('Error fetching exams:', error)
+        setExamsError("Có lỗi xảy ra khi tải danh sách bài kiểm tra")
+      } finally {
+        setExamsLoading(false)
+      }
+    }
+
+    if (courseId) {
+      fetchExams()
+    }
+  }, [courseId])
 
   function addReview(input: NewReviewInput) {
     const newItem: ReviewItem = {
@@ -51,6 +84,10 @@ export default function CourseTabs({
 
   const handleChapterClick = (chapterId: string) => {
     navigate(`/courses/${courseId}/chapters/${chapterId}`)
+  }
+
+  const handleExamClick = (examId: string) => {
+    navigate(`/exam/${examId}/preparation`)
   }
 
   const visibleReviews = useMemo(() => {
@@ -106,6 +143,7 @@ export default function CourseTabs({
       <Tabs defaultValue="chapters" className="w-full">
         <TabsList className="bg-gray-100">
           <TabsTrigger value="chapters">Chương học</TabsTrigger>
+          <TabsTrigger value="exams">Bài kiểm tra</TabsTrigger>
           <TabsTrigger value="overview">Tổng quan</TabsTrigger>
           <TabsTrigger value="reviews">Đánh giá</TabsTrigger>
         </TabsList>
@@ -129,6 +167,62 @@ export default function CourseTabs({
               </button>
             ))}
           </div>
+        </TabsContent>
+
+        {/* Exams Tab */}
+        <TabsContent value="exams" className="mt-4">
+          {examsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
+                <span className="text-gray-600">Đang tải bài kiểm tra...</span>
+              </div>
+            </div>
+          ) : examsError ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
+                <p className="text-gray-600">{examsError}</p>
+              </div>
+            </div>
+          ) : exams.length === 0 ? (
+            <div className="text-center py-8">
+              <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-600">Chưa có bài kiểm tra nào cho khóa học này</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {exams.map((exam, index) => (
+                <button
+                  key={exam.examId}
+                  type="button"
+                  onClick={() => handleExamClick(exam.examId)}
+                  className="group flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-rose-300 hover:bg-rose-50/50 transition-colors cursor-pointer w-full text-left"
+                >
+                  <span className="flex-none inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 text-blue-700 text-sm font-semibold">
+                    {index + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-gray-900 break-words">{exam.title}</div>
+                    <div className="text-xs text-gray-600 mt-1">{exam.description}</div>
+                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {Math.round(exam.duration)}p
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <FileText className="w-3 h-3" />
+                        {exam.totalQuestions} câu
+                      </span>
+                      <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">
+                        {exam.type}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         {/* Overview */}

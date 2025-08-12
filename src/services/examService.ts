@@ -6,6 +6,23 @@ import type {
   SubmitExamAnswer
 } from '../types/exam';
 
+// Interface cho danh sách exams của course
+export interface CourseExam {
+  examId: string;
+  title: string;
+  description: string;
+  duration: number;
+  totalQuestions: number;
+  type: string;
+}
+
+export interface CourseExamsResponse {
+  success: boolean;
+  message: string;
+  data: CourseExam[];
+  timestamp: number;
+}
+
 export class ExamService {
   /**
    * Test method để kiểm tra kết nối API
@@ -17,6 +34,21 @@ export class ExamService {
       console.log('✅ API connection successful:', response.status);
     } catch (error) {
       console.error('❌ API connection failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lấy danh sách exams theo courseId
+   */
+  static async getExamsByCourseId(courseId: string): Promise<CourseExamsResponse> {
+    try {
+      console.log('Fetching exams for course:', courseId);
+      const response = await api.get(`/courses/${courseId}/exams`);
+      console.log('Exams response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching course exams:', error);
       throw error;
     }
   }
