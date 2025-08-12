@@ -12,6 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 interface Comment {
   id: string
   author: string
+  authorEmail?: string
   avatar: string
   content: string
   timestamp: string
@@ -22,6 +23,7 @@ interface Comment {
 interface Post {
   id: string
   author: string
+  authorEmail?: string
   avatar: string
   content: string
   timestamp: string
@@ -66,7 +68,7 @@ export function PostCard({
   currentUserEmail?: string
   userAvatar?: string
 }>) {
-  const canModifyPost = currentUserEmail === post.author
+  const canModifyPost = currentUserEmail === (post.authorEmail || post.author)
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(post.content)
 

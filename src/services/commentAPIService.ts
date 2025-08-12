@@ -5,13 +5,16 @@ const forumAPIService = new ForumAPIService();
 import type { Comment } from '../types/forum';
 
 // Comment interfaces
-export interface CommentResponse {
+interface CommentResponse {
   id: number;
   content: string;
   createdAt: string;
+  updatedAt: string;
   email: string;
+  username: string;
   avatar: string;
   postId: number;
+  isEdited: boolean;
 }
 
 export interface CommentsAPIResponse {
@@ -154,7 +157,8 @@ export class CommentAPIService {
   convertAPICommentToUIComment(apiComment: CommentResponse): Comment {
     return {
       id: apiComment.id.toString(),
-      author: apiComment.email,
+      author: apiComment.username || apiComment.email, // Prefer username, fallback to email
+      authorEmail: apiComment.email, // Keep email for permission checking
       avatar: apiComment.avatar,
       content: apiComment.content,
       timestamp: ForumAPIService.formatTimeAgo(apiComment.createdAt),
@@ -202,7 +206,7 @@ export class CommentAPIService {
       
       // presignResponse.data is Record<string, string> - key-value pairs
       Object.entries(presignResponse.data).forEach(([key, url]) => {
-        avatarUrlMap.set(key, url as string);
+        avatarUrlMap.set(key, url);
       });
 
       // Update avatar URLs

@@ -7,6 +7,7 @@ export interface PostResponse {
   createdAt: string;
   updatedAt: string;
   email: string;
+  username: string;
   avatar: string;
   commentsCount: number;
 }

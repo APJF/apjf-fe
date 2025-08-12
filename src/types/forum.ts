@@ -26,6 +26,7 @@ export type WebSocketMessage = {
 export interface Comment {
   id: string
   author: string
+  authorEmail?: string // For permission checking
   avatar: string
   content: string
   timestamp: string
@@ -37,6 +38,7 @@ export interface Comment {
 export interface Post {
   id: string
   author: string
+  authorEmail?: string // For permission checking
   avatar: string
   content: string
   timestamp: string
@@ -52,6 +54,7 @@ export interface ForumPost {
   content: string
   createdAt: string
   email: string
+  username: string
   avatar: string
   comments: ForumComment[]
 }
@@ -61,6 +64,7 @@ export interface ForumComment {
   content: string
   createdAt: string
   email: string
+  username: string
   avatar: string
   postId: string
 }

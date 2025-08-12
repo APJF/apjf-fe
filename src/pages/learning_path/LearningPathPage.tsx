@@ -9,13 +9,12 @@ import { learningPathService } from "../../services/learningPathService";
 import type { LearningPath } from "../../services/learningPathService";
 import api from "../../api/axios";
 import { Breadcrumb, type BreadcrumbItem } from '../../components/ui/Breadcrumb';
+import { RoadmapView, type RoadmapStage } from '../../components/roadmap/RoadmapView';
 import {
   BookOpen,
-  CheckCircle,
   RefreshCw,
   Clock,
   Award,
-  Play,
   ArrowLeft,
   AlertCircle,
   Flag
@@ -34,10 +33,9 @@ interface LearningModule {
   status: "PENDING" | "STUDYING" | "FINISHED"; // Ensures we use API status enum
 }
 
-// Current Learning Roadmap Component
+// Current Learning Roadmap Component - using RoadmapView
 function CurrentLearningRoadmap({ activePath }: { readonly activePath: LearningPath | null }) {
   const navigate = useNavigate();
-  const [currentPage, setCurrentPage] = useState(0);
 
   // Hiển thị thông báo nếu không có lộ trình nào đang học
   if (!activePath) {
@@ -55,15 +53,14 @@ function CurrentLearningRoadmap({ activePath }: { readonly activePath: LearningP
     );
   }
 
-  // Sample roadmap data with stages
-  const roadmapStages = [
+  // Convert to RoadmapStage format
+  const roadmapStages: RoadmapStage[] = [
     {
       id: 1,
       title: "Hiragana & Katakana",
       description: "Học thuộc 46 ký tự cơ bản",
       status: "completed",
       progress: 100,
-      position: { x: 15, y: 25 },
     },
     {
       id: 2,
@@ -71,7 +68,6 @@ function CurrentLearningRoadmap({ activePath }: { readonly activePath: LearningP
       description: "800 từ vựng thiết yếu",
       status: "completed",
       progress: 100,
-      position: { x: 35, y: 45 },
     },
     {
       id: 3,
@@ -79,7 +75,6 @@ function CurrentLearningRoadmap({ activePath }: { readonly activePath: LearningP
       description: "Các mẫu câu N5",
       status: "in_progress",
       progress: 65,
-      position: { x: 55, y: 35 },
     },
     {
       id: 4,
@@ -87,7 +82,6 @@ function CurrentLearningRoadmap({ activePath }: { readonly activePath: LearningP
       description: "103 chữ Kanji cơ bản",
       status: "locked",
       progress: 0,
-      position: { x: 75, y: 55 },
     },
     {
       id: 5,
@@ -95,7 +89,6 @@ function CurrentLearningRoadmap({ activePath }: { readonly activePath: LearningP
       description: "Kỹ năng nghe hiểu",
       status: "locked",
       progress: 0,
-      position: { x: 25, y: 65 },
     },
     {
       id: 6,
@@ -103,231 +96,27 @@ function CurrentLearningRoadmap({ activePath }: { readonly activePath: LearningP
       description: "Đọc và hiểu văn bản",
       status: "locked",
       progress: 0,
-      position: { x: 65, y: 75 },
     },
   ];
 
-  const stagesPerPage = 4;
-  const totalPages = Math.ceil(roadmapStages.length / stagesPerPage);
-  const currentStages = roadmapStages.slice(currentPage * stagesPerPage, (currentPage + 1) * stagesPerPage);
-
-  // Cố định vị trí cho 4 stages trên mỗi trang
-  const fixedPositions = [
-    { x: 20, y: 40 },  // Stage 1
-    { x: 44, y: 54 },  // Stage 2
-    { x: 72, y: 75 },  // Stage 3
-    { x: 85, y: 52 },  // Stage 4
-  ];
-
-  // Gán vị trí cố định cho các stages
-  const stagesWithFixedPositions = currentStages.map((stage, index) => ({
-    ...stage,
-    position: fixedPositions[index] || { x: 50, y: 50 }
-  }));
-
-  const getStageIcon = (status: string) => {
-    switch (status) {
-      case "completed":
-        return <CheckCircle className="h-6 w-6 text-red-800" />;
-      case "in_progress":
-        return <Play className="h-6 w-6 text-red-600" />;
-      case "locked":
-        return <div className="h-6 w-6 border-2 border-gray-400 rounded-full" />;
-      default:
-        return null;
-    }
-  };
-
-  const getStageColor = (status: string) => {
-    // Using unified red theme for all stages
-    switch (status) {
-      case "completed":
-        return "bg-red-50 border-red-500 text-red-800";
-      case "in_progress":
-        return "bg-red-100 border-red-600 text-red-700";
-      case "locked":
-        return "bg-gray-100 border-gray-300 text-gray-600";
-      default:
-        return "bg-gray-100 border-gray-300 text-gray-600";
-    }
-  };
-
-  const getStatusTextLabel = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "Hoàn thành";
-      case "in_progress":
-        return "Đang học";
-      case "locked":
-        return "Chưa mở";
-      default:
-        return "Chưa mở";
-    }
-  };
-
   return (
-      <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-2 border-blue-200">
-      <CardContent className="p-1">
-        <div className="flex justify-between items-center mb-2">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900 mb-1">Lộ trình đang học</h2>
-            <p className="text-sm text-gray-600">{activePath.title}</p>
-            <div className="flex items-center space-x-2 mt-1">
-              <Badge className="bg-green-100 text-green-800 text-xs">{activePath.targetLevel}</Badge>
-              <Badge className="bg-blue-100 text-blue-800 text-xs">Đang học</Badge>
-              <span className="text-xs text-gray-600">Thời gian: {activePath.duration} ngày</span>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-xl font-bold text-blue-600">{activePath.courses?.length || 0}</div>
-            <p className="text-xs text-gray-600">Khóa học</p>
-          </div>
-        </div>        {/* Japan Map with Stages */}
-        <div className="relative">
-          <div className="relative rounded-lg overflow-hidden bg-gray-50">
-            {/* Ảnh nền với tỷ lệ tự nhiên */}
-            <img 
-              src="/img/Roadmap.webp" 
-              alt="Japan Roadmap" 
-              className="w-full h-auto object-contain"
-            />
-            
-            {/* Stage markers overlay */}
-            <div className="absolute inset-0">
-              {stagesWithFixedPositions.map((stage, index) => (
-                <div
-                  key={stage.id}
-                  className="absolute transform -translate-x-1/2 -translate-y-1/2 z-10"
-                  style={{
-                    left: `${stage.position.x}%`,
-                    top: `${stage.position.y}%`,
-                  }}
-                >
-                  {/* Connection line to next stage */}
-                  <div
-                    className="absolute w-12 h-0.5 bg-blue-400 opacity-70"
-                    style={{
-                      left: "50%",
-                      top: "50%",
-                      transform: index === 2 || index===3 ? `rotate(-90deg)` : `rotate(90deg)`,
-                      transformOrigin: "0 0",
-                    }}
-                  />
-
-                  {/* Stage marker */}
-                  <div className="flex flex-col items-center">
-                    <div
-                      className={`w-8 h-8 rounded-full border-2 ${getStageColor(stage.status)} flex items-center justify-center shadow-md cursor-pointer hover:scale-110 transition-transform group relative`}
-                    >
-                      <div className="scale-75">
-                        {getStageIcon(stage.status)}
-                      </div>
-                      
-                      {/* Stage info tooltip - simplified for smaller space */}
-                      <div className={`absolute left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-xl p-2 min-w-32 opacity-0 group-hover:opacity-100 transition-opacity z-30 border border-gray-200 pointer-events-none ${
-                        stage.id === 3 ? 'bottom-10' : 'top-10'
-                      }`}>
-                        <h4 className="font-semibold text-xs mb-1">{stage.title}</h4>
-                        <p className="text-xs text-gray-600 mb-1">{stage.description}</p>
-                        {stage.status === "in_progress" && (
-                          <div className="space-y-1 mb-1">
-                            <div className="flex justify-between text-xs">
-                              <span>Tiến độ</span>
-                              <span className="font-semibold text-blue-600">{stage.progress}%</span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-1">
-                              <div className="bg-blue-600 h-1 rounded-full" style={{ width: `${stage.progress}%` }} />
-                            </div>
-                          </div>
-                        )}
-                        <div className={`text-xs font-medium px-1 py-0.5 rounded-full text-center ${getStageColor(stage.status)}`}>
-                          {getStatusTextLabel(stage.status)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Navigation buttons */}
-          {totalPages > 1 && (
-            <div className="flex justify-center space-x-2 mt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
-                disabled={currentPage === 0}
-                className="bg-white text-xs px-2 py-1"
-              >
-                ← Trước
-              </Button>
-
-              <div className="flex items-center space-x-1">
-                {Array.from({ length: totalPages }, (_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setCurrentPage(i)}
-                    className={`w-2 h-2 rounded-full transition-colors ${
-                      i === currentPage ? "bg-blue-600" : "bg-gray-300"
-                    }`}
-                  />
-                ))}
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
-                disabled={currentPage === totalPages - 1}
-                className="bg-white text-xs px-2 py-1"
-              >
-                Sau →
-              </Button>
-            </div>
-          )}
-        </div>
-
-        {/* Current stage info - Simplified */}
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          {stagesWithFixedPositions.slice(0, 4).map((stage) => (
-            <div key={stage.id} className={`p-2 rounded-lg border ${getStageColor(stage.status)}`}>
-              <div className="flex items-center space-x-1 mb-1">
-                <div className="scale-75">
-                  {getStageIcon(stage.status)}
-                </div>
-                <span className="font-semibold text-xs">Chặng {stage.id}</span>
-              </div>
-              <h4 className="font-medium text-xs mb-1">{stage.title}</h4>
-              {(stage.status === "in_progress" || stage.status === "completed") && stage.progress > 0 && (
-                <div className="mt-1">
-                  <div className="w-full bg-white bg-opacity-50 rounded-full h-1">
-                    <div className="bg-current h-1 rounded-full" style={{ width: `${stage.progress}%` }} />
-                  </div>
-                  <span className="text-xs font-medium">{stage.progress}%</span>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Action buttons */}
-        <div className="flex justify-center space-x-2 mt-2">
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1">
-            <Flag className="h-3 w-3 mr-1" />
-            Đặt lộ trình
-          </Button>
-          <Button 
-            variant="outline" 
-            className="bg-white text-xs px-3 py-1"
-            onClick={() => navigate(`/roadmap-detail/${activePath.id}`)}
-          >
-            Chi tiết
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+    <RoadmapView
+      stages={roadmapStages}
+      title="Lộ trình đang học"
+      subtitle={activePath.title}
+      headerInfo={{
+        targetLevel: activePath.targetLevel,
+        status: "Đang học",
+        duration: activePath.duration,
+        coursesCount: activePath.courses?.length || 0,
+      }}
+      onViewDetail={() => navigate(`/roadmap-detail/${activePath.id}`)}
+      onStageClick={(stageId) => {
+        console.log(`Clicked stage ${stageId}`);
+        // Handle stage click - navigate to detail page
+        navigate(`/roadmap-detail/${activePath.id}?stage=${stageId}`);
+      }}
+    />
   );
 }
 

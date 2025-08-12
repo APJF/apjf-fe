@@ -33,7 +33,8 @@ const convertAPIPostToUIPost = (apiPost: PostResponse): Post => {
     
   return {
     id: apiPost.id.toString(), // Convert number to string
-    author: apiPost.email,
+    author: (apiPost as PostResponse & { username?: string }).username || apiPost.email, // Prefer username, fallback to email
+    authorEmail: apiPost.email, // Keep email for permission checking
     avatar: apiPost.avatar,
     content: apiPost.content,
     timestamp: formatTimeAgo(displayTime), // Show most recent activity time
@@ -65,6 +66,9 @@ export function ForumPage() {
       setError(null);
       
       const apiPosts = await forumAPIService.getPostsWithAvatars();
+      
+      // Debug: Check if username is available in API response
+      console.log('🔍 Sample API post structure:', apiPosts[0]);
       
       // Sort by "latest activity" - updatedAt if available, otherwise createdAt (newest first)
       apiPosts.sort((a, b) => {
@@ -161,6 +165,9 @@ export function ForumPage() {
       // Load comments if we don't have any loaded yet
       if (post.comments.length === 0) {
         const comments = await commentAPIService.getCommentsWithAvatars(parseInt(postId));
+        
+        // Debug: Check if username is available in comment API response
+        console.log('🔍 Sample comment structure:', comments[0]);
         
         setPosts(prevPosts => 
           prevPosts.map(p => 

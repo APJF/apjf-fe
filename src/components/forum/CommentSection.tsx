@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 interface Comment {
   id: string
   author: string
+  authorEmail?: string
   avatar: string
   content: string
   timestamp: string
@@ -69,7 +70,7 @@ export function CommentSection({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-44 border border-gray-200 shadow-lg">
-                    {comment.author === currentUserEmail ? (
+                    {(comment.authorEmail || comment.author) === currentUserEmail ? (
                       <DropdownMenuItem
                         onClick={() => onDeleteComment(comment.id)}
                         className="text-red-600 hover:text-red-700 hover:bg-red-50 focus:text-red-700 focus:bg-red-50"
