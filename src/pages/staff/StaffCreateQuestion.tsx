@@ -43,6 +43,12 @@ export function StaffCreateQuestion() {
   const [showDeleteDialog, setShowDeleteDialog] = useState<string | null>(null);
   const { showToast } = useToast();
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
   const [unitFilter, setUnitFilter] = useState<string>("all");
@@ -66,17 +72,30 @@ export function StaffCreateQuestion() {
   });
 
   useEffect(() => {
-    fetchQuestions();
+    fetchQuestions(currentPage, pageSize);
     fetchUnits();
-  }, []);
+  }, [currentPage, pageSize]);
 
-  const fetchQuestions = async () => {
+  const fetchQuestions = async (page: number = 0, size: number = 10) => {
     try {
       setLoading(true);
-      const questionsData = await QuestionService.getAllQuestions();
-      setQuestions(questionsData);
+      const pagedData = await QuestionService.getAllQuestions(page, size);
+      console.log('Paged questions data received:', pagedData);
+      
+      // pagedData is now PagedQuestions type with all pagination info
+      const safeQuestionsData = Array.isArray(pagedData.content) ? pagedData.content : [];
+      setQuestions(safeQuestionsData);
+      
+      // Set pagination info from PagedQuestions
+      setCurrentPage(pagedData.number);
+      setTotalPages(pagedData.totalPages);
+      setTotalElements(pagedData.totalElements);
     } catch (error: any) {
+      console.error('Error fetching questions:', error);
       showToast('error', error.message);
+      setQuestions([]); // Set empty array on error
+      setTotalPages(0);
+      setTotalElements(0);
     } finally {
       setLoading(false);
     }
@@ -97,14 +116,26 @@ export function StaffCreateQuestion() {
     }
   };
 
-  // Filter questions
-  const filteredQuestions = questions.filter((question) => {
-    const matchesSearch = question.content.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesUnit = unitFilter === "all" || question.unitIds.includes(unitFilter);
-    const matchesType = typeFilter === "all" || question.type === typeFilter;
-    const matchesScope = scopeFilter === "all" || question.scope === scopeFilter;
-    return matchesSearch && matchesUnit && matchesType && matchesScope;
-  });
+  // Use questions directly since pagination is handled by backend
+  const safeQuestions = Array.isArray(questions) ? questions : [];
+  
+  // Stats need to be calculated from totalElements, not filtered questions
+  const stats = {
+    total: totalElements,
+    multipleChoice: safeQuestions.filter((q) => q.type === "MULTIPLE_CHOICE").length,
+    trueFalse: safeQuestions.filter((q) => q.type === "TRUE_FALSE").length,
+    writing: safeQuestions.filter((q) => q.type === "WRITING").length,
+  };
+
+  // Pagination handlers
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+  };
+
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPageSize(newPageSize);
+    setCurrentPage(0); // Reset to first page when changing page size
+  };
 
   const handleCreateQuestion = async (questionData: FormData) => {
     try {
@@ -119,11 +150,12 @@ export function StaffCreateQuestion() {
         unitIds: questionData.unitIds
       };
 
-      const newQuestion = await QuestionService.createQuestion(createData);
-      setQuestions(prev => [newQuestion, ...prev]);
+      await QuestionService.createQuestion(createData);
       showToast('success', 'Tạo câu hỏi thành công!');
       setShowQuestionDialog(false);
       resetForm();
+      // Refresh current page
+      fetchQuestions(currentPage, pageSize);
     } catch (error: any) {
       showToast('error', error.message);
     }
@@ -142,12 +174,13 @@ export function StaffCreateQuestion() {
         unitIds: questionData.unitIds
       };
 
-      const updatedQuestion = await QuestionService.updateQuestion(id, updateData);
-      setQuestions(prev => prev.map(q => q.id === id ? updatedQuestion : q));
+      await QuestionService.updateQuestion(id, updateData);
       showToast('success', 'Cập nhật câu hỏi thành công!');
       setShowQuestionDialog(false);
       setEditingQuestion(null);
       resetForm();
+      // Refresh current page
+      fetchQuestions(currentPage, pageSize);
     } catch (error: any) {
       showToast('error', error.message);
     }
@@ -156,9 +189,10 @@ export function StaffCreateQuestion() {
   const handleDeleteQuestion = async (id: string) => {
     try {
       await QuestionService.deleteQuestion(id);
-      setQuestions(prev => prev.filter(q => q.id !== id));
       showToast('success', 'Xóa câu hỏi thành công!');
       setShowDeleteDialog(null);
+      // Refresh current page
+      fetchQuestions(currentPage, pageSize);
     } catch (error: any) {
       showToast('error', error.message);
     }
@@ -322,13 +356,6 @@ export function StaffCreateQuestion() {
     }
   };
 
-  const stats = {
-    total: questions.length,
-    multipleChoice: questions.filter((q) => q.type === "MULTIPLE_CHOICE").length,
-    trueFalse: questions.filter((q) => q.type === "TRUE_FALSE").length,
-    writing: questions.filter((q) => q.type === "WRITING").length,
-  };
-
   return (
     <StaffNavigation>
       <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen">
@@ -455,7 +482,7 @@ export function StaffCreateQuestion() {
           {/* Questions List */}
           <Card className="bg-white/90  shadow-xl border-0">
             <div className="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-xl">
-              <h3 className="text-lg font-semibold">Danh sách câu hỏi ({filteredQuestions.length})</h3>
+              <h3 className="text-lg font-semibold">Danh sách câu hỏi ({safeQuestions.length})</h3>
             </div>
             <div className="p-6">
               {loading ? (
@@ -463,7 +490,7 @@ export function StaffCreateQuestion() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
                   <p className="text-gray-600 mt-2">Đang tải...</p>
                 </div>
-              ) : filteredQuestions.length === 0 ? (
+              ) : safeQuestions.length === 0 ? (
                 <div className="text-center py-12">
                   <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 mb-2">Chưa có câu hỏi nào</h3>
@@ -478,7 +505,7 @@ export function StaffCreateQuestion() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {filteredQuestions.map((question, index) => (
+                  {safeQuestions.map((question: Question, index: number) => (
                     <div key={question.id} className="border border-blue-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-white/50">
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex items-center space-x-3">
@@ -560,6 +587,97 @@ export function StaffCreateQuestion() {
               )}
             </div>
           </Card>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <Card className="bg-white/90 backdrop-blur-sm shadow-xl border-0">
+              <div className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-700">
+                      Hiển thị {currentPage * pageSize + 1} - {Math.min((currentPage + 1) * pageSize, totalElements)} của {totalElements} câu hỏi
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {/* Page size selector */}
+                    <select
+                      value={pageSize}
+                      onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                      className="px-3 py-1 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value={5}>5 / trang</option>
+                      <option value={10}>10 / trang</option>
+                      <option value={20}>20 / trang</option>
+                      <option value={50}>50 / trang</option>
+                    </select>
+                    
+                    {/* Pagination buttons */}
+                    <div className="flex items-center space-x-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(0)}
+                        disabled={currentPage === 0}
+                        className="px-2 py-1"
+                      >
+                        ««
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 0}
+                        className="px-2 py-1"
+                      >
+                        ‹
+                      </Button>
+                      
+                      {/* Page numbers */}
+                      {(() => {
+                        const pages = [];
+                        const startPage = Math.max(0, currentPage - 2);
+                        const endPage = Math.min(totalPages - 1, currentPage + 2);
+                        
+                        for (let i = startPage; i <= endPage; i++) {
+                          pages.push(
+                            <Button
+                              key={i}
+                              variant={i === currentPage ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => handlePageChange(i)}
+                              className={`px-3 py-1 ${i === currentPage ? 'bg-blue-600 text-white' : ''}`}
+                            >
+                              {i + 1}
+                            </Button>
+                          );
+                        }
+                        return pages;
+                      })()}
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages - 1}
+                        className="px-2 py-1"
+                      >
+                        ›
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(totalPages - 1)}
+                        disabled={currentPage === totalPages - 1}
+                        className="px-2 py-1"
+                      >
+                        »»
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* Question Dialog */}

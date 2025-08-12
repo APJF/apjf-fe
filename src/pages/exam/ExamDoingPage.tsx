@@ -1,13 +1,17 @@
 import { useNavigate, useParams } from "react-router-dom"
 import { ExamDoing } from "../../components/exam/ExamDoing"
+import type { ExamSubmitResponse } from "../../types/exam"
 
 export function ExamDoingPage() {
   const navigate = useNavigate()
   const { examId } = useParams<{ examId: string }>()
 
-  const handleSubmit = (result: any) => {
-    // Navigate to exam results page with result data
-    navigate(`/exam/${examId}/result`, { state: { result } })
+  const handleSubmit = (result: ExamSubmitResponse) => {
+    // Navigate to exam results page with result data from submit API
+    console.log('ExamDoingPage - Received submit result:', result)
+    navigate(`/exam/${examId}/result`, { 
+      state: { result } 
+    })
   }
 
   const handleBack = () => {

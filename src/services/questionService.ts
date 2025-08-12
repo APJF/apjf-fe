@@ -1,10 +1,11 @@
-import axiosInstance from '../api/axios';
+import api from '../api/axios';
 import type { 
   Question, 
   CreateQuestionRequest, 
   UpdateQuestionRequest, 
   QuestionsResponse, 
-  QuestionResponse 
+  QuestionResponse,
+  PagedQuestions 
 } from '../types/question';
 
 export class QuestionService {
@@ -16,14 +17,18 @@ export class QuestionService {
     };
   }
 
-  static async getAllQuestions(): Promise<Question[]> {
+  static async getAllQuestions(page: number = 0, size: number = 10): Promise<PagedQuestions> {
     try {
-      const response = await axiosInstance.get<QuestionsResponse>(
+      const response = await api.get<QuestionsResponse>(
         '/questions',
-        { headers: this.getAuthHeaders() }
+        { 
+          headers: this.getAuthHeaders(),
+          params: { page, size }
+        }
       );
       
       if (response.data.success) {
+        // Return the full PagedQuestions object with pagination info
         return response.data.data;
       } else {
         throw new Error(response.data.message);
@@ -34,9 +39,22 @@ export class QuestionService {
     }
   }
 
+  /**
+   * Get all questions without pagination (for backward compatibility)
+   */
+  static async getAllQuestionsSimple(): Promise<Question[]> {
+    try {
+      const pagedData = await this.getAllQuestions(0, 1000); // Get a large page
+      return pagedData.content;
+    } catch (error) {
+      console.error('Error fetching simple questions list:', error);
+      throw error;
+    }
+  }
+
   static async createQuestion(questionData: CreateQuestionRequest): Promise<Question> {
     try {
-      const response = await axiosInstance.post<QuestionResponse>(
+      const response = await api.post<QuestionResponse>(
         '/questions',
         questionData,
         { headers: this.getAuthHeaders() }
@@ -55,7 +73,7 @@ export class QuestionService {
 
   static async updateQuestion(id: string, questionData: UpdateQuestionRequest): Promise<Question> {
     try {
-      const response = await axiosInstance.put<QuestionResponse>(
+      const response = await api.put<QuestionResponse>(
         `/questions/${id}`,
         questionData,
         { headers: this.getAuthHeaders() }
@@ -74,7 +92,7 @@ export class QuestionService {
 
   static async deleteQuestion(id: string): Promise<void> {
     try {
-      const response = await axiosInstance.delete<{ success: boolean; message: string }>(
+      const response = await api.delete<{ success: boolean; message: string }>(
         `/questions/${id}`,
         { headers: this.getAuthHeaders() }
       );

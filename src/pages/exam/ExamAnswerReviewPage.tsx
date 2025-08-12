@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react"
 import { useNavigate, useParams, useLocation } from "react-router-dom"
-import { ExamAnswerReview } from "../../components/exam/ExamAnswerReview"
 import { ExamService } from "../../services/examService"
-import { ExamDataFormatter } from "../../utils/examUtils"
-import type { ExamResult } from "../../types/exam"
+import type { ExamResult, ExamSubmitResponse } from "../../types/exam"
+import { ExamAnswerReview } from "../../components/exam/ExamAnswerReview"
 
 /**
  * ExamAnswerReviewPage - Trang xem chi tiết đáp án của bài kiểm tra
- * Nhận dữ liệu từ navigation state, và bổ sung thông tin từ API nếu cần
+ * Nhận dữ liệu từ navigation state hoặc gọi API với resultId
  */
 export function ExamAnswerReviewPage() {
   const navigate = useNavigate()
@@ -17,40 +16,8 @@ export function ExamAnswerReviewPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Lấy exam result từ navigation state trước
-  const examResultFromState = location.state?.examResult as ExamResult
-
-  // Helper function to merge exam questions with result answers
-  const mergeExamDataWithResult = async (result: ExamResult) => {
-    // Validate result first
-    const validation = ExamDataFormatter.validateExamResult(result)
-    if (!validation.isValid) {
-      console.warn('ExamResult validation issues:', validation.errors)
-    }
-
-    // Luôn gọi API để lấy thông tin chi tiết về exam (để có explanation, options)
-    try {
-      const response = await ExamService.getExamDetail(result.examId)
-      if (!response.success) {
-        throw new Error(response.message || "Không thể tải thông tin bài kiểm tra")
-      }
-      
-      console.log("ExamAnswerReviewPage - Exam Data:", response.data)
-      
-      // Sử dụng utility để merge dữ liệu
-      const enhancedResult = ExamDataFormatter.mergeExamResultWithQuestions(
-        result,
-        response.data.questions
-      )
-      
-      console.log("ExamAnswerReviewPage - Enhanced Result:", enhancedResult)
-      return enhancedResult
-    } catch (examError) {
-      console.warn("Không thể lấy thông tin đầy đủ về bài kiểm tra:", examError)
-      // Trả về result gốc nếu không thể lấy thêm thông tin
-      return result
-    }
-  }
+  // Lấy exam result từ navigation state (có thể là ExamSubmitResponse)
+  const examResultFromState = location.state?.examResult as ExamResult | ExamSubmitResponse
 
   useEffect(() => {
     const fetchExamResult = async () => {
@@ -63,28 +30,30 @@ export function ExamAnswerReviewPage() {
         // Nếu có dữ liệu từ navigation state, sử dụng nó
         if (examResultFromState) {
           console.log("ExamAnswerReviewPage - Using data from navigation state:", examResultFromState)
-          resultToUse = examResultFromState
-        } else if (resultId) {
-          // Nếu không có state, thử gọi API (fallback)
-          console.log("ExamAnswerReviewPage - Fetching result for ID:", resultId)
-          const result = await ExamService.getExamResult(resultId)
-          
-          if (!result.success) {
-            throw new Error(result.message || "Không thể tải kết quả bài kiểm tra")
+          // Convert ExamSubmitResponse to ExamResult if needed
+          if ('examResultId' in examResultFromState) {
+            resultToUse = {
+              examResultId: examResultFromState.examResultId,
+              examId: examResultFromState.examId,
+              examTitle: examResultFromState.examTitle,
+              score: examResultFromState.score,
+              submittedAt: examResultFromState.submittedAt,
+              status: examResultFromState.status,
+              questionResults: examResultFromState.questionResults
+            }
+          } else {
+            resultToUse = examResultFromState as ExamResult
           }
-          
-          resultToUse = result.data
+        } else if (resultId) {
+          // Nếu không có state, gọi API để lấy dữ liệu chi tiết
+          console.log("ExamAnswerReviewPage - Fetching result for ID:", resultId)
+          resultToUse = await ExamService.getExamResult(resultId)
         } else {
-          throw new Error("Không tìm thấy dữ liệu kết quả bài kiểm tra")
+          throw new Error("Không có ID kết quả bài thi")
         }
         
-        console.log("ExamAnswerReviewPage - Result to use:", resultToUse)
-        
-        // Merge với dữ liệu exam để có đầy đủ câu hỏi, options, explanations
-        const completeResult = await mergeExamDataWithResult(resultToUse)
-        
-        console.log("ExamAnswerReviewPage - Final Result:", completeResult)
-        setExamResult(completeResult)
+        console.log("ExamAnswerReviewPage - Final Result:", resultToUse)
+        setExamResult(resultToUse)
       } catch (err) {
         console.error("Error fetching exam result:", err)
         let errorMessage = "Không thể tải kết quả bài kiểm tra. Vui lòng thử lại."
