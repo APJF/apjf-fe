@@ -95,7 +95,7 @@ export const AdminManageAccountPage: React.FC = () => {
     const filtered = accounts.filter(account => {
       const matchesSearch = account.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           account.email.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesRole = filterRole === 'all' || account.roles.includes(filterRole as any)
+      const matchesRole = filterRole === 'all' || account.roles.includes(filterRole as 'ADMIN' | 'MANAGER' | 'STAFF' | 'STUDENT')
       return matchesSearch && matchesRole
     })
 

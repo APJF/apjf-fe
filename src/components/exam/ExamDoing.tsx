@@ -1,619 +1,453 @@
-import { useState, useEffect } from "react"
-import {
-  Clock,
-  ChevronLeft,
-  ChevronRight,
-  Flag,
-  AlertCircle,
-  Loader2
-} from "lucide-react"
-import { ExamService } from "../../services/examService"
-import type { ExamStartResponse, QuestionOption } from "../../types/exam"
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Flag, Check, ChevronLeft, ChevronRight, AlarmClock } from 'lucide-react';
 
-interface UserAnswer {
+// ---- Types (matching the reference design)
+interface ExamQuestion {
   questionId: string
-  selectedOptionId: string | null
-  userAnswer: string | null
+  questionContent: string
+  type: 'MULTIPLE_CHOICE' | 'WRITING' | 'ESSAY'
+  scope?: string
+}
+
+interface ExamQuestionOption {
+  optionId: string
+  content: string
+  isCorrect?: boolean
+}
+
+// Export for use in other components
+export type { ExamQuestionOption }
+
+// ---- Progress Bar (used inside the right navigator)
+function ProgressBar({ value }: { value: number }) {
+  return (
+    <div className="w-full h-2.5 rounded-full bg-gray-200 overflow-hidden">
+      <div
+        className="h-full bg-blue-600 transition-[width] duration-300 ease-out"
+        style={{ width: `${value}%` }}
+      />
+    </div>
+  );
+}
+
+// ---- Exam Header (trimmed: details only, progress/time moved to right panel)
+function ExamHeader({ title, total, answered }: { title: string; total: number; answered: number }) {
+  return (
+    <header className="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-gray-100">
+      <div className="max-w-6xl mx-auto px-4 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">{title}</h1>
+            <p className="text-sm text-gray-600 mt-1">{answered} / {total} answered</p>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+// ---- Question Card
+function QuestionCard({
+  q,
+  questionOptions,
+  selected,
+  onSelect,
+  onToggleFlag,
+  flagged,
+}: {
+  q: ExamQuestion;
+  questionOptions: ExamQuestionOption[];
+  selected: string | null;
+  onSelect: (optionId: string) => void;
+  onToggleFlag: () => void;
+  flagged: boolean;
+}) {
+  return (
+    <div className="relative bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
+      {/* Flag icon top-left */}
+      <button
+        onClick={onToggleFlag}
+        className={[
+          "absolute -top-3 -left-3 size-9 rounded-xl border shadow-sm flex items-center justify-center",
+          flagged ? "border-rose-600 bg-rose-600 text-white" : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50",
+        ].join(" ")}
+        aria-label={flagged ? "Unflag" : "Flag for review"}
+        title={flagged ? "Unflag" : "Flag for review"}
+      >
+        <Flag className="size-4" />
+      </button>
+
+      <div className="flex items-start gap-3">
+        <div className="shrink-0 mt-0.5">
+          <span className="inline-flex size-9 items-center justify-center rounded-xl bg-blue-50 text-blue-700 font-semibold">
+            {q.questionId}
+          </span>
+        </div>
+        <div className="flex-1">
+          <h2 className="text-base sm:text-lg font-medium leading-snug">{q.questionContent}</h2>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3">
+        {questionOptions.map((option, idx) => {
+          const isSelected = selected === option.optionId;
+          return (
+            <button
+              key={option.optionId}
+              onClick={() => onSelect(option.optionId)}
+              className={[
+                "group w-full text-left px-4 py-3 border rounded-xl transition",
+                isSelected
+                  ? "border-blue-600 bg-blue-50/60 ring-2 ring-blue-600/20"
+                  : "border-gray-200 hover:border-gray-300 hover:bg-gray-50",
+              ].join(" ")}
+            >
+              <div className="flex items-center gap-3">
+                <span
+                  className={[
+                    "inline-flex size-6 items-center justify-center rounded-full border text-xs",
+                    isSelected
+                      ? "border-blue-600 bg-blue-600 text-white"
+                      : "border-gray-300 bg-white text-gray-600 group-hover:border-gray-400",
+                  ].join(" ")}
+                >
+                  {isSelected ? <Check className="size-4" /> : String.fromCharCode(65 + idx)}
+                </span>
+                <span className="text-sm sm:text-base">{option.content}</span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ---- Navigator (right side) now hosts progress, time, and Prev/Next
+function QuestionNavigator({
+  total,
+  currentIndex,
+  answeredSet,
+  flaggedSet,
+  onJump,
+  onPrev,
+  onNext,
+  timeLeft,
+}: {
+  total: number;
+  currentIndex: number;
+  answeredSet: Set<string>;
+  flaggedSet: Set<string>;
+  onJump: (index: number) => void;
+  onPrev: () => void;
+  onNext: () => void;
+  timeLeft: string;
+}) {
+  const pct = total === 0 ? 0 : Math.round((answeredSet.size / total) * 100);
+  
+  return (
+    <aside className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 sm:p-5 sticky top-[84px]">
+      {/* Top: time + progress */}
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-gray-700">
+          <AlarmClock className="size-5" />
+          <span className="font-medium">{timeLeft}</span>
+        </div>
+        <div className="text-sm text-gray-600">{answeredSet.size}/{total}</div>
+      </div>
+      <ProgressBar value={pct} />
+      <div className="mt-1 text-xs text-gray-500">{pct}% completed</div>
+
+      {/* Legend */}
+      <div className="mt-4 flex items-center gap-4 text-xs text-gray-600">
+        <span className="inline-flex items-center gap-2"><span className="size-3 rounded-sm bg-blue-600 inline-block" /> Answered</span>
+        <span className="inline-flex items-center gap-2"><span className="size-3 rounded-sm bg-rose-600 inline-block" /> Flag</span>
+        <span className="inline-flex items-center gap-2"><span className="size-3 rounded-sm bg-emerald-600 inline-block" /> Current</span>
+      </div>
+
+      {/* Grid of square question buttons */}
+      <div className="mt-4 grid grid-cols-5 sm:grid-cols-6 gap-2">
+        {Array.from({ length: total }, (_, i) => {
+          const idx = i; // 0-based
+          const n = i + 1;
+          const isCurrent = idx === currentIndex;
+          const questionId = `${n}`; // Convert to string for Set lookup
+          const isAnswered = answeredSet.has(questionId);
+          const isFlagged = flaggedSet.has(questionId);
+          return (
+            <button
+              key={n}
+              onClick={() => onJump(idx)}
+              className={[
+                "relative aspect-square rounded-xl border text-sm font-semibold transition flex items-center justify-center",
+                isCurrent ? "border-emerald-700 ring-2 ring-emerald-700/20" : "border-gray-300 hover:border-gray-400",
+                isAnswered ? "bg-blue-600 text-white" : "bg-white text-gray-800",
+              ].join(" ")}
+              title={`Go to question ${n}`}
+            >
+              {n}
+              {isFlagged && (
+                <span className="absolute -top-1 -right-1 size-3 rounded-full bg-rose-600" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Prev / Next controls inside navigator */}
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <button onClick={onPrev} className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50">
+          <ChevronLeft className="size-4" /> Prev
+        </button>
+        <button onClick={onNext} className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50">
+          Next <ChevronRight className="size-4" />
+        </button>
+      </div>
+    </aside>
+  );
 }
 
 interface ExamDoingProps {
-  examId: string
-  onSubmit: (result: any) => void
-  onBack?: () => void
+  examData: {
+    examTitle: string
+    examId: string
+    questionResults: ExamQuestion[]
+    remainingTime: number
+    totalTime: number
+  }
+  questionOptions: Record<string, ExamQuestionOption[]>
+  onSubmit: (answers: Array<{
+    questionId: string
+    selectedOptionId?: string | null
+    userAnswer?: string | null
+  }>) => void
 }
 
-export function ExamDoing({ examId, onSubmit, onBack }: Readonly<ExamDoingProps>) {
-  const [examData, setExamData] = useState<ExamStartResponse | null>(null)
+export const ExamDoing: React.FC<ExamDoingProps> = ({ examData, questionOptions, onSubmit }) => {
+  const navigate = useNavigate()
   const [currentQuestion, setCurrentQuestion] = useState(0)
-  const [answers, setAnswers] = useState<Record<string, UserAnswer>>({})
-  const [timeLeft, setTimeLeft] = useState(0)
-  const [startedAt, setStartedAt] = useState<string | null>(null)
+  const [answers, setAnswers] = useState<Record<string, { questionId: string; selectedOptionId?: string; userAnswer?: string }>>({})
   const [flaggedQuestions, setFlaggedQuestions] = useState<Set<string>>(new Set())
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [questionOptions, setQuestionOptions] = useState<Record<string, QuestionOption[]>>({})
+  const [timeLeft, setTimeLeft] = useState(examData.remainingTime)
 
-  // Load exam data when component mounts
-  useEffect(() => {
-    const loadExam = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        
-        // Lấy dữ liệu exam từ localStorage (đã được lưu từ ExamPreparation)
-        const examDataString = localStorage.getItem('currentExamData');
-        if (!examDataString) {
-          throw new Error('Không tìm thấy dữ liệu bài thi. Vui lòng bắt đầu lại từ trang chuẩn bị.');
-        }
-        
-        // Lấy thời gian bắt đầu
-        const examStartTime = localStorage.getItem('examStartedAt');
-        setStartedAt(examStartTime);
-        
-        const startResponse: ExamStartResponse = JSON.parse(examDataString);
-        console.log('📋 Parsed exam data:', startResponse);
-        console.log('📝 Question results:', startResponse.questionResults);
-        console.log('📊 Is questionResults array?', Array.isArray(startResponse.questionResults));
-        console.log('⏰ Exam started at:', examStartTime);
-        
-        setExamData(startResponse);
-        
-        // Clear previous exam's question scopes from localStorage
-        localStorage.removeItem('examQuestionScopes');
-        
-        // Lấy thông tin overview để có duration
-        const examOverview = await ExamService.getExamOverview(examId);
-        
-        // Set timer dựa trên duration từ overview
-        setTimeLeft(examOverview.duration * 60); // Convert minutes to seconds
-        setStartedAt(new Date().toISOString());
-        
-        // Initialize answers state từ questionResults với validation
-        const initialAnswers: Record<string, UserAnswer> = {};
-        if (startResponse.questionResults && Array.isArray(startResponse.questionResults)) {
-          startResponse.questionResults.forEach((question) => {
-            initialAnswers[question.questionId] = {
-              questionId: question.questionId,
-              selectedOptionId: question.selectedOptionId || null,
-              userAnswer: question.userAnswer || null
-            };
-          });
-        } else {
-          console.warn('⚠️ questionResults is not an array or is undefined:', startResponse.questionResults);
-          // If no question results, we might need to handle this case differently
-          // For now, we'll continue with empty answers
-        }
-        setAnswers(initialAnswers);
-        
-        // Load options and scope for all questions
-        const updatedQuestionResults = await loadQuestionOptions(startResponse.questionResults || []);
-        
-        // Update examData with scope information
-        setExamData({
-          ...startResponse,
-          questionResults: updatedQuestionResults
-        });
-        
-        // Clear localStorage after loading
-        localStorage.removeItem('currentExamData');
-        
-      } catch (err) {
-        console.error('Error loading exam:', err);
-        setError(err instanceof Error ? err.message : 'Không thể tải bài thi');
-      } finally {
-        setIsLoading(false);
+  const questions = examData.questionResults
+  const total = questions.length
+  const currentQ = questions[currentQuestion]
+
+  // Calculate answered questions set
+  const answeredSet = useMemo(() => {
+    const s = new Set<string>();
+    for (const q of questions) {
+      if (answers[q.questionId]?.selectedOptionId) {
+        s.add(q.questionId);
       }
-    };
-
-    if (examId) {
-      loadExam();
     }
-  }, [examId]);
+    return s;
+  }, [answers, questions]);
 
-  // Load options and scope for all questions
-  const loadQuestionOptions = async (questions: any[]) => {
-    try {
-      const optionsMap: Record<string, QuestionOption[]> = {};
-      const updatedQuestions = [...questions]; // Create a copy to avoid mutating original
-      const questionScopes: Record<string, string> = {}; // Store scopes for localStorage
-      
-      // Load options for each question (only for non-WRITING questions)
-      for (let i = 0; i < updatedQuestions.length; i++) {
-        const question = updatedQuestions[i];
-        if (question.type !== 'WRITING') {
-          try {
-            const questionDetails = await ExamService.getQuestionDetails(question.questionId);
-            optionsMap[question.questionId] = questionDetails.options;
-            
-            // Store scope information in the question and localStorage map
-            updatedQuestions[i] = {
-              ...question,
-              scope: questionDetails.scope
-            };
-            questionScopes[question.questionId] = questionDetails.scope;
-            
-            console.log(`✅ Loaded ${questionDetails.options.length} options and scope (${questionDetails.scope}) for question ${question.questionId}`);
-          } catch (error) {
-            console.warn(`⚠️ Could not load question details for ${question.questionId}:`, error);
-            // Continue with other questions even if one fails
-          }
-        } else {
-          // For WRITING questions, we still want to get the scope
-          try {
-            const questionDetails = await ExamService.getQuestionDetails(question.questionId);
-            updatedQuestions[i] = {
-              ...question,
-              scope: questionDetails.scope
-            };
-            questionScopes[question.questionId] = questionDetails.scope;
-            
-            console.log(`✅ Loaded scope (${questionDetails.scope}) for WRITING question ${question.questionId}`);
-          } catch (error) {
-            console.warn(`⚠️ Could not load question details for ${question.questionId}:`, error);
-          }
-        }
-      }
-      
-      // Save question scopes to localStorage
-      localStorage.setItem('examQuestionScopes', JSON.stringify(questionScopes));
-      console.log('💾 Saved question scopes to localStorage:', questionScopes);
-      
-      setQuestionOptions(optionsMap);
-      return updatedQuestions; // Return the updated questions array
-    } catch (error) {
-      console.error('❌ Error loading question options:', error);
-      return questions; // Return original questions if error
-    }
-  };
+  const handleSubmit = useCallback(() => {
+    console.log('🔥 ExamDoing: handleSubmit called')
+    console.log('🔥 ExamDoing: isSubmitting =', isSubmitting)
+    
+    if (isSubmitting) return
+
+    console.log('🔥 ExamDoing: Setting isSubmitting to true')
+    setIsSubmitting(true)
+    
+    // Convert answers to the expected format
+    const submitAnswers = Object.values(answers).map(answer => ({
+      questionId: answer.questionId,
+      selectedOptionId: answer.selectedOptionId || null,
+      userAnswer: answer.userAnswer || null
+    }))
+
+    console.log('🔥 ExamDoing: answers state =', answers)
+    console.log('🔥 ExamDoing: submitAnswers =', submitAnswers)
+    console.log('🔥 ExamDoing: Calling onSubmit with submitAnswers')
+
+    onSubmit(submitAnswers)
+  }, [answers, onSubmit, isSubmitting])
 
   // Timer countdown
   useEffect(() => {
-    if (timeLeft > 1 && !isSubmitting) {
-      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000)
-      return () => clearTimeout(timer)
-    } else if (timeLeft === 1 && examData && !isSubmitting) {
-      // Auto submit when 1 second left
-      console.log("Only 1 second left, auto-submitting exam...")
-      handleSubmit()
-    }
-  }, [timeLeft, isSubmitting, examData])
+    if (timeLeft <= 0) return
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          // Time's up - auto submit
+          handleSubmit()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [timeLeft, handleSubmit])
+
+  // Format time display
+  const formatTime = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60)
     const secs = seconds % 60
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
+    return `${minutes}:${secs.toString().padStart(2, '0')}`
   }
 
-  const handleAnswerSelect = (optionId: string) => {
-    if (!examData) return
-    
-    const currentQ = examData.questionResults[currentQuestion]
-    
-    setAnswers((prev) => ({
+  // Handlers
+  const selectAnswer = (optionId: string) => {
+    setAnswers(prev => ({
       ...prev,
       [currentQ.questionId]: {
         questionId: currentQ.questionId,
-        selectedOptionId: optionId,
-        userAnswer: null
+        selectedOptionId: optionId
       }
     }))
   }
 
   const toggleFlag = () => {
-    if (!examData) return
-    
-    const questionId = examData.questionResults[currentQuestion].questionId
-    setFlaggedQuestions((prev) => {
-      const newSet = new Set(prev)
-      if (newSet.has(questionId)) {
-        newSet.delete(questionId)
+    setFlaggedQuestions(prev => {
+      const next = new Set(prev)
+      if (next.has(currentQ.questionId)) {
+        next.delete(currentQ.questionId)
       } else {
-        newSet.add(questionId)
+        next.add(currentQ.questionId)
       }
-      return newSet
+      return next
     })
   }
 
-  const handleSubmit = async () => {
-    if (!examData || !startedAt) return
+  const goPrev = useCallback(() => {
+    setCurrentQuestion(i => Math.max(0, i - 1))
+  }, [])
 
-    try {
-      setIsSubmitting(true)
-      setError(null)
-      
-      // Validate examData and questionResults
-      if (!examData?.questionResults || !Array.isArray(examData.questionResults)) {
-        throw new Error('Dữ liệu bài thi không hợp lệ')
-      }
-      
-      // Prepare submit data for API
-      const answersToSubmit = examData.questionResults.map(question => {
-        const userAnswer = answers[question.questionId]
-        return {
-          questionId: question.questionId,
-          selectedOptionId: userAnswer?.selectedOptionId || null,
-          userAnswer: userAnswer?.userAnswer || null
-        }
-      })
-      
-      console.log('Submitting exam with examId:', examId, 'and answers:', answersToSubmit)
-      
-      // Thời gian nộp bài
-      const submittedAt = new Date().toISOString();
-      
-      const result = await ExamService.submitExam(examId, startedAt, submittedAt, answersToSubmit)
-      console.log('Exam submitted successfully:', result)
-      
-      // Pass the ExamSubmitResponse to parent
-      onSubmit(result)
-      
-    } catch (err) {
-      console.error('Error submitting exam:', err)
-      setError(err instanceof Error ? err.message : 'Không thể nộp bài thi')
-      setIsSubmitting(false)
-    }
+  const goNext = useCallback(() => {
+    setCurrentQuestion(i => Math.min(total - 1, i + 1))
+  }, [total])
+
+  const jumpTo = useCallback((idx: number) => {
+    setCurrentQuestion(idx)
+  }, [])
+
+  // Keyboard navigation
+  const onKey = useCallback((e: KeyboardEvent) => {
+    if (e.key === "ArrowLeft") goPrev()
+    if (e.key === "ArrowRight") goNext()
+  }, [goPrev, goNext])
+
+  useEffect(() => {
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [onKey])
+
+  const handleConfirmSubmit = () => {
+    setShowConfirmSubmit(false)
+    handleSubmit()
   }
 
-  // Loading state
-  if (isLoading) {
+  if (!currentQ) {
     return (
-      <div className="min-h-screen bg-blue-50 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
-          <p className="text-gray-600">Đang tải bài thi...</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">No questions available</p>
+          <button
+            onClick={() => navigate(-1)}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Go Back
+          </button>
         </div>
       </div>
     )
   }
-
-  // Error state
-  if (error || !examData) {
-    return (
-      <div className="min-h-screen bg-blue-50 flex items-center justify-center">
-        <div className="text-center space-y-4 max-w-md mx-auto p-6">
-          <AlertCircle className="h-16 w-16 text-red-500 mx-auto" />
-          <h2 className="text-xl font-semibold text-gray-900">Có lỗi xảy ra</h2>
-          <p className="text-gray-600">{error || 'Không thể tải bài thi'}</p>
-          <div className="flex gap-3 justify-center">
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Thử lại
-            </button>
-            {onBack && (
-              <button
-                onClick={onBack}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
-              >
-                Quay lại
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Safety check: if no examData or questionResults, show error
-  if (!examData?.questionResults || !Array.isArray(examData.questionResults) || examData.questionResults.length === 0) {
-    return (
-      <div className="min-h-screen bg-blue-50 flex items-center justify-center">
-        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full mx-4">
-          <div className="text-center space-y-4">
-            <AlertCircle className="h-16 w-16 text-red-500 mx-auto" />
-            <div className="space-y-2">
-              <h2 className="text-xl font-semibold text-gray-900">Dữ liệu bài thi không hợp lệ</h2>
-              <p className="text-gray-600">
-                Không tìm thấy câu hỏi trong bài thi. Vui lòng bắt đầu lại từ trang chuẩn bị.
-              </p>
-            </div>
-            <div className="flex gap-3 justify-center">
-              {onBack && (
-                <button
-                  onClick={onBack}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Quay lại
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Count answered questions
-  const answeredCount = Object.values(answers).filter(answer => 
-    answer.selectedOptionId !== null || (answer.userAnswer !== null && answer.userAnswer !== "")
-  ).length
-  
-  const progress = (answeredCount / examData.questionResults.length) * 100
-  const currentQ = examData.questionResults[currentQuestion]
 
   return (
-    <div className="min-h-screen bg-blue-50 p-6">
-      {/* Header */}
-      <div className="max-w-6xl mx-auto">
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{examData.examTitle}</h1>
-              <p className="text-gray-600">Câu hỏi {currentQuestion + 1} / {examData.questionResults.length}</p>
-            </div>
-            
-            {/* Timer */}
-            <div className="flex items-center gap-2 text-red-600 font-mono text-lg">
-              <Clock className="h-5 w-5" />
-              <span>{formatTime(timeLeft)}</span>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gray-50">
+      <ExamHeader 
+        title={examData.examTitle} 
+        total={total} 
+        answered={answeredSet.size} 
+      />
 
-          {/* Progress Bar */}
-          <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
-            <div
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+      <main className="max-w-6xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left: Question */}
+        <section className="lg:col-span-8 space-y-4">
+          <QuestionCard
+            q={currentQ}
+            questionOptions={questionOptions[currentQ.questionId] || []}
+            selected={answers[currentQ.questionId]?.selectedOptionId || null}
+            onSelect={selectAnswer}
+            onToggleFlag={toggleFlag}
+            flagged={flaggedQuestions.has(currentQ.questionId)}
+          />
 
-          <div className="flex justify-between items-center text-sm text-gray-600">
-            <span>Đã trả lời: {answeredCount}/{examData.questionResults.length}</span>
-            <span>{Math.round(progress)}% hoàn thành</span>
-          </div>
-        </div>
-
-        {/* Question Content */}
-        <div className="bg-white rounded-xl shadow-sm p-8 mb-6">
-          <div className="flex items-start gap-3 mb-6">
-            <div className="flex-1">
-              <div 
-                className="text-lg text-gray-900 leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: currentQ.questionContent }}
-              />
-            </div>
-            <button
-              onClick={toggleFlag}
-              className={`p-2 rounded-lg transition-colors ${
-                flaggedQuestions.has(currentQ.questionId)
-                  ? 'bg-red-100 text-red-600'
-                  : 'bg-gray-100 text-gray-400 hover:text-gray-600'
-              }`}
-              title={flaggedQuestions.has(currentQ.questionId) ? 'Bỏ đánh dấu' : 'Đánh dấu câu hỏi'}
-            >
-              <Flag className="h-4 w-4" />
-            </button>
-          </div>
-
-          {/* Answer Options */}
-          <div className="space-y-3">
-            {/* Multiple choice options - only for non-WRITING questions */}
-            {currentQ.type !== 'WRITING' && questionOptions[currentQ.questionId] && questionOptions[currentQ.questionId].length > 0 && (
-              <div className="space-y-3">
-                {questionOptions[currentQ.questionId].map((option) => {
-                  const isSelected = answers[currentQ.questionId]?.selectedOptionId === option.optionId;
-                  
-                  return (
-                    <label 
-                      key={option.optionId}
-                      className={`flex items-center gap-3 p-4 border-2 rounded-lg hover:border-blue-300 transition-colors cursor-pointer ${
-                        isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name={`question_${currentQ.questionId}`}
-                        value={option.optionId}
-                        checked={isSelected}
-                        onChange={() => handleAnswerSelect(option.optionId)}
-                        className="text-blue-600"
-                      />
-                      <span className="text-gray-900">{option.content}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-            
-            {/* Fallback for multiple choice without options data */}
-            {currentQ.type !== 'WRITING' && (!questionOptions[currentQ.questionId] || questionOptions[currentQ.questionId].length === 0) && (
-              <div className="space-y-3">
-                {['A', 'B', 'C', 'D'].map((optionLabel, idx) => {
-                  const optionId = `${currentQ.questionId}-${idx + 1}`;
-                  const isSelected = answers[currentQ.questionId]?.selectedOptionId === optionId;
-                  
-                  return (
-                    <label 
-                      key={optionId}
-                      className={`flex items-center gap-3 p-4 border-2 rounded-lg hover:border-blue-300 transition-colors cursor-pointer ${
-                        isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name={`question_${currentQ.questionId}`}
-                        value={optionId}
-                        checked={isSelected}
-                        onChange={() => handleAnswerSelect(optionId)}
-                        className="text-blue-600"
-                      />
-                      <span className="text-gray-900">{optionLabel}. Đáp án {optionLabel}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-              
-            {/* Text input for WRITING questions only */}
-            {currentQ.type === 'WRITING' && (
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <label htmlFor={`answer_${currentQ.questionId}`} className="block text-sm font-medium text-gray-700 mb-3">
-                  Nhập câu trả lời của bạn:
-                </label>
-                <textarea
-                  id={`answer_${currentQ.questionId}`}
-                  value={answers[currentQ.questionId]?.userAnswer || ""}
-                  onChange={(e) => {
-                    if (!examData) return;
-                    const currentQ = examData.questionResults[currentQuestion];
-                    setAnswers((prev) => ({
-                      ...prev,
-                      [currentQ.questionId]: {
-                        questionId: currentQ.questionId,
-                        selectedOptionId: null,
-                        userAnswer: e.target.value
-                      }
-                    }));
-                  }}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[150px]"
-                  placeholder="Nhập câu trả lời của bạn..."
-                  rows={6}
-                />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Navigation */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between mb-4">
-            <button
-              onClick={() => setCurrentQuestion(Math.max(0, currentQuestion - 1))}
+          <div className="flex items-center justify-between gap-3">
+            <button 
+              onClick={goPrev} 
               disabled={currentQuestion === 0}
-              className="flex items-center gap-2 px-4 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <ChevronLeft className="h-4 w-4" />
-              Câu trước
+              <ChevronLeft className="size-4" /> Previous
             </button>
-
-            {currentQuestion === examData.questionResults.length - 1 ? (
-              <button
-                onClick={() => setShowConfirmSubmit(true)}
-                disabled={isSubmitting}
-                className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Đang nộp...
-                  </>
-                ) : (
-                  "Nộp bài"
-                )}
-              </button>
-            ) : (
-              <button
-                onClick={() => setCurrentQuestion(Math.min(examData.questionResults.length - 1, currentQuestion + 1))}
-                className="flex items-center gap-2 px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Câu tiếp
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            )}
+            <div className="text-sm text-gray-600">Question {currentQuestion + 1} of {total}</div>
+            <button 
+              onClick={goNext}
+              disabled={currentQuestion === total - 1}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next <ChevronRight className="size-4" />
+            </button>
           </div>
+        </section>
 
-          {/* Progress summary */}
-          <div className="flex justify-between items-center text-sm text-gray-600 mb-3">
-            <span>Đánh dấu: <span className="font-semibold text-amber-600">{flaggedQuestions.size}</span></span>
+        {/* Right: Navigator */}
+        <aside className="lg:col-span-4">
+          <QuestionNavigator
+            total={total}
+            currentIndex={currentQuestion}
+            answeredSet={answeredSet}
+            flaggedSet={flaggedQuestions}
+            onJump={jumpTo}
+            onPrev={goPrev}
+            onNext={goNext}
+            timeLeft={formatTime(timeLeft)}
+          />
+          <div className="mt-4 bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+            <button 
+              onClick={() => setShowConfirmSubmit(true)}
+              disabled={isSubmitting}
+              className="w-full px-4 py-2 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? 'Submitting...' : 'Submit Exam'}
+            </button>
+            <p className="mt-2 text-xs text-gray-500">You can submit anytime. Unanswered questions will be saved as blank.</p>
           </div>
+        </aside>
+      </main>
 
-          {/* Question navigation grid - supports large number of questions */}
-          <div className="max-h-32 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-            <div className={`grid gap-2 ${(() => {
-              if (examData.questionResults.length > 50) return 'grid-cols-10';
-              if (examData.questionResults.length > 30) return 'grid-cols-8';
-              return 'grid-cols-6';
-            })()}`}>
-              {examData.questionResults.map((question, index) => {
-                const isAnswered = Object.values(answers).some(a => 
-                  a.questionId === question.questionId && (a.selectedOptionId || (a.userAnswer && a.userAnswer.trim() !== ''))
-                );
-                const isCurrent = index === currentQuestion;
-                const isFlagged = flaggedQuestions.has(question.questionId);
-                
-                let buttonClass = `w-8 h-8 md:w-10 md:h-10 rounded-lg font-medium text-xs md:text-sm transition-all duration-200 hover:scale-105 `;
-                
-                if (isCurrent) {
-                  buttonClass += 'bg-blue-600 text-white ring-2 ring-blue-300';
-                } else if (isFlagged) {
-                  buttonClass += isAnswered 
-                    ? 'bg-red-500 text-white' 
-                    : 'bg-red-100 text-red-700 border-2 border-red-300';
-                } else if (isAnswered) {
-                  buttonClass += 'bg-green-100 text-green-800 border-2 border-green-300';
-                } else {
-                  buttonClass += 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-300';
-                }
-                
-                return (
-                  <button
-                    key={question.questionId}
-                    onClick={() => setCurrentQuestion(index)}
-                    className={buttonClass}
-                    title={`Câu ${index + 1}${isFlagged ? ' (Đã đánh dấu)' : ''}`}
-                  >
-                    {index + 1}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Legend */}
-          <div className="flex flex-wrap justify-center gap-4 mt-4 text-xs text-gray-600">
-            <div className="flex items-center gap-1">
-              <div className="w-4 h-4 bg-blue-600 rounded"></div>
-              <span>Hiện tại</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-4 h-4 bg-green-100 border-2 border-green-300 rounded"></div>
-              <span>Đã trả lời</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-4 h-4 bg-red-100 border-2 border-red-300 rounded"></div>
-              <span>Đánh dấu</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-4 h-4 bg-gray-100 border border-gray-300 rounded"></div>
-              <span>Chưa làm</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Submit Confirmation Modal */}
+      {/* Confirm Submit Modal */}
       {showConfirmSubmit && (
-        <div className="fixed inset-0  bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl">
-            <div className="text-center">
-              <AlertCircle className="h-16 w-16 text-amber-500 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Xác nhận nộp bài</h3>
-              <div className="text-gray-600 mb-6 space-y-2">
-                <p>
-                  Bạn đã hoàn thành <span className="font-semibold text-blue-600">{answeredCount}</span> / <span className="font-semibold">{examData.questionResults.length}</span> câu hỏi.
-                </p>
-                <p>
-                  Bạn có chắc chắn muốn nộp bài không? Sau khi nộp bài, bạn sẽ không thể thay đổi câu trả lời.
-                </p>
-              </div>
-              <div className="flex gap-3 justify-center">
-                <button
-                  onClick={() => setShowConfirmSubmit(false)}
-                  className="px-6 py-2 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={isSubmitting}
-                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSubmitting ? 'Đang nộp...' : 'Nộp bài'}
-                </button>
-              </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Submit Exam</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to submit your exam? You have answered {answeredSet.size} out of {total} questions.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowConfirmSubmit(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmSubmit}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
+              >
+                Submit
+              </button>
             </div>
           </div>
         </div>

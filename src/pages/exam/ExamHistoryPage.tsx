@@ -127,7 +127,7 @@ export function ExamHistoryPage() {
 
   const handleRetakeExam = (examId: string) => {
     console.log("Retaking exam:", examId)
-    navigate(`/exam/${examId}/preparation`)
+    navigate(`/exam/${examId}/prepare`)
   }
 
   const handleViewDetails = (examResultId: string) => {

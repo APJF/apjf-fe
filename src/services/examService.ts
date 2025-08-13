@@ -5,8 +5,43 @@ import type {
   ExamSubmitResponse,
   ExamSubmitRequest,
   ExamResult,
-  QuestionOption
+  QuestionOption,
+  QuestionDetail
 } from '../types/exam';
+
+// Course exam type for listing exams by course
+export interface CourseExam {
+  examId: string;
+  title: string;
+  description: string;
+  duration: number;
+  totalQuestions: number;
+  type: string;
+}
+
+// Exam detail response from /api/exams/{examId}
+export interface ExamDetailResponse {
+  id: string;
+  title: string;
+  description: string;
+  duration: number;
+  type: string;
+  examScopeType: string;
+  gradingMethod: string;
+  courseId: string;
+  chapterId: string | null;
+  unitId: string | null;
+  createdAt: string;
+  totalQuestions: number;
+}
+
+// API response type for course exams
+interface CourseExamsResponse {
+  success: boolean;
+  message: string;
+  data: CourseExam[];
+  timestamp: number;
+}
 
 // Submit answer type for exam submission
 interface SubmitAnswer {
@@ -18,22 +53,27 @@ interface SubmitAnswer {
 export class ExamService {
   /**
    * Lấy thông tin tổng quan về bài thi (preparation page)
-   * GET /api/student/exams/{examId}/overview
+   * GET /api/exams/{examId}
    */
   static async getExamOverview(examId: string): Promise<ExamOverview> {
     try {
       console.log('🔍 Fetching exam overview for ID:', examId);
-      const response = await api.get(`/student/exams/${examId}/overview`);
-      console.log('✅ Exam overview response:', response.data);
       
-      // Check if response has the expected structure {success: true, data: {...}}
-      if (response.data?.success && response.data?.data) {
-        console.log('📦 Found data in response.data.data');
-        return response.data.data;
-      }
+      // Sử dụng getExamDetail thay vì endpoint cũ
+      const examDetail = await this.getExamDetail(examId);
+      console.log('✅ Exam detail response:', examDetail);
       
-      // Fallback to direct data if not wrapped
-      return response.data;
+      // Convert từ format mới sang format cũ cho compatibility
+      const overview: ExamOverview = {
+        examId: examDetail.id,
+        title: examDetail.title,
+        description: examDetail.description,
+        duration: examDetail.duration,
+        totalQuestions: examDetail.totalQuestions,
+        type: examDetail.type as 'MULTIPLE_CHOICE' | 'ESSAY' | 'MIXED'
+      };
+      
+      return overview;
     } catch (error) {
       console.error('❌ Error fetching exam overview:', error);
       throw error;
@@ -55,14 +95,64 @@ export class ExamService {
   }
 
   /**
-   * Lấy thông tin chi tiết về bài thi
+   * Lấy danh sách bài kiểm tra theo courseId
+   * GET /api/courses/{courseId}/exams
    */
-  static async getExamDetail(examId: string): Promise<ExamOverview> {
+  static async getExamsByCourseId(courseId: string): Promise<CourseExamsResponse> {
     try {
-      const response = await api.get(`/exams/${examId}`);
+      console.log('🔍 Fetching exams for course:', courseId);
+      const response = await api.get(`/courses/${courseId}/exams`);
+      console.log('✅ Course exams response:', response.data);
+      
       return response.data;
     } catch (error) {
-      console.error('Error fetching exam detail:', error);
+      console.error('❌ Error fetching course exams:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lấy thông tin chi tiết về bài thi (không bao gồm questions)
+   * GET /api/exams/{examId}
+   */
+  static async getExamDetail(examId: string): Promise<ExamDetailResponse> {
+    try {
+      console.log('🔍 Fetching exam detail for ID:', examId);
+      const response = await api.get(`/exams/${examId}`);
+      console.log('✅ Exam detail response:', response.data);
+      
+      // Check if response has the expected structure {success: true, data: {...}}
+      if (response.data?.success && response.data?.data) {
+        return response.data.data;
+      }
+      
+      // Fallback to direct data if not wrapped
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error fetching exam detail:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lấy danh sách câu hỏi của bài thi
+   * GET /api/exams/{examId}/questions
+   */
+  static async getExamQuestions(examId: string): Promise<QuestionDetail[]> {
+    try {
+      console.log('🔍 Fetching questions for exam ID:', examId);
+      const response = await api.get(`/exams/${examId}/questions`);
+      console.log('✅ Exam questions response:', response.data);
+      
+      // Check if response has the expected structure {success: true, data: [...]}
+      if (response.data?.success && response.data?.data) {
+        return response.data.data;
+      }
+      
+      // Fallback to direct data if not wrapped
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error fetching exam questions:', error);
       throw error;
     }
   }
@@ -104,21 +194,57 @@ export class ExamService {
   /**
    * Bắt đầu làm bài thi - API endpoint chuẩn
    * POST /api/student/exams/{examId}/start
+   * Sau đó gọi GET /api/exams/{examId}/questions để lấy questions
    */
   static async startExam(examId: string): Promise<ExamStartResponse> {
     try {
       console.log('🔍 Starting exam with ID:', examId);
-      const response = await api.post(`/student/exams/${examId}/start`);
-      console.log('✅ Start exam response:', response.data);
       
+      // 1. Gọi API start exam để tạo exam session
+      const startResponse = await api.post(`/student/exams/${examId}/start`);
+      console.log('✅ Start exam response:', startResponse.data);
+      
+      let examStartData;
       // Check if response has the expected structure {success: true, data: {...}}
-      if (response.data?.success && response.data?.data) {
+      if (startResponse.data?.success && startResponse.data?.data) {
         console.log('📦 Found data in response.data.data');
-        return response.data.data;
+        examStartData = startResponse.data.data;
+      } else {
+        // Fallback to direct data if not wrapped
+        examStartData = startResponse.data;
       }
+
+      // 2. Gọi API lấy questions riêng biệt
+      console.log('🔍 Fetching questions for exam:', examId);
+      const questions = await this.getExamQuestions(examId);
+      console.log('✅ Fetched questions:', questions.length, 'questions');
+
+      // 3. Combine data: tạo questionResults từ questions
+      const questionResults = questions.map(question => ({
+        questionId: question.id,
+        questionContent: question.content,
+        explanation: question.explanation,
+        selectedOptionId: null,
+        userAnswer: null,
+        isCorrect: false,
+        type: question.type,
+        scope: question.scope,
+        options: question.options?.map(opt => ({
+          optionId: opt.id,
+          content: opt.content,
+          isCorrect: opt.isCorrect
+        }))
+      }));
+
+      // 4. Trả về combined data theo format cũ
+      const finalResponse: ExamStartResponse = {
+        ...examStartData,
+        questionResults: questionResults
+      };
+
+      console.log('✅ Final combined exam start response:', finalResponse);
+      return finalResponse;
       
-      // Fallback to direct data if not wrapped
-      return response.data;
     } catch (error) {
       console.error('❌ Error starting exam:', error);
       throw error;
@@ -240,14 +366,18 @@ export class ExamService {
 
       console.log('📤 Sending request body:', requestBody);
       const response = await api.post('/student/exams/submit', requestBody);
-      console.log('✅ Submit exam response:', response.data);
+      console.log('✅ Submit exam response raw:', response);
+      console.log('✅ Submit exam response.data:', response.data);
+      console.log('✅ Submit exam response.status:', response.status);
+      console.log('✅ Submit exam response.headers:', response.headers);
       
       // Check if response has the expected structure {success: true, data: {...}}
       if (response.data?.success && response.data?.data) {
-        console.log('📦 Found data in response.data.data');
+        console.log('📦 Found data in response.data.data:', response.data.data);
         return response.data.data;
       }
       
+      console.log('📦 Using direct response.data as fallback');
       // Fallback to direct data if not wrapped
       return response.data;
     } catch (error) {
@@ -272,7 +402,11 @@ export class ExamService {
         console.log('📦 Found question data:', questionData);
         
         // Map API response options to our QuestionOption interface
-        const options = questionData.options?.map((option: any) => ({
+        const options = questionData.options?.map((option: {
+          id: string
+          content: string
+          isCorrect: boolean
+        }) => ({
           optionId: option.id,
           content: option.content,
           isCorrect: option.isCorrect
@@ -285,7 +419,11 @@ export class ExamService {
       }
       
       // Fallback to direct data if not wrapped
-      const options = response.data.options?.map((option: any) => ({
+      const options = response.data.options?.map((option: {
+        id: string
+        content: string
+        isCorrect: boolean
+      }) => ({
         optionId: option.id,
         content: option.content,
         isCorrect: option.isCorrect
@@ -316,7 +454,11 @@ export class ExamService {
       if (response.data?.success && response.data?.data) {
         console.log('📦 Found data in response.data.data');
         // Map API response to our QuestionOption interface
-        return response.data.data.map((option: any) => ({
+        return response.data.data.map((option: {
+          id: string
+          content: string
+          isCorrect: boolean
+        }) => ({
           optionId: option.id,
           content: option.content,
           isCorrect: option.isCorrect
@@ -340,6 +482,15 @@ export class ExamService {
       console.log('🔍 Fetching exam result for ID:', resultId);
       const response = await api.get(`/student/exams/result/${resultId}`);
       console.log('✅ Exam result response:', response.data);
+      
+      // Check if response has the expected structure {success: true, data: {...}}
+      if (response.data?.success && response.data?.data) {
+        console.log('📦 Found data in response.data.data:', response.data.data);
+        return response.data.data;
+      }
+      
+      // Fallback to direct data if not wrapped
+      console.log('📦 Using direct response.data as fallback');
       return response.data;
     } catch (error) {
       console.error('❌ Error fetching exam result:', error);

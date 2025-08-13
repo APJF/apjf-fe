@@ -9,7 +9,22 @@ import { Badge } from '../../components/ui/Badge'
 import { Alert } from '../../components/ui/Alert'
 import { StaffExamService } from '../../services/staffExamService'
 import QuestionDialog from '../../components/exam/QuestionDialog'
-import type { ExamData, ExamQuestion, DifficultyLevel, JLPTLevel, ExamScope } from '../../types/exam'
+interface ExamData {
+  title: string
+  description: string
+  duration: number
+  difficulty: string
+  level: string
+  scope: string
+  questions: Question[]
+  totalQuestions: number
+  passingScore: number
+}
+
+interface ExamScope {
+  value: string
+  label: string
+}
 
 interface ExamCreationState {
   currentStep: number
@@ -61,7 +76,7 @@ const StaffCreateExamPage: React.FC = () => {
   const [editingQuestion, setEditingQuestion] = useState<ExamQuestion | null>(null)
   const [showQuestionDialog, setShowQuestionDialog] = useState(false)
 
-  const handleInputChange = (field: keyof ExamData, value: any) => {
+  const handleInputChange = (field: keyof ExamData, value: string | number | boolean) => {
     setExamState(prev => ({
       ...prev,
       examData: {

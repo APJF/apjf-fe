@@ -2,13 +2,13 @@ import { useEffect, useState } from "react"
 import { useNavigate, useParams, useLocation } from "react-router-dom"
 import { ExamService } from "../../services/examService"
 import type { ExamResult, ExamSubmitResponse } from "../../types/exam"
-import { ExamAnswerReview } from "../../components/exam/ExamAnswerReview"
+import { ExamReview } from "../../components/exam/ExamReview"
 
 /**
- * ExamAnswerReviewPage - Trang xem chi tiết đáp án của bài kiểm tra
+ * ExamReviewPage - Trang xem chi tiết đáp án của bài kiểm tra với thiết kế mới
  * Nhận dữ liệu từ navigation state hoặc gọi API với resultId
  */
-export function ExamAnswerReviewPage() {
+export function ExamReviewPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { resultId } = useParams<{ resultId: string }>()
@@ -29,7 +29,7 @@ export function ExamAnswerReviewPage() {
         
         // Nếu có dữ liệu từ navigation state, sử dụng nó
         if (examResultFromState) {
-          console.log("ExamAnswerReviewPage - Using data from navigation state:", examResultFromState)
+          console.log("ExamReviewPage - Using data from navigation state:", examResultFromState)
           // Convert ExamSubmitResponse to ExamResult if needed
           if ('examResultId' in examResultFromState) {
             resultToUse = {
@@ -46,13 +46,14 @@ export function ExamAnswerReviewPage() {
           }
         } else if (resultId) {
           // Nếu không có state, gọi API để lấy dữ liệu chi tiết
-          console.log("ExamAnswerReviewPage - Fetching result for ID:", resultId)
+          console.log("ExamReviewPage - No state data, fetching result for ID:", resultId)
           resultToUse = await ExamService.getExamResult(resultId)
+          console.log("ExamReviewPage - API response:", resultToUse)
         } else {
           throw new Error("Không có ID kết quả bài thi")
         }
         
-        console.log("ExamAnswerReviewPage - Final Result:", resultToUse)
+        console.log("ExamReviewPage - Final Result:", resultToUse)
         setExamResult(resultToUse)
       } catch (err) {
         console.error("Error fetching exam result:", err)
@@ -77,7 +78,7 @@ export function ExamAnswerReviewPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="text-gray-600">Đang tải chi tiết đáp án...</p>
@@ -88,7 +89,7 @@ export function ExamAnswerReviewPage() {
 
   if (error || !examResult) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center space-y-4">
           <h2 className="text-xl font-semibold text-gray-900">
             {error || "Không tìm thấy kết quả bài kiểm tra"}
@@ -108,7 +109,7 @@ export function ExamAnswerReviewPage() {
   }
 
   return (
-    <ExamAnswerReview
+    <ExamReview
       examResult={examResult}
       onBack={handleBack}
     />

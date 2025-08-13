@@ -8,6 +8,7 @@ import { useMemo, useState, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { ExamService, type CourseExam } from "../../services/examService"
 import { Clock, FileText, AlertCircle } from "lucide-react"
+import { useLanguage } from "../../contexts/LanguageContext"
 
 export interface Chapter {
   id: string
@@ -38,6 +39,7 @@ export default function CourseTabs({
   const [examsError, setExamsError] = useState<string | null>(null)
   const navigate = useNavigate()
   const { courseId } = useParams()
+  const { t } = useLanguage()
 
   // Controls: sort and min rating filter
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc")
@@ -56,11 +58,11 @@ export default function CourseTabs({
         if (response.success) {
           setExams(response.data)
         } else {
-          setExamsError(response.message || "Không thể tải danh sách bài kiểm tra")
+          setExamsError(response.message || t('courseDetail.errorLoading'))
         }
       } catch (error) {
         console.error('Error fetching exams:', error)
-        setExamsError("Có lỗi xảy ra khi tải danh sách bài kiểm tra")
+        setExamsError(t('courseDetail.errorLoading'))
       } finally {
         setExamsLoading(false)
       }
@@ -69,7 +71,7 @@ export default function CourseTabs({
     if (courseId) {
       fetchExams()
     }
-  }, [courseId])
+  }, [courseId, t])
 
   function addReview(input: NewReviewInput) {
     const newItem: ReviewItem = {
@@ -87,7 +89,7 @@ export default function CourseTabs({
   }
 
   const handleExamClick = (examId: string) => {
-    navigate(`/exam/${examId}/preparation`)
+    navigate(`/exam/${examId}/prepare`)
   }
 
   const visibleReviews = useMemo(() => {
@@ -141,11 +143,11 @@ export default function CourseTabs({
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6">
       <Tabs defaultValue="chapters" className="w-full">
-        <TabsList className="bg-gray-100">
-          <TabsTrigger value="chapters">Chương học</TabsTrigger>
-          <TabsTrigger value="exams">Bài kiểm tra</TabsTrigger>
-          <TabsTrigger value="overview">Tổng quan</TabsTrigger>
-          <TabsTrigger value="reviews">Đánh giá</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="chapters">{t('courseDetail.chapters')}</TabsTrigger>
+          <TabsTrigger value="exams">{t('courseDetail.exams')}</TabsTrigger>
+          <TabsTrigger value="overview">{t('courseDetail.overview')}</TabsTrigger>
+          <TabsTrigger value="reviews">{t('courseDetail.reviews')}</TabsTrigger>
         </TabsList>
 
         {/* Chapters - one column, number badge + title only */}
@@ -175,7 +177,7 @@ export default function CourseTabs({
             <div className="flex items-center justify-center py-8">
               <div className="flex items-center gap-3">
                 <div className="w-5 h-5 border-2 border-rose-600 border-t-transparent rounded-full animate-spin" />
-                <span className="text-gray-600">Đang tải bài kiểm tra...</span>
+                <span className="text-gray-600">{t('courseDetail.loadingExams')}</span>
               </div>
             </div>
           ) : examsError ? (
@@ -188,7 +190,7 @@ export default function CourseTabs({
           ) : exams.length === 0 ? (
             <div className="text-center py-8">
               <FileText className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <p className="text-gray-600">Chưa có bài kiểm tra nào cho khóa học này</p>
+              <p className="text-gray-600">{t('courseDetail.noExams')}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -208,11 +210,11 @@ export default function CourseTabs({
                     <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        {Math.round(exam.duration)}p
+                        {Math.round(exam.duration)}{t('courseDetail.examDuration')}
                       </span>
                       <span className="flex items-center gap-1">
                         <FileText className="w-3 h-3" />
-                        {exam.totalQuestions} câu
+                        {exam.totalQuestions} {t('courseDetail.examQuestions')}
                       </span>
                       <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">
                         {exam.type}
@@ -227,7 +229,7 @@ export default function CourseTabs({
 
         {/* Overview */}
         <TabsContent value="overview" className="mt-4">
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">Mô tả khóa học</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">{t('courseDetail.courseDescription')}</h2>
           <p className="text-gray-700 leading-7">{description}</p>
         </TabsContent>
 

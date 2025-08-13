@@ -159,7 +159,12 @@
     "courseNotFound": "Course not found or has been deleted.",
     "backToCourses": "Back to courses",
     "defaultDescription": "This course provides comprehensive knowledge with hands-on projects, best practices, and real-world examples to help you master the topic effectively.",
-    "free": "Free"
+    "free": "Free",
+    "loadingExams": "Loading exams...",
+    "noExams": "No exams available for this course yet",
+    "examDuration": "min",
+    "examQuestions": "questions",
+    "courseDescription": "Course Description"
   },
   "chapterDetail": {
     "backToCourse": "Back to course",

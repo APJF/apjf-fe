@@ -10,8 +10,9 @@ export interface FloatingChatSession {
   name: string;
   lastMessage: string;
   timestamp: Date;
-  function: AIFunction;
+  sessionType: AISessionType;
   messages: FloatingMessage[];
+  isTemporary?: boolean; // For new sessions that haven't been saved yet
 }
 
 export interface AIFunction {
@@ -19,3 +20,5 @@ export interface AIFunction {
   name: string;
   description: string;
 }
+
+export type AISessionType = 'qna' | 'planner' | 'speaking' | 'reviewer' | 'learning';

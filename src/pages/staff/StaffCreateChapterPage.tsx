@@ -9,6 +9,7 @@ import { Label } from '../../components/ui/Label'
 import { Textarea } from '../../components/ui/Textarea'
 import { Badge } from '../../components/ui/Badge'
 import { SearchableSelect } from '../../components/ui/SearchableSelect'
+import type { Chapter } from '../../types/chapter'
 import { StaffNavigation } from '../../components/layout/StaffNavigation'
 import { CourseService } from '../../services/courseService'
 import type { CreateChapterRequest } from '../../types/course'
@@ -28,7 +29,7 @@ const StaffCreateChapterPage: React.FC = () => {
 
   const [course, setCourse] = useState<StaffCourseDetail | null>(locationState.course || null)
   const [chapterCount, setChapterCount] = useState<number>(0)
-  const [availableChapters, setAvailableChapters] = useState<any[]>([])
+  const [availableChapters, setAvailableChapters] = useState<Chapter[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 

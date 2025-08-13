@@ -159,7 +159,12 @@
     "courseNotFound": "コースが見つからないか、削除されています。",
     "backToCourses": "コース一覧に戻る",
     "defaultDescription": "このコースでは、実践的なプロジェクト、ベストプラクティス、実例を通じて、トピックを効果的にマスターできる包括的な知識を提供します。",
-    "free": "無料"
+    "free": "無料",
+    "loadingExams": "試験読み込み中...",
+    "noExams": "このコースにはまだ試験がありません",
+    "examDuration": "分",
+    "examQuestions": "問題",
+    "courseDescription": "コース説明"
   },
   "chapterDetail": {
     "backToCourse": "コースに戻る",

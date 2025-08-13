@@ -5,21 +5,23 @@ export class ExamHistoryService {
   /**
    * Extract array from API response that might be wrapped
    */
-  private static extractArrayFromResponse(data: any): ExamHistoryItem[] {
+  private static extractArrayFromResponse(data: unknown): ExamHistoryItem[] {
     if (!data || typeof data !== 'object') return []
     
     if (Array.isArray(data)) return data
-    if (data.data && Array.isArray(data.data)) {
+    
+    const dataObj = data as Record<string, unknown>
+    if (dataObj.data && Array.isArray(dataObj.data)) {
       console.log('📦 Found data in response.data.data')
-      return data.data
+      return dataObj.data
     }
-    if (data.content && Array.isArray(data.content)) {
+    if (dataObj.content && Array.isArray(dataObj.content)) {
       console.log('📦 Found data in response.data.content')
-      return data.content
+      return dataObj.content
     }
-    if (data.items && Array.isArray(data.items)) {
+    if (dataObj.items && Array.isArray(dataObj.items)) {
       console.log('📦 Found data in response.data.items')
-      return data.items
+      return dataObj.items
     }
     
     console.warn('⚠️ Response data is not an array, returning empty array')

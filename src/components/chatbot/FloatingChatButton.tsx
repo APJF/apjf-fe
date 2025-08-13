@@ -1,116 +1,260 @@
-import React, { useState } from 'react';
-import { MessageCircle, X, Send, Plus, MoreVertical, Edit2, Trash2, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { FloatingChatSession, AIFunction, FloatingMessage } from '../../types/floatingChat';
+import React, { useState, useEffect, useCallback } from 'react';
+import { X, Send, Plus, MoreVertical, Edit2, Trash2, ChevronDown, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
+import type { FloatingChatSession, AISessionType, FloatingMessage } from '../../types/floatingChat';
+import { chatbotService, getCurrentUserId, type ChatSession } from '../../services/chatbotService';
 
 interface FloatingChatButtonProps {
   isOpen: boolean;
   onToggle: () => void;
 }
 
-const AI_FUNCTIONS: AIFunction[] = [
-  { id: 'general', name: 'Trợ lý AI tổng quát', description: 'Hỗ trợ các câu hỏi chung' },
-  { id: 'code', name: 'Lập trình viên AI', description: 'Hỗ trợ viết code và debug' },
-  { id: 'writer', name: 'Nhà văn AI', description: 'Viết nội dung và sáng tạo' },
-  { id: 'analyst', name: 'Phân tích dữ liệu AI', description: 'Phân tích và báo cáo dữ liệu' }
+// Updated AI session types
+const AI_SESSION_TYPES: Array<{ id: AISessionType; name: string; description: string }> = [
+  { id: 'qna', name: 'Q&A Trợ lý', description: 'Trả lời câu hỏi chung' },
+  { id: 'planner', name: 'Lập kế hoạch', description: 'Hỗ trợ lập kế hoạch học tập' },
+  { id: 'speaking', name: 'Luyện nói', description: 'Thực hành giao tiếp tiếng Nhật' },
+  { id: 'reviewer', name: 'Ôn tập', description: 'Hỗ trợ ôn tập kiến thức' },
+  { id: 'learning', name: 'Học tập', description: 'Hướng dẫn học tập' }
 ];
 
 export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatButtonProps>) {
-  const [sessions, setSessions] = useState<FloatingChatSession[]>([
-    {
-      id: '1',
-      name: 'Phiên chat mới',
-      lastMessage: 'Xin chào! Tôi có thể giúp gì cho bạn?',
-      timestamp: new Date(),
-      function: AI_FUNCTIONS[0],
-      messages: [
-        { id: '1', content: 'Xin chào! Tôi có thể giúp gì cho bạn?', role: 'assistant', timestamp: new Date() }
-      ]
-    }
-  ]);
-  
-  const [activeSessionId, setActiveSessionId] = useState<string>('1');
-  const [currentFunction, setCurrentFunction] = useState<AIFunction>(AI_FUNCTIONS[0]);
+  const [sessions, setSessions] = useState<FloatingChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [currentSessionType, setCurrentSessionType] = useState<AISessionType>('qna');
   const [input, setInput] = useState('');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
-  const [showFunctionDropdown, setShowFunctionDropdown] = useState(false);
+  const [showSessionTypeDropdown, setShowSessionTypeDropdown] = useState(false);
   const [isSessionsPanelCollapsed, setIsSessionsPanelCollapsed] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
+  const currentUserId = getCurrentUserId();
+
+  // Convert API ChatSession to FloatingChatSession
+  const convertToFloatingSession = (apiSession: ChatSession): FloatingChatSession => ({
+    id: apiSession.id,
+    name: apiSession.name || 'Phiên chat mới',
+    lastMessage: apiSession.last_message || 'Phiên chat mới được tạo',
+    timestamp: new Date(apiSession.updated_at || apiSession.created_at),
+    sessionType: apiSession.session_type,
+    messages: [], // Will be loaded separately when needed
+    isTemporary: false
+  });
+
+  const loadSessionMessages = useCallback(async (sessionId: string) => {
+    try {
+      const messages = await chatbotService.getMessages(sessionId);
+      const floatingMessages: FloatingMessage[] = messages.map(msg => ({
+        id: msg.id,
+        content: msg.content,
+        role: msg.role,
+        timestamp: new Date(msg.timestamp)
+      }));
+
+      setSessions(prev => prev.map(s => 
+        s.id === sessionId ? { ...s, messages: floatingMessages } : s
+      ));
+    } catch (error) {
+      console.error('Error loading session messages:', error);
+    }
+  }, []);
+
+  const loadSessions = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const apiSessions = await chatbotService.getSessions(currentUserId);
+      const floatingSessions = apiSessions.map(convertToFloatingSession);
+      setSessions(floatingSessions);
+      
+      // Set active session to the first one if no active session
+      if (!activeSessionId && floatingSessions.length > 0) {
+        setActiveSessionId(floatingSessions[0].id);
+        loadSessionMessages(floatingSessions[0].id);
+      }
+    } catch (error) {
+      console.error('Error loading sessions:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentUserId, activeSessionId, loadSessionMessages]);
+
+  // Load sessions when component mounts
+  useEffect(() => {
+    if (isOpen) {
+      loadSessions();
+    }
+  }, [isOpen, loadSessions]);
 
   const toggleSessionsPanel = () => {
     setIsSessionsPanelCollapsed(!isSessionsPanelCollapsed);
   };
 
   const handleCreateNewSession = () => {
-    const newSession: FloatingChatSession = {
-      id: Date.now().toString(),
+    // Create a temporary session immediately (like ChatGPT behavior)
+    const tempSession: FloatingChatSession = {
+      id: `temp_${Date.now()}`,
       name: 'Phiên chat mới',
-      lastMessage: 'Phiên chat mới được tạo',
+      lastMessage: 'Bắt đầu cuộc trò chuyện...',
       timestamp: new Date(),
-      function: currentFunction,
-      messages: []
+      sessionType: currentSessionType,
+      messages: [],
+      isTemporary: true
     };
-    setSessions([newSession, ...sessions]);
-    setActiveSessionId(newSession.id);
-  };
-
-  const handleDeleteSession = (sessionId: string) => {
-    const updatedSessions = sessions.filter(s => s.id !== sessionId);
-    setSessions(updatedSessions);
     
-    if (activeSessionId === sessionId && updatedSessions.length > 0) {
-      setActiveSessionId(updatedSessions[0].id);
-    } else if (updatedSessions.length === 0) {
-      handleCreateNewSession();
+    setSessions([tempSession, ...sessions]);
+    setActiveSessionId(tempSession.id);
+    setIsCreatingSession(true);
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    try {
+      const sessionToDelete = sessions.find(s => s.id === sessionId);
+      
+      // If it's a temporary session, just remove from state
+      if (sessionToDelete?.isTemporary) {
+        const updatedSessions = sessions.filter(s => s.id !== sessionId);
+        setSessions(updatedSessions);
+        
+        if (activeSessionId === sessionId && updatedSessions.length > 0) {
+          setActiveSessionId(updatedSessions[0].id);
+        }
+        return;
+      }
+
+      // Delete from API if it's a real session
+      await chatbotService.deleteSession(sessionId);
+      const updatedSessions = sessions.filter(s => s.id !== sessionId);
+      setSessions(updatedSessions);
+      
+      if (activeSessionId === sessionId && updatedSessions.length > 0) {
+        setActiveSessionId(updatedSessions[0].id);
+        loadSessionMessages(updatedSessions[0].id);
+      }
+    } catch (error) {
+      console.error('Error deleting session:', error);
     }
   };
 
-  const handleRenameSession = (sessionId: string, newName: string) => {
-    setSessions(sessions.map(s => 
-      s.id === sessionId ? { ...s, name: newName } : s
-    ));
+  const handleRenameSession = async (sessionId: string, newName: string) => {
+    try {
+      const sessionToUpdate = sessions.find(s => s.id === sessionId);
+      
+      // If it's a temporary session, just update in state
+      if (sessionToUpdate?.isTemporary) {
+        setSessions(sessions.map(s => 
+          s.id === sessionId ? { ...s, name: newName } : s
+        ));
+        return;
+      }
+
+      // Update via API if it's a real session
+      await chatbotService.renameSession(sessionId, newName);
+      setSessions(sessions.map(s => 
+        s.id === sessionId ? { ...s, name: newName } : s
+      ));
+    } catch (error) {
+      console.error('Error renaming session:', error);
+    }
   };
 
-  const handleFunctionChange = (func: AIFunction) => {
-    setCurrentFunction(func);
-    if (activeSession) {
+  const handleSessionTypeChange = (sessionType: AISessionType) => {
+    setCurrentSessionType(sessionType);
+    
+    // If there's an active temporary session, update its type
+    if (activeSession?.isTemporary) {
       setSessions(sessions.map(s => 
-        s.id === activeSessionId ? { ...s, function: func } : s
+        s.id === activeSessionId ? { ...s, sessionType } : s
       ));
     }
-    setShowFunctionDropdown(false);
+    
+    setShowSessionTypeDropdown(false);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (input.trim() && activeSession) {
-      const userMessage: FloatingMessage = {
-        id: Date.now().toString(),
-        content: input.trim(),
-        role: 'user',
-        timestamp: new Date()
-      };
+    if (!input.trim() || !activeSession) return;
 
-      const aiResponse: FloatingMessage = {
-        id: (Date.now() + 1).toString(),
-        content: `Đây là phản hồi từ ${currentFunction.name}: ${input.trim()}`,
-        role: 'assistant',
-        timestamp: new Date()
-      };
+    const userMessage: FloatingMessage = {
+      id: Date.now().toString(),
+      content: input.trim(),
+      role: 'user',
+      timestamp: new Date()
+    };
 
-      setSessions(sessions.map(s => 
-        s.id === activeSessionId 
-          ? { 
-              ...s, 
-              messages: [...s.messages, userMessage, aiResponse],
-              lastMessage: input.trim(),
-              timestamp: new Date()
-            }
-          : s
-      ));
+    try {
+      // If this is a temporary session, create it on the server first
+      if (activeSession.isTemporary && isCreatingSession) {
+        console.log('Creating new session with first message...');
+        
+        const newSession = await chatbotService.createSession({
+          user_id: currentUserId,
+          session_type: currentSessionType,
+          first_message: input.trim(),
+          context: {}
+        });
+
+        // Update the temporary session to be a real session
+        const realSession: FloatingChatSession = {
+          ...activeSession,
+          id: newSession.id,
+          isTemporary: false,
+          messages: [userMessage]
+        };
+
+        setSessions(prev => prev.map(s => 
+          s.id === activeSessionId ? realSession : s
+        ));
+        setActiveSessionId(newSession.id);
+        setIsCreatingSession(false);
+
+        // Load messages for the new session (including AI response)
+        setTimeout(() => {
+          loadSessionMessages(newSession.id);
+        }, 1000);
+        
+      } else if (!activeSession.isTemporary) {
+        // Send message to existing session
+        await chatbotService.sendMessage(activeSession.id, input.trim());
+        
+        // Add user message to UI immediately
+        setSessions(sessions.map(s => 
+          s.id === activeSessionId 
+            ? { 
+                ...s, 
+                messages: [...s.messages, userMessage],
+                lastMessage: input.trim(),
+                timestamp: new Date()
+              }
+            : s
+        ));
+
+        // Load updated messages (including AI response)
+        setTimeout(() => {
+          loadSessionMessages(activeSession.id);
+        }, 1000);
+      }
+
       setInput('');
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
+  };
+
+  const handleSessionClick = (sessionId: string) => {
+    setActiveSessionId(sessionId);
+    const session = sessions.find(s => s.id === sessionId);
+    
+    // Load messages if it's not a temporary session and messages haven't been loaded
+    if (session && !session.isTemporary && session.messages.length === 0) {
+      loadSessionMessages(sessionId);
+    }
+    
+    // Update current session type to match the clicked session
+    if (session) {
+      setCurrentSessionType(session.sessionType);
     }
   };
 
@@ -144,6 +288,11 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
     });
   };
 
+  const getCurrentSessionTypeName = () => {
+    const sessionType = AI_SESSION_TYPES.find(type => type.id === currentSessionType);
+    return sessionType?.name || 'Q&A';
+  };
+
   return (
     <>
       {/* Chat Popup - Xuất hiện từ icon với animation */}
@@ -171,93 +320,108 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
 
             {/* Sessions List */}
             <div className="flex-1 overflow-y-auto">
-              {sessions.map((session) => (
-                <button
-                  key={session.id}
-                  className={`relative p-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors w-full text-left ${
-                    activeSessionId === session.id ? 'bg-red-50 border-l-4 border-l-red-600' : ''
-                  }`}
-                  onClick={() => setActiveSessionId(session.id)}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      {editingId === session.id ? (
-                        <input
-                          type="text"
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          onBlur={handleSaveEdit}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveEdit();
-                            if (e.key === 'Escape') handleCancelEdit();
+              {isLoading && (
+                <div className="p-4 text-center text-sm text-gray-500">
+                  Đang tải phiên chat...
+                </div>
+              )}
+              {!isLoading && sessions.length === 0 && (
+                <div className="p-4 text-center text-sm text-gray-500">
+                  Chưa có phiên chat nào
+                </div>
+              )}
+              {!isLoading && sessions.length > 0 && (
+                sessions.map((session) => (
+                  <button
+                    key={session.id}
+                    className={`relative p-3 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors w-full text-left ${
+                      activeSessionId === session.id ? 'bg-red-50 border-l-4 border-l-red-600' : ''
+                    }`}
+                    onClick={() => handleSessionClick(session.id)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        {editingId === session.id ? (
+                          <input
+                            type="text"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            onBlur={handleSaveEdit}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveEdit();
+                              if (e.key === 'Escape') handleCancelEdit();
+                            }}
+                            className="w-full px-2 py-1 text-xs font-medium border border-red-300 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
+                            autoFocus
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          <h3 className="font-medium text-gray-900 truncate text-sm">
+                            {session.name}
+                            {session.isTemporary && (
+                              <span className="ml-1 text-xs text-gray-400">(mới)</span>
+                            )}
+                          </h3>
+                        )}
+                        
+                        <p className="text-xs text-gray-600 truncate mt-1">
+                          {session.lastMessage}
+                        </p>
+                        
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-xs text-gray-500 truncate">
+                            {AI_SESSION_TYPES.find(type => type.id === session.sessionType)?.name || 'Q&A'}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {formatTime(session.timestamp)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="relative ml-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMenuToggle(session.id);
                           }}
-                          className="w-full px-2 py-1 text-xs font-medium border border-red-300 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
-                          autoFocus
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : (
-                        <h3 className="font-medium text-gray-900 truncate text-sm">
-                          {session.name}
-                        </h3>
-                      )}
-                      
-                      <p className="text-xs text-gray-600 truncate mt-1">
-                        {session.lastMessage}
-                      </p>
-                      
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-xs text-gray-500 truncate">
-                          {session.function.name.split(' ')[0]}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {formatTime(session.timestamp)}
-                        </span>
+                          className="p-1 hover:bg-gray-200 rounded transition-colors"
+                          type="button"
+                        >
+                          <MoreVertical size={12} className="text-gray-500" />
+                        </button>
+
+                        {openMenuId === session.id && (
+                          <div className="absolute right-0 top-6 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-24">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStartEdit(session);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
+                              type="button"
+                            >
+                              <Edit2 size={12} />
+                              Sửa
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteSession(session.id);
+                                setOpenMenuId(null);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors"
+                              type="button"
+                            >
+                              <Trash2 size={12} />
+                              Xóa
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
-
-                    <div className="relative ml-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleMenuToggle(session.id);
-                        }}
-                        className="p-1 hover:bg-gray-200 rounded transition-colors"
-                        type="button"
-                      >
-                        <MoreVertical size={12} className="text-gray-500" />
-                      </button>
-
-                      {openMenuId === session.id && (
-                        <div className="absolute right-0 top-6 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-24">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleStartEdit(session);
-                            }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
-                            type="button"
-                          >
-                            <Edit2 size={12} />
-                            Sửa
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteSession(session.id);
-                              setOpenMenuId(null);
-                            }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors"
-                            type="button"
-                          >
-                            <Trash2 size={12} />
-                            Xóa
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                ))
+              )}
             </div>
           </div>
 
@@ -282,30 +446,30 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
                   )}
                 </button>
 
-                {/* Function Selector */}
+                {/* Session Type Selector */}
                 <div className="relative">
                   <button
-                    onClick={() => setShowFunctionDropdown(!showFunctionDropdown)}
+                    onClick={() => setShowSessionTypeDropdown(!showSessionTypeDropdown)}
                     className="flex items-center gap-2 px-3 py-1 bg-red-700 rounded-lg hover:bg-red-800 transition-colors text-sm"
                   >
                     <span className="font-medium truncate">
-                      {currentFunction.name.split(' ')[0]} AI
+                      {getCurrentSessionTypeName()} AI
                     </span>
                     <ChevronDown size={14} />
                   </button>
 
-                  {showFunctionDropdown && (
+                  {showSessionTypeDropdown && (
                     <div className="absolute top-8 left-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-48">
-                      {AI_FUNCTIONS.map((func) => (
+                      {AI_SESSION_TYPES.map((type) => (
                         <button
-                          key={func.id}
-                          onClick={() => handleFunctionChange(func)}
+                          key={type.id}
+                          onClick={() => handleSessionTypeChange(type.id)}
                           className={`w-full text-left px-3 py-2 hover:bg-gray-50 transition-colors text-sm ${
-                            currentFunction.id === func.id ? 'bg-red-50 text-red-800' : 'text-gray-700'
+                            currentSessionType === type.id ? 'bg-red-50 text-red-800' : 'text-gray-700'
                           }`}
                         >
-                          <div className="font-medium">{func.name}</div>
-                          <div className="text-xs text-gray-500 mt-1">{func.description}</div>
+                          <div className="font-medium">{type.name}</div>
+                          <div className="text-xs text-gray-500 mt-1">{type.description}</div>
                         </button>
                       ))}
                     </div>

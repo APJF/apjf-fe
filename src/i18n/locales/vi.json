@@ -159,7 +159,12 @@
     "courseNotFound": "Khóa học không tồn tại hoặc đã bị xóa.",
     "backToCourses": "Quay lại danh sách khóa học",
     "defaultDescription": "Khóa học này cung cấp kiến thức toàn diện với các dự án thực hành, phương pháp tốt nhất và ví dụ thực tế để giúp bạn thành thạo chủ đề một cách hiệu quả.",
-    "free": "Miễn phí"
+    "free": "Miễn phí",
+    "loadingExams": "Đang tải bài kiểm tra...",
+    "noExams": "Chưa có bài kiểm tra nào cho khóa học này",
+    "examDuration": "phút",
+    "examQuestions": "câu",
+    "courseDescription": "Mô tả khóa học"
   },
   "chapterDetail": {
     "backToCourse": "Quay lại khóa học",

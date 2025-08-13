@@ -34,10 +34,10 @@ import StaffStudentFeedbackPage from "../pages/staff/StaffStudentFeedbackPage";
 import { StaffManagerFeedbackPage } from "../pages/staff/StaffManagerFeedbackPage";
 import { StaffCreateQuestion } from "../pages/staff/StaffCreateQuestion";
 import ManagerApprovalRequestsPage from "../pages/manager/ManagerApprovalRequestsPage";
-import { ExamPreparationPage } from '../pages/exam/ExamPreparationPage';
+import ExamDetailPage from '../pages/exam/ExamDetailPage';
 import { ExamDoingPage } from '../pages/exam/ExamDoingPage';
-import { ExamResultPage } from '../pages/exam/ExamResultPage';
-import { ExamAnswerReviewPage } from '../pages/exam/ExamAnswerReviewPage';
+import ExamOverviewPage from '../pages/exam/ExamOverviewPage';
+import { ExamReviewPage } from '../pages/exam/ExamReviewPage';
 import ForumPage from "../pages/ForumPage";
 import { ExamHistoryPage } from '../pages/exam/ExamHistoryPage';
 import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
@@ -303,24 +303,20 @@ const router = createBrowserRouter([
     ),
   },
   {
-    path: '/exam/:examId/preparation',
-    element: <Layout><ExamPreparationPage /></Layout>,
+    path: '/exam/:examId/prepare',
+    element: <Layout><ExamDetailPage /></Layout>,
   },
   {
     path: '/exam/:examId/take',
     element: <ExamDoingPage />, // No layout for exam taking page to avoid distractions
   },
   {
-    path: '/exam/:examId/result',
-    element: <Layout><ExamResultPage /></Layout>,
-  },
-  {
-    path: '/exam/:examId/result/:resultId',
-    element: <Layout><ExamResultPage /></Layout>,
+    path: '/exam/:examId/overview',
+    element: <Layout><ExamOverviewPage /></Layout>,
   },
   {
     path: '/exam-result/:resultId/review',
-    element: <Layout><ExamAnswerReviewPage /></Layout>,
+    element: <Layout><ExamReviewPage /></Layout>,
   },
   {
     path: '/forum',
