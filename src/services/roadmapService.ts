@@ -1,32 +1,9 @@
 import axios from '../api/axios';
-
-export interface RoadmapModule {
-  id: number;
-  title: string;
-  description: string;
-  level: "N5" | "N4" | "N3" | "N2" | "N1";
-  progress: number;
-  totalLessons: number;
-  completedLessons: number;
-  estimatedTime: string;
-  difficulty: "Cơ bản" | "Trung bình" | "Nâng cao";
-  status: "not_started" | "in_progress" | "completed";
-  skills: string[];
-  rating: number;
-  reviews: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface RoadmapStats {
-  totalModules: number;
-  inProgress: number;
-  completed: number;
-  averageProgress: number;
-}
+import type { LearningPath, RoadmapModule, RoadmapStats } from '../types/roadmap';
 
 class RoadmapService {
   private getHeaders() {
+    // Sử dụng access_token theo convention
     const token = localStorage.getItem('access_token');
     return {
       'Authorization': `Bearer ${token}`,
@@ -35,20 +12,41 @@ class RoadmapService {
   }
 
   // Lấy danh sách lộ trình học của user
-  async getUserRoadmaps(): Promise<{ data: RoadmapModule[] }> {
-    // API implementation pending - currently returning mock data
-    // try {
-    //   const response = await axios.get('/roadmaps/user', {
-    //     headers: this.getHeaders()
-    //   });
-    //   return response.data;
-    // } catch (error) {
-    //   console.error('Error fetching user roadmaps:', error);
-    //   throw error;
-    // }
-    
-    // Return mock data for now
-    return Promise.resolve({ data: [] });
+  async getUserRoadmaps(): Promise<{ data: LearningPath[] }> {
+    try {
+      const response = await axios.get('/api/learning-paths', {
+        headers: this.getHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching user roadmaps:', error);
+      throw error;
+    }
+  }
+
+  // Đặt lộ trình thành đang học (STUDYING)
+  async setLearningPathActive(id: number): Promise<{ data: LearningPath }> {
+    try {
+      const response = await axios.put(`/api/learning-paths/${id}/active`, {}, {
+        headers: this.getHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error setting learning path to active:', error);
+      throw error;
+    }
+  }
+
+  // Lấy lộ trình đang học (STUDYING)
+  async getActiveLearningPath(): Promise<{ data: LearningPath | null }> {
+    try {
+      const allPaths = await this.getUserRoadmaps();
+      const activePath = allPaths.data.find((path: LearningPath) => path.status === 'STUDYING');
+      return { data: activePath || null };
+    } catch (error) {
+      console.error('Error getting active learning path:', error);
+      throw error;
+    }
   }
 
   // Lấy thống kê lộ trình học

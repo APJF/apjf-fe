@@ -11,41 +11,17 @@ const getAuthHeaders = () => {
   }
 }
 
-export interface Material {
-  id: string
-  description: string
-  fileUrl: string
-  type: MaterialType
-}
+import type { Material, MaterialType } from '@/types/material'
+import type { ApiResponse } from '@/types/api'
 
-export type MaterialType = 'KANJI' | 'GRAMMAR' | 'VOCAB' | 'LISTENING' | 'READING' | 'WRITING'
-
-export interface CreateMaterialRequest {
-  id: string
-  description: string
-  fileUrl: string
-  type: MaterialType
-}
-
-export interface UpdateMaterialRequest {
-  id: string
-  description: string
-  fileUrl: string
-  type: MaterialType
-}
-
-interface ApiResponse<T> {
-  success: boolean
-  message: string
-  data: T
-  timestamp: number
-}
+// Re-export types for easier import
+export type { Material, MaterialType } from '@/types/material'
 
 export const MaterialService = {
   // Lấy danh sách tài liệu theo unitId
   getMaterialsByUnit: async (unitId: string): Promise<ApiResponse<Material[]>> => {
     try {
-      const response = await axios.get(`/materials/unit/${unitId}`, {
+      const response = await axios.get(`/units/${unitId}/materials`, {
         headers: getAuthHeaders()
       })
       return response.data
@@ -69,7 +45,14 @@ export const MaterialService = {
   },
 
   // Tạo tài liệu mới
-  createMaterial: async (materialData: CreateMaterialRequest): Promise<ApiResponse<Material>> => {
+  createMaterial: async (materialData: {
+    id: string
+    fileUrl: string
+    type: MaterialType
+    script: string
+    translation: string
+    unitId: string
+  }): Promise<ApiResponse<Material>> => {
     try {
       const response = await axios.post('/materials', materialData, {
         headers: getAuthHeaders()
@@ -82,7 +65,14 @@ export const MaterialService = {
   },
 
   // Cập nhật tài liệu
-  updateMaterial: async (materialId: string, materialData: UpdateMaterialRequest): Promise<ApiResponse<Material>> => {
+  updateMaterial: async (materialId: string, materialData: {
+    id: string
+    fileUrl: string
+    type: MaterialType
+    script: string
+    translation: string
+    unitId: string
+  }): Promise<ApiResponse<Material>> => {
     try {
       const response = await axios.put(`/materials/${materialId}`, materialData, {
         headers: getAuthHeaders()

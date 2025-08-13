@@ -1,10 +1,6 @@
 import React from 'react'
 
-export type ToastType = 'success' | 'error' | 'warning'
-
-export interface ToastContextType {
-  showToast: (type: ToastType, message: string) => void
-}
+import type { ToastContextType } from '@/types/ui';
 
 export const ToastContext = React.createContext<ToastContextType | null>(null)
 

@@ -5,38 +5,43 @@ import { ProtectedRoute } from "../components/auth/ProtectedRoute";
 import OAuthCallback from "../components/auth/OAuthCallback";
 import HomePage from "../pages/HomePage";
 import CoursesPage from "../pages/CoursesPage";
-import CourseDetailPage from "../pages/CourseDetailPage";
-import ChapterDetailPage from "../pages/ChapterDetailPage";
-import RoadmapPage from "../pages/LearningPathPage";
-import RoadmapDetailPage from "../pages/LearningPathDetailPage";
-import LoginPage from "../pages/LoginPage";
-import RegisterPage from "../pages/RegisterPage";
-import ForgotPasswordPage from "../pages/ForgotPasswordPage";
-import ResetPasswordPage from "../pages/ResetPasswordPage";
-import { VerifyOtpPage } from "../pages/VerifyOtpPage";
-import ChatbotPage from "../pages/ChatbotPage";
-import UserProfilePage from "../pages/UserProfilePage";
-import ManagerDashboardPage from "../pages/ManagerDashboardPage";
-import StaffDashboardPage from "../pages/StaffDashboardPage";
-import StaffCoursesPage from "../pages/StaffCoursesPage";
-import StaffCourseDetailPage from "../pages/StaffCourseDetailPage";
-import StaffChapterDetailPage from "../pages/StaffChapterDetailPage";
-import StaffUnitDetailPage from "../pages/StaffUnitDetailPage";
-import StaffCreateCoursePage from "../pages/StaffCreateCoursePage";
-import StaffUpdateCoursePage from "../pages/StaffUpdateCoursePage";
-import StaffUpdateChapterPage from "../pages/StaffUpdateChapterPage";
-import StaffCreateChapterPage from "../pages/StaffCreateChapterPage";
-import StaffCreateUnitPage from "../pages/StaffCreateUnitPage";
-import StaffUpdateUnitPage from "../pages/StaffUpdateUnitPage";
-import StaffCreateExamPage from "../pages/StaffCreateExamPage";
-import StaffUpdateExamPage from "../pages/StaffUpdateExamPage";
-import StaffStudentFeedbackPage from "../pages/StaffStudentFeedbackPage";
-import StaffRequestsPage from "../pages/StaffRequestsPage";
-import { ExamPreparationPage } from '../pages/ExamPreparationPage';
-import { ExamDoingPage } from '../pages/ExamDoingPage';
-import { ExamResultPage } from '../pages/ExamResultPage';
-import { ExamAnswerReviewPage } from '../pages/ExamAnswerReviewPage';
-import ExamHistoryPage from '../pages/ExamHistoryPage';
+import CourseDetailPage from "../pages/study/CourseDetailPage";
+import ChapterDetailPage from "../pages/study/ChapterDetailPage";
+import LearningPathPage from "../pages/learning_path/LearningPathPage";
+import LearningPathDetailPage from "../pages/learning_path/LearningPathDetailPage";
+import LoginPage from "../pages/auth-user_profile/LoginPage";
+import RegisterPage from "../pages/auth-user_profile/RegisterPage";
+import ForgotPasswordPage from "../pages/auth-user_profile/ForgotPasswordPage";
+import ResetPasswordPage from "../pages/auth-user_profile/ResetPasswordPage";
+import { VerifyOtpPage } from "../pages/auth-user_profile/VerifyOtpPage";
+// import ChatbotPage from "../pages/ChatbotPage";
+import UserProfilePage from "../pages/auth-user_profile/UserProfilePage";
+import ManagerDashboardPage from "../pages/manager/ManagerDashboardPage";
+import StaffDashboardPage from "../pages/staff/StaffDashboardPage";
+import StaffCoursesPage from "../pages/staff/StaffCoursesPage";
+import StaffCourseDetailPage from "../pages/staff/StaffCourseDetailPage";
+import StaffChapterDetailPage from "../pages/staff/StaffChapterDetailPage";
+import StaffUnitDetailPage from "../pages/staff/StaffUnitDetailPage";
+import StaffCreateCoursePage from "../pages/staff/StaffCreateCoursePage";
+import StaffUpdateCoursePage from "../pages/staff/StaffUpdateCoursePage";
+import StaffUpdateChapterPage from "../pages/staff/StaffUpdateChapterPage";
+import StaffCreateChapterPage from "../pages/staff/StaffCreateChapterPage";
+import StaffCreateUnitPage from "../pages/staff/StaffCreateUnitPage";
+import StaffUpdateUnitPage from "../pages/staff/StaffUpdateUnitPage";
+import StaffCreateExamPage from "../pages/staff/StaffCreateExamPage";
+import StaffUpdateExamPage from "../pages/staff/StaffUpdateExamPage";
+import StaffStudentFeedbackPage from "../pages/staff/StaffStudentFeedbackPage";
+import { StaffManagerFeedbackPage } from "../pages/staff/StaffManagerFeedbackPage";
+import { StaffCreateQuestion } from "../pages/staff/StaffCreateQuestion";
+import ManagerApprovalRequestsPage from "../pages/manager/ManagerApprovalRequestsPage";
+import ExamDetailPage from '../pages/exam/ExamDetailPage';
+import { ExamDoingPage } from '../pages/exam/ExamDoingPage';
+import ExamOverviewPage from '../pages/exam/ExamOverviewPage';
+import { ExamReviewPage } from '../pages/exam/ExamReviewPage';
+import ForumPage from "../pages/ForumPage";
+import { ExamHistoryPage } from '../pages/exam/ExamHistoryPage';
+import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
+import AdminManageAccountPage from "../pages/admin/AdminManageAccountPage";
 /**
  * Router Configuration - Cấu hình routing cho ứng dụng
  * Sử dụng React Router v6 với createBrowserRouter
@@ -64,10 +69,10 @@ const router = createBrowserRouter([
     ),
   },
   {
-    path: "/roadmap",
+    path: "/learning-path",
     element: (
       <Layout>
-        <RoadmapPage />
+        <LearningPathPage />
       </Layout>
     ),
   },
@@ -75,7 +80,7 @@ const router = createBrowserRouter([
     path: "/roadmap-detail/:id",
     element: (
       <Layout>
-        <RoadmapDetailPage />
+        <LearningPathDetailPage />
       </Layout>
     ),
   },
@@ -127,14 +132,14 @@ const router = createBrowserRouter([
     path: "/oauth2/redirect",
     element: <OAuthCallback />,
   },
-  {
-    path: "/chatbot",
-    element: (
-      <Layout>
-        <ChatbotPage />
-      </Layout>
-    ),
-  },
+  // {
+  //   path: "/chatbot",
+  //   element: (
+  //     <Layout>
+  //       <ChatbotPage />
+  //     </Layout>
+  //   ),
+  // },
   {
     path: "/profile",
     element: (
@@ -166,6 +171,14 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute requiredRoles={["MANAGER", "ADMIN"]}>
         <ManagerDashboardPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/manager/approval-requests",
+    element: (
+      <ProtectedRoute requiredRoles={["MANAGER", "ADMIN"]}>
+        <ManagerApprovalRequestsPage />
       </ProtectedRoute>
     ),
   },
@@ -226,6 +239,14 @@ const router = createBrowserRouter([
     ),
   },
   {
+    path: "/staff/create-question",
+    element: (
+      <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
+        <StaffCreateQuestion />
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: "/staff/courses/:courseId/edit",
     element: (
       <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
@@ -250,18 +271,18 @@ const router = createBrowserRouter([
     ),
   },
   {
-    path: "/staff/requests",
-    element: (
-      <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
-        <StaffRequestsPage />
-      </ProtectedRoute>
-    ),
-  },
-  {
     path: "/staff/student-feedback",
     element: (
       <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
         <StaffStudentFeedbackPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/staff/manager-feedback",
+    element: (
+      <ProtectedRoute requiredRoles={["STAFF", "ADMIN"]}>
+        <StaffManagerFeedbackPage />
       </ProtectedRoute>
     ),
   },
@@ -282,20 +303,50 @@ const router = createBrowserRouter([
     ),
   },
   {
-    path: '/exam/:examId/preparation',
-    element: <Layout><ExamPreparationPage /></Layout>,
+    path: '/exam/:examId/prepare',
+    element: <Layout><ExamDetailPage /></Layout>,
   },
   {
     path: '/exam/:examId/take',
     element: <ExamDoingPage />, // No layout for exam taking page to avoid distractions
   },
   {
-    path: '/exam/:examId/result',
-    element: <Layout><ExamResultPage /></Layout>,
+    path: '/exam/:examId/overview',
+    element: <Layout><ExamOverviewPage /></Layout>,
   },
   {
     path: '/exam-result/:resultId/review',
-    element: <Layout><ExamAnswerReviewPage /></Layout>,
+    element: <Layout><ExamReviewPage /></Layout>,
+  },
+  {
+    path: '/forum',
+    element: <Layout><ForumPage /></Layout>,
+  },
+  // Admin Routes - Chỉ dành cho ADMIN role
+  {
+    path: '/admin/dashboard',
+    element: (
+      <ProtectedRoute requiredRoles={['ROLE_ADMIN']}>
+        <AdminDashboardPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/admin/accounts',
+    element: (
+      <ProtectedRoute requiredRoles={['ROLE_ADMIN']}>
+        <AdminManageAccountPage />
+      </ProtectedRoute>
+    ),
+  },
+  // Alias for backward compatibility
+  {
+    path: "/roadmap",
+    element: (
+      <Layout>
+        <LearningPathPage />
+      </Layout>
+    ),
   },
   // Catch all route for 404
   {

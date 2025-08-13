@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen } from "lucide-react"
+import { useLanguage } from '../../contexts/LanguageContext';
 
 /**
  * Footer Component - Chân trang của website
@@ -8,54 +9,54 @@ import { BookOpen } from "lucide-react"
  * Responsive design với Tailwind CSS
  */
 const Footer: React.FC = () => {
-  const currentYear = new Date().getFullYear();
+  const { t } = useLanguage();
 
   const footerSections = [
     {
-      title: "Học tập",
+      title: t('footer.learning'),
       links: [
-        { href: "/courses", label: "Tất cả khóa học" },
-        { href: "/hiragana", label: "Hiragana" },
-        { href: "/katakana", label: "Katakana" },
-        { href: "/kanji", label: "Kanji" },
-        { href: "/grammar", label: "Ngữ pháp" },
+        { href: "/courses", label: t('footer.allCourses') },
+        { href: "/hiragana", label: t('footer.hiragana') },
+        { href: "/katakana", label: t('footer.katakana') },
+        { href: "/kanji", label: t('footer.kanji') },
+        { href: "/grammar", label: t('footer.grammar') },
       ],
     },
     {
-      title: "Thực hành",
+      title: t('footer.practice'),
       links: [
-        { href: "/flashcards", label: "Thẻ từ" },
-        { href: "/quizzes", label: "Trắc nghiệm" },
-        { href: "/speaking", label: "Nói" },
-        { href: "/listening", label: "Nghe" },
-        { href: "/writing", label: "Viết" },
+        { href: "/flashcards", label: t('footer.flashcards') },
+        { href: "/quizzes", label: t('footer.quizzes') },
+        { href: "/speaking", label: t('footer.speaking') },
+        { href: "/listening", label: t('footer.listening') },
+        { href: "/writing", label: t('footer.writing') },
       ],
     },
     {
-      title: "Tài nguyên",
+      title: t('footer.resources'),
       links: [
-        { href: "/dictionary", label: "Từ điển" },
-        { href: "/blog", label: "Blog" },
-        { href: "/culture", label: "Văn hóa" },
-        { href: "/news", label: "Tin tức Nhật" },
-        { href: "/community", label: "Cộng đồng" },
+        { href: "/dictionary", label: t('footer.dictionary') },
+        { href: "/blog", label: t('footer.blog') },
+        { href: "/culture", label: t('footer.culture') },
+        { href: "/news", label: t('footer.news') },
+        { href: "/community", label: t('header.community') },
       ],
     },
     {
-      title: "Hỗ trợ",
+      title: t('footer.support'),
       links: [
-        { href: "/help", label: "Trung tâm trợ giúp" },
-        { href: "/contact", label: "Liên hệ" },
-        { href: "/privacy", label: "Chính sách bảo mật" },
-        { href: "/terms", label: "Điều khoản sử dụng" },
-        { href: "/faq", label: "FAQ" },
+        { href: "/help", label: t('footer.helpCenter') },
+        { href: "/contact", label: t('footer.contact') },
+        { href: "/privacy", label: t('footer.privacy') },
+        { href: "/terms", label: t('footer.terms') },
+        { href: "/faq", label: t('footer.faq') },
       ],
     },
   ]
 
   return (
     <footer className="bg-gray-900 text-white mt-auto">
-      <div className="container mx-auto px-4 py-12">
+      <div className="container mx-auto px-0 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
           {/* Brand Section */}
           <div className="lg:col-span-1">
@@ -67,7 +68,7 @@ const Footer: React.FC = () => {
               </span>
             </Link>
             <p className="text-gray-400 text-sm mb-4">
-              Làm chủ tiếng Nhật với nền tảng học tập toàn diện của chúng tôi. Từ sơ cấp đến nâng cao.
+              {t('footer.description')}
             </p>
           </div>
 
@@ -89,7 +90,7 @@ const Footer: React.FC = () => {
         </div>
 
         <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400 text-sm">
-          <p>&copy; {currentYear} 日本語Learning. Tất cả quyền được bảo lưu.</p>
+          <p>{t('footer.copyright')}</p>
         </div>
       </div>
     </footer>

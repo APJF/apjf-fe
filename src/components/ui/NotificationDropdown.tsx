@@ -59,10 +59,10 @@ export function NotificationDropdown({ className = '' }: Readonly<NotificationDr
   // Get notification icon color
   const getNotificationColor = (type: string) => {
     switch (type) {
-      case 'success': return 'text-green-500';
-      case 'error': return 'text-red-500';
-      case 'warning': return 'text-yellow-500';
-      default: return 'text-blue-500';
+      case 'success': return 'text-green-500'; // Keep for distinct status colors
+      case 'error': return 'text-destructive';
+      case 'warning': return 'text-yellow-500'; // Keep for distinct status colors
+      default: return 'text-primary';
     }
   };
 
@@ -71,12 +71,12 @@ export function NotificationDropdown({ className = '' }: Readonly<NotificationDr
       {/* Bell Icon */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-600 hover:text-gray-900 focus:outline-none focus:text-gray-900 transition-colors"
+        className="relative p-2 text-muted-foreground hover:text-foreground focus:outline-none transition-colors"
       >
         <Bell className="h-6 w-6" />
         {/* Unread Count Badge */}
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+          <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -84,15 +84,15 @@ export function NotificationDropdown({ className = '' }: Readonly<NotificationDr
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-lg shadow-lg border z-50 notification-dropdown">
+        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-background bg-white rounded-lg shadow-lg border z-50">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b">
-            <h3 className="text-lg font-semibold text-gray-900">Thông báo</h3>
+            <h3 className="text-lg font-semibold text-foreground">Thông báo</h3>
             <div className="flex items-center space-x-2">
               {unreadCount > 0 && (
                 <button
                   onClick={markAllAsRead}
-                  className="text-sm text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+                  className="text-sm text-primary hover:text-primary/80 flex items-center space-x-1"
                 >
                   <CheckCheck className="h-4 w-4" />
                   <span className="hidden sm:inline">Đánh dấu tất cả</span>
@@ -101,7 +101,7 @@ export function NotificationDropdown({ className = '' }: Readonly<NotificationDr
               )}
               <button
                 onClick={() => setIsOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-muted-foreground hover:text-foreground"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -109,14 +109,14 @@ export function NotificationDropdown({ className = '' }: Readonly<NotificationDr
           </div>
 
           {/* Notifications List */}
-          <div 
+          <div
             ref={scrollRef}
-            className="flex-1 overflow-y-auto notification-scroll"
+            className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-secondary scrollbar-track-background"
             onScroll={handleScroll}
           >
             {notifications.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">
-                <Bell className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <div className="p-8 text-center text-muted-foreground">
+                <Bell className="h-12 w-12 mx-auto mb-4 text-border" />
                 <p>Không có thông báo nào</p>
               </div>
             ) : (
@@ -124,9 +124,9 @@ export function NotificationDropdown({ className = '' }: Readonly<NotificationDr
                 {notifications.map((notification) => (
                   <button
                     key={notification.id}
-                    className={`w-full text-left px-4 py-3 hover:bg-gray-50 border-l-4 cursor-pointer ${
-                      !notification.isRead 
-                        ? 'bg-blue-50 border-l-blue-500' 
+                    className={`w-full text-left px-4 py-3 hover:bg-accent border-l-4 cursor-pointer ${
+                      !notification.isRead
+                        ? 'bg-primary/10 border-l-primary'
                         : 'border-l-transparent'
                     }`}
                     onClick={() => {
@@ -151,7 +151,7 @@ export function NotificationDropdown({ className = '' }: Readonly<NotificationDr
                             }}
                           />
                         ) : (
-                          <div className={`h-10 w-10 rounded-full flex items-center justify-center ${getNotificationColor(notification.type)} bg-gray-100`}>
+                          <div className={`h-10 w-10 rounded-full flex items-center justify-center ${getNotificationColor(notification.type)} bg-secondary`}>
                             <Bell className="h-5 w-5" />
                           </div>
                         )}
@@ -161,17 +161,17 @@ export function NotificationDropdown({ className = '' }: Readonly<NotificationDr
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <p className={`text-sm ${!notification.isRead ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'}`}>
+                            <p className={`text-sm ${!notification.isRead ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground'}`}>
                               {notification.title}
                             </p>
-                            <p className="text-sm text-gray-600 mt-1">
+                            <p className="text-sm text-muted-foreground mt-1">
                               {notification.message}
                             </p>
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-xs text-muted-foreground mt-1">
                               {formatTimeAgo(notification.createdAt)}
                             </p>
                           </div>
-                          
+
                           {/* Mark as read button */}
                           {!notification.isRead && (
                             <button
@@ -179,7 +179,7 @@ export function NotificationDropdown({ className = '' }: Readonly<NotificationDr
                                 e.stopPropagation();
                                 markAsRead(notification.id);
                               }}
-                              className="text-blue-600 hover:text-blue-800 ml-2 flex-shrink-0"
+                              className="text-primary hover:text-primary/80 ml-2 flex-shrink-0"
                             >
                               <Check className="h-4 w-4" />
                             </button>
@@ -193,8 +193,8 @@ export function NotificationDropdown({ className = '' }: Readonly<NotificationDr
                 {/* Loading indicator */}
                 {loading && (
                   <div className="flex justify-center py-4">
-                    <div className="flex items-center space-x-2 text-gray-500">
-                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-blue-600"></div>
+                    <div className="flex items-center space-x-2 text-muted-foreground">
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-border border-t-primary"></div>
                       <span className="text-sm">Đang tải...</span>
                     </div>
                   </div>
@@ -202,7 +202,7 @@ export function NotificationDropdown({ className = '' }: Readonly<NotificationDr
 
                 {/* No more data */}
                 {!hasMore && notifications.length > 0 && (
-                  <div className="text-center py-4 text-sm text-gray-500">
+                  <div className="text-center py-4 text-sm text-muted-foreground">
                     Đã hiển thị tất cả thông báo
                   </div>
                 )}

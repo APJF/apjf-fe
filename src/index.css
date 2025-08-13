@@ -1,75 +1,46 @@
 @import "tailwindcss";
 
-/* Notification dropdown styles */
-.notification-dropdown {
-  max-height: 24rem;
-  display: flex;
-  flex-direction: column;
-}
+@layer base {
+  :root {
+    --background: 0 0% 100%; /* White */
+    --foreground: 224 71.4% 4.1%; /* Near Black */
 
-.notification-dropdown-mobile {
-  width: 100vw;
-  max-width: 24rem;
-  right: -1rem;
-}
+    --card: 0 0% 100%;
+    --card-foreground: 224 71.4% 4.1%;
 
-@media (max-width: 640px) {
-  .notification-dropdown {
-    width: 100vw;
-    max-width: 20rem;
-    right: -0.5rem;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71.4% 4.1%;
+
+    --primary: 0 84.2% 60.2%; /* Red */
+    --primary-foreground: 0 0% 100%; /* White */
+
+    --secondary: 220 13% 91%; /* Gray */
+    --secondary-foreground: 224 71.4% 4.1%;
+
+    --muted: 220 13% 91%;
+    --muted-foreground: 225 8.9% 46.1%;
+
+    --accent: 220 13% 91%;
+    --accent-foreground: 224 71.4% 4.1%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 89%;
+    --input: 220 13% 89%;
+    --ring: 0 84.2% 60.2%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Define dark mode colors here if needed */
   }
 }
 
-/* Custom scrollbar for notification list */
-.notification-scroll::-webkit-scrollbar {
-  width: 4px;
-}
-
-.notification-scroll::-webkit-scrollbar-track {
-  background: #f1f5f9;
-}
-
-.notification-scroll::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 2px;
-}
-
-.notification-scroll::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-/* Manager Dashboard Styles */
-.manager-sidebar {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.manager-sidebar-collapsed {
-  width: 4rem;
-}
-
-.manager-sidebar-expanded {
-  width: 16rem;
-}
-
-.manager-nav-item {
-  transition: all 0.2s ease-in-out;
-}
-
-.manager-nav-item:hover {
-  transform: translateX(4px);
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-.manager-nav-item.active {
-  background-color: rgba(255, 255, 255, 0.2);
-  border-right: 3px solid #ffffff;
-}
-
-.manager-stats-card {
-  transition: transform 0.2s ease-in-out;
-}
-
-.manager-stats-card:hover {
-  transform: translateY(-4px);
+@layer base {
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
 }

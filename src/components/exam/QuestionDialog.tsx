@@ -62,7 +62,7 @@ const QuestionDialog: React.FC<QuestionDialogProps> = ({
     setErrors({})
   }, [question, isOpen])
 
-  const handleInputChange = (field: keyof ExamQuestion, value: any) => {
+  const handleInputChange = (field: keyof ExamQuestion, value: ExamQuestion[keyof ExamQuestion]) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -137,7 +137,7 @@ const QuestionDialog: React.FC<QuestionDialogProps> = ({
   }
 
   const handleTypeChange = (newType: QuestionType) => {
-    let updatedFormData = { ...formData, type: newType }
+    const updatedFormData = { ...formData, type: newType }
 
     // Reset type-specific fields
     if (newType === 'MULTIPLE_CHOICE') {

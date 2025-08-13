@@ -24,7 +24,7 @@ export class CourseService {
 
   // Get chapters by course ID  
   static async getChaptersByCourseId(courseId: string): Promise<ChaptersApiResponse> {
-    const response = await api.get(`/chapters/course/${courseId}`);
+    const response = await api.get(`/courses/${courseId}/chapters`);
     return response.data;
   }
 
@@ -100,13 +100,13 @@ export class CourseService {
 
   // Get units by chapter ID (new API)
   static async getUnitsByChapterId(chapterId: string): Promise<UnitsApiResponse> {
-    const response = await api.get(`/api/units/chapter/${chapterId}`);
+    const response = await api.get(`/chapters/${chapterId}/units`);
     return response.data;
   }
 
   // Create a new unit (for staff)
   static async createUnit(unitData: CreateUnitRequest): Promise<CreateUnitApiResponse> {
-    const response = await api.post('/api/units', unitData);
+    const response = await api.post('/units', unitData);
     return response.data;
   }
 

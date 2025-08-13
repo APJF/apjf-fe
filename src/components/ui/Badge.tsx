@@ -1,11 +1,7 @@
-import * as React from "react"
 import { cn } from "../../lib/utils"
+import type { BadgeProps } from "../../types/ui"
 
-export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: "default" | "secondary" | "destructive" | "outline"
-}
-
-function Badge({ className, variant, ...props }: BadgeProps) {
+function Badge({ className, variant, ...props }: Readonly<BadgeProps>) {
   const variantClasses = {
     default: "border-transparent bg-red-600 text-white hover:bg-red-600/80",
     secondary: "border-transparent bg-gray-200 text-gray-800 hover:bg-gray-200/80",

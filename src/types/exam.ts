@@ -1,173 +1,166 @@
-// Type aliases
-export type QuestionType = "MULTIPLE_CHOICE" | "TRUE_FALSE" | "WRITING"
-export type DifficultyLevel = "Dễ" | "Trung bình" | "Khó"
-export type SkillType = "Ngữ pháp" | "Từ vựng" | "Kanji" | "Đọc hiểu" | "Nghe"
-export type JLPTLevel = "N5" | "N4" | "N3" | "N2" | "N1"
-export type ExamScope = "course" | "chapter" | "unit"
-export type ExamStatus = 'ACTIVE' | 'INACTIVE'
-export type MediaType = "image" | "audio" | "video"
-
-export interface QuestionOption {
-  id: string
-  content: string
-  isCorrect: boolean
+// API Response Types
+export interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+  timestamp: number;
 }
 
+// Exam Overview - GET /api/student/exams/{examId}/overview
+export interface ExamOverview {
+  examId: string;
+  title: string;
+  description: string;
+  duration: number; // in minutes
+  totalQuestions: number;
+  type: 'MULTIPLE_CHOICE' | 'ESSAY' | 'MIXED';
+}
+
+// Question Option
+export interface QuestionOption {
+  optionId: string;
+  content: string;
+  isCorrect?: boolean;
+}
+
+// Question Details from API - GET /api/questions/{questionId}
+export interface QuestionDetail {
+  id: string;
+  content: string;
+  scope: 'KANJI' | 'VOCAB' | 'GRAMMAR' | 'LISTENING' | 'READING' | 'WRITING';
+  type: 'MULTIPLE_CHOICE' | 'WRITING' | 'ESSAY';
+  explanation: string;
+  fileUrl: string | null;
+  createdAt: string;
+  options: Array<{
+    id: string;
+    content: string;
+    isCorrect: boolean;
+  }>;
+  unitIds: string[];
+}
+
+// Question Result from Start Exam API
+export interface QuestionResult {
+  questionId: string;
+  questionContent: string;
+  explanation: string;
+  selectedOptionId: string | null;
+  userAnswer: string | null;
+  isCorrect: boolean;
+  type?: 'MULTIPLE_CHOICE' | 'WRITING' | 'ESSAY'; // Question type
+  scope?: 'KANJI' | 'VOCAB' | 'GRAMMAR' | 'LISTENING' | 'READING' | 'WRITING'; // Question scope
+  options?: QuestionOption[]; // Available options for multiple choice
+}
+
+// Start Exam Response - POST /api/student/exams/{examId}/start  
+export interface ExamStartResponse {
+  examResultId: number;
+  examId: string;
+  examTitle: string;
+  score: number | null;
+  submittedAt: string | null;
+  status: 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'PASSED';
+  questionResults: QuestionResult[];
+}
+
+// Submit Exam Request - POST /api/student/exams/submit
+export interface ExamSubmitRequest {
+  examId: string;
+  startedAt: string;
+  submittedAt: string;
+  questionResults: {
+    questionId: string;
+    selectedOptionId: string | null; // For multiple choice questions
+    userAnswer: string | null; // For essay questions
+  }[];
+}
+
+// Submit Exam Response - POST /api/student/exams/submit
+export interface ExamSubmitResponse {
+  examResultId: number;
+  examId: string;
+  examTitle: string;
+  score: number;
+  submittedAt: string;
+  status: 'COMPLETED' | 'FAILED' | 'PASSED';
+  questionResults: QuestionResult[];
+}
+
+// API Wrapper Response for Submit Exam
+export interface ExamSubmitApiResponse {
+  success: boolean;
+  message: string;
+  data: ExamSubmitResponse;
+  timestamp: number;
+}
+
+// Exam Result - GET /api/student/exams/result/{resultId}
+export interface ExamResult {
+  examResultId: number;
+  examId: string;
+  examTitle: string;
+  score: number;
+  submittedAt: string | null;
+  status: 'COMPLETED' | 'FAILED' | 'PASSED';
+  questionResults: QuestionResult[];
+}
+
+// Exam History Item - GET /api/student/exams
+export interface ExamHistoryItem {
+  examResultId: string;
+  examId: string;
+  examTitle: string;
+  score: number;
+  status: 'PASSED' | 'FAILED';
+  type: 'MULTIPLE_CHOICE' | 'ESSAY' | 'MIXED';
+  submittedAt: string | null;
+}
+
+// Exam History Response - GET /api/student/exams
+export type ExamHistoryResponse = ExamHistoryItem[];
+
+// Legacy types for compatibility (will be gradually replaced)
 export interface Question {
-  id: string
-  content: string
-  correctAnswer: string
-  type: QuestionType
-  scope: string
-  explanation: string
-  fileUrl: string | null
-  createdAt: string
-  options: QuestionOption[]
+  id: string;
+  type: 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'WRITING';
+  question: string;
+  options?: Option[];
+  correctAnswer?: string;
+  explanation?: string;
+  points: number;
+  difficulty: string;
+  skill: string;
+  fileUrl?: string;
+}
+
+export interface Option {
+  id: string;
+  content: string;
+  isCorrect: boolean;
 }
 
 export interface Exam {
-  id: string
-  title: string
-  description: string
-  duration: number
-  examScopeType: string
-  createdAt: string
-  questions: Question[]
-  totalQuestions: number
-  courseId: string
-  chapterId: string | null
-  unitId: string | null
-  questionIds: string[]
-  questionCount: number
+  id: string;
+  title: string;
+  description: string;
+  duration: number;
+  questions: Question[];
+  totalQuestions: number;
+  passingScore: number;
+  examScopeType: string;
+  status: string;
 }
 
-// Staff Exam Management Types
-export interface ExamQuestion {
-  id: string
-  type: QuestionType
-  question: string
-  options?: Array<{
-    id: string
-    content: string
-    isCorrect: boolean
-  }>
-  correctAnswer?: string
-  explanation?: string
-  points: number
-  difficulty: DifficultyLevel
-  skill: SkillType
-  media?: {
-    type: MediaType
-    url: string
-  }
-}
-
-export interface ExamData {
-  id?: string
-  title: string
-  description: string
-  courseId?: string
-  chapterId?: string
-  unitId?: string
-  scope: ExamScope
-  duration: number // minutes
-  totalPoints: number
-  passingScore: number
-  difficulty: DifficultyLevel
-  level: JLPTLevel
-  instructions: string
-  questions: ExamQuestion[]
-  settings: {
-    shuffleQuestions: boolean
-    shuffleOptions: boolean
-    showResults: boolean
-    allowRetake: boolean
-    timeLimit: boolean
-  }
-  status: ExamStatus
-  createdAt?: string
-  updatedAt?: string
-}
-
-export interface ExamSummary {
-  id: string
-  title: string
-  description: string
-  duration: number
-  totalPoints: number
-  questionCount: number
-  difficulty: string
-  level: string
-  status: ExamStatus
-  createdAt: string
-}
-
-export interface ExamApiResponse {
-  success: boolean
-  message: string
-  data: Exam
-  timestamp: number
-}
-
-export interface StartExamRequest {
-  examId: string
-  userId: string
-}
-
-export interface StartExamResponse {
-  success: boolean
-  message: string
-  data: ExamResult
-  timestamp: number
-}
-
-export interface SubmitExamAnswer {
-  questionId: string
-  selectedOptionId: string | null
-  userAnswer: string | null
-}
-
-export interface SubmitExamRequest {
-  examId: string
-  answers: SubmitExamAnswer[]
-}
-
+// Result Answer for Review Page
 export interface ExamResultAnswer {
-  id: string
-  userAnswer: string | null
-  isCorrect: boolean
-  questionId: string
-  questionContent: string
-  selectedOptionId: string | null
-  correctAnswer: string
-  options?: QuestionOption[]
-  type?: "MULTIPLE_CHOICE" | "TRUE_FALSE" | "WRITING"
-  explanation?: string | null
-}
-
-export interface ExamResult {
-  id: string
-  startedAt: string
-  submittedAt: string | null
-  score: number | null
-  status: "PASSED" | "FAILED" | "IN_PROGRESS"
-  userId: string
-  examId: string
-  examTitle: string
-  answers: ExamResultAnswer[]
-  totalQuestions: number
-  correctAnswers: number
-}
-
-export interface SubmitExamResponse {
-  success: boolean
-  message: string
-  data: ExamResult
-  timestamp: number
-}
-
-export interface ExamResultProps {
-  examResult: ExamResult
-  onRestart: () => void
-  onShowAnswers: () => void
+  questionId: string;
+  questionContent: string;
+  type: 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'WRITING';
+  selectedOptionId?: string | null;
+  userAnswer?: string | null;
+  isCorrect: boolean;
+  explanation: string;
+  options?: Option[];
+  correctAnswer?: string;
 }

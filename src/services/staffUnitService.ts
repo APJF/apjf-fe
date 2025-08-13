@@ -11,43 +11,11 @@ const getAuthHeaders = () => {
   }
 }
 
-export interface CreateUnitRequest {
-  title: string
-  description: string
-  status: 'INACTIVE' | 'ACTIVE'
-  chapterId: string
-  prerequisiteUnitId: string
-  examIds: string[]
-}
+import type { CreateUnitRequest, UpdateUnitRequest, Unit, UnitDetail } from '@/types/unit'
+import type { ApiResponse } from '@/types/api'
 
-export interface UpdateUnitRequest {
-  id: string
-  title: string
-  description: string
-  status: 'INACTIVE' | 'ACTIVE'
-  chapterId: string
-  prerequisiteUnitId: string
-  examIds: string[]
-}
-
-export interface Unit {
-  id: string
-  title: string
-  description: string | null
-  status: 'INACTIVE' | 'ACTIVE'
-  prerequisiteUnitId: string | null
-}
-
-export interface UnitDetail extends Unit {
-  chapterId?: string
-}
-
-interface ApiResponse<T> {
-  success: boolean
-  message: string
-  data: T
-  timestamp: number
-}
+// Re-export types for easier import
+export type { CreateUnitRequest, UpdateUnitRequest, Unit, UnitDetail } from '@/types/unit'
 
 export const StaffUnitService = {
   // Lấy danh sách bài học theo chapterId
@@ -59,6 +27,19 @@ export const StaffUnitService = {
       return response.data
     } catch (error) {
       console.error('Error fetching units by chapter:', error)
+      throw error
+    }
+  },
+
+  // Lấy tất cả bài học trong chapter (cho dropdown prerequisite)
+  getAllUnitsByChapter: async (chapterId: string): Promise<ApiResponse<Unit[]>> => {
+    try {
+      const response = await axios.get(`/units/chapter/${chapterId}`, {
+        headers: getAuthHeaders()
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error fetching all units by chapter:', error)
       throw error
     }
   },
@@ -98,6 +79,19 @@ export const StaffUnitService = {
       return response.data
     } catch (error) {
       console.error('Error updating unit:', error)
+      throw error
+    }
+  },
+
+  // Deactivate bài học (chuyển status về INACTIVE)
+  deactivateUnit: async (unitId: string): Promise<ApiResponse<UnitDetail>> => {
+    try {
+      const response = await axios.patch(`/units/${unitId}/deactivate`, {}, {
+        headers: getAuthHeaders()
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error deactivating unit:', error)
       throw error
     }
   },

@@ -1,148 +1,136 @@
 import api from "../api/axios"
-import type { 
-  UpdateProfileData, 
-  UpdateProfileResponse, 
-  UploadAvatarResponse 
+import type {
+  UpdateProfileData,
+  UpdateProfileResponse,
+  UploadAvatarResponse,
+  LoginCredentials as LoginData,
+  RegisterData,
+  UserInfo,
+  AuthResponse,
+  LoginResponse,
+  UserAuthResponse,
+  SendOtpData,
+  ChangePasswordData,
+  UserProfileResponse,
+  ForgotPasswordResponse,
+  ResetPasswordData,
+  VerifyOtpData
 } from "../types/auth"
-
-export interface LoginData {
-  email: string
-  password: string
-}
-
-export interface RegisterData {
-  email: string
-  password: string
-}
-
-export interface UserInfo {
-  id: number
-  email: string
-  username: string
-  avatar: string
-  roles: string[]
-}
-
-export interface AuthResponse {
-  success: boolean
-  message: string
-  data?: {
-    accessToken: string
-    refreshToken: string
-    tokenType: string
-    userInfo: UserInfo
-  }
-  timestamp?: number
-}
-
-export interface SendOtpData {
-  email: string
-  type: 'registration' | 'reset_password'
-}
-
-export interface ChangePasswordData {
-  email: string
-  oldPassword: string
-  newPassword: string
-}
-
-export interface UserProfile {
-  id: number // Changed from string to number to match API
-  username: string
-  email: string
-  phone: string
-  avatar: string
-  enabled: boolean
-  authorities: string[]
-  roles?: string[] // Add roles field for consistency
-}
-
-export interface UserProfileResponse {
-  success: boolean
-  message: string
-  data: UserProfile
-  timestamp: number
-}
-
-export interface ForgotPasswordResponse {
-  success: boolean
-  message: string
-}
-
-export interface ResetPasswordData {
-  email: string
-  otp: string
-  newPassword: string
-}
-
-export interface VerifyOtpData {
-  email: string
-  otp: string
-}
 
 class AuthService {
   /**
    * Đăng nhập người dùng
    */
-  async login(credentials: LoginData): Promise<AuthResponse> {
+  async login(credentials: LoginData): Promise<UserAuthResponse> {
     try {
-      const response = await api.post<AuthResponse>("/auth/login", credentials)
+      console.log('🔐 Starting login process');
+      const response = await api.post<LoginResponse>("/auth/login", credentials)
 
       if (response.data.success && response.data.data) {
-        const { userInfo, accessToken, refreshToken } = response.data.data
+        const { access_token, refresh_token } = response.data.data;
+
+        // Defensive check to ensure tokens are valid strings before saving
+        if (typeof access_token !== 'string' || access_token.length === 0) {
+          console.error('❌ Login Error: access_token is missing or invalid in the API response.');
+          return { success: false, message: 'Lỗi đăng nhập: Phản hồi từ server không hợp lệ.', timestamp: Date.now() };
+        }
         
-        // Lưu tokens trước
-        localStorage.setItem("accessToken", accessToken)
-        localStorage.setItem("refreshToken", refreshToken)
+        localStorage.setItem("access_token", access_token);
+
+        if (typeof refresh_token === 'string' && refresh_token.length > 0) {
+          localStorage.setItem("refresh_token", refresh_token);
+        } else {
+          // Log a warning but don't block login. Refresh will fail later.
+          console.warn('⚠️ Login Warning: refresh_token is missing or invalid in the API response.');
+          // You might want to clear any old refresh token
+          localStorage.removeItem("refresh_token");
+        }
         
-        // Sau khi login thành công, gọi getProfile để lấy thông tin đầy đủ (bao gồm avatar)
+        console.log('✅ Tokens saved successfully');
+        
+        // Gọi getProfile để lấy thông tin user sau khi có token
         try {
+          console.log('📋 Fetching user profile...');
           const profileResponse = await this.getProfile();
+          
           if (profileResponse.success && profileResponse.data) {
-            // Merge thông tin từ login với profile (ưu tiên profile cho avatar)
-            const completeUserInfo = {
-              ...userInfo,
-              ...profileResponse.data,
-              // Ensure we keep the roles from login response
-              roles: userInfo.roles
+            // Lưu thông tin user từ profile API
+            const profileData = profileResponse.data;
+            
+            // Map authorities to roles for backward compatibility
+            const userInfo = {
+              id: profileData.id,
+              email: profileData.email,
+              username: profileData.username,
+              avatar: profileData.avatar || '',
+              roles: profileData.authorities || [] // Map authorities to roles
             };
             
-            // Lưu thông tin user đầy đủ
-            localStorage.setItem("userInfo", JSON.stringify(completeUserInfo))
-            
-            // Dispatch custom event với thông tin đầy đủ
-            window.dispatchEvent(new CustomEvent('authStateChanged', {
-              detail: { user: completeUserInfo, isAuthenticated: true }
-            }));
-            
-            console.log('✅ Login successful with complete profile data including avatar');
-          } else {
-            // Fallback: nếu getProfile thất bại, dùng userInfo từ login
             localStorage.setItem("userInfo", JSON.stringify(userInfo))
+            
+            // Dispatch custom event với thông tin user
             window.dispatchEvent(new CustomEvent('authStateChanged', {
               detail: { user: userInfo, isAuthenticated: true }
             }));
-            console.warn('⚠️ Profile fetch failed, using basic user info from login');
+            
+            console.log('✅ Login successful with user profile:', userInfo.username);
+            
+            // Return success response với user data
+            return {
+              success: true,
+              message: response.data.message || "Đăng nhập thành công",
+              data: profileData, // Return original profile data
+              timestamp: Date.now()
+            };
+          } else {
+            console.error('❌ Profile fetch failed after login:', profileResponse.message);
+            // Clear tokens nếu không lấy được profile
+            localStorage.removeItem("access_token");
+            localStorage.removeItem("refresh_token");
+            
+            return {
+              success: false,
+              message: "Đăng nhập thành công nhưng không thể tải thông tin người dùng",
+              timestamp: Date.now()
+            };
           }
         } catch (profileError) {
-          // Fallback: nếu getProfile lỗi, dùng userInfo từ login
-          console.error('Profile fetch error after login:', profileError);
-          localStorage.setItem("userInfo", JSON.stringify(userInfo))
-          window.dispatchEvent(new CustomEvent('authStateChanged', {
-            detail: { user: userInfo, isAuthenticated: true }
-          }));
+          console.error('❌ Profile fetch error after login:', profileError);
+          // Clear tokens nếu lỗi
+          localStorage.removeItem("access_token");
+          localStorage.removeItem("refresh_token");
+          
+          return {
+            success: false,
+            message: "Đăng nhập thành công nhưng có lỗi khi tải thông tin người dùng",
+            timestamp: Date.now()
+          };
         }
       }
 
-      return response.data
+      console.log('❌ Login failed:', response.data.message);
+      return {
+        success: false,
+        message: response.data.message || "Đăng nhập thất bại",
+        timestamp: Date.now()
+      }
     } catch (error) {
+      console.error('❌ Login error:', error);
       if (error && typeof error === "object" && "response" in error) {
-        const axiosError = error as { response?: { data?: AuthResponse } }
+        const axiosError = error as { response?: { data?: { message?: string } } }
         if (axiosError.response?.data) {
-          return axiosError.response.data
+          return {
+            success: false,
+            message: axiosError.response.data.message || "Đăng nhập thất bại",
+            timestamp: Date.now()
+          }
         }
       }
-      throw error
+      return {
+        success: false,
+        message: "Có lỗi xảy ra khi đăng nhập",
+        timestamp: Date.now()
+      }
     }
   }
 
@@ -282,36 +270,35 @@ class AuthService {
    * Refresh token
    */
   async refreshToken(): Promise<AuthResponse> {
-    const refreshToken = localStorage.getItem("refreshToken")
-    if (!refreshToken) {
-      throw new Error("No refresh token found")
+    const refresh_token = localStorage.getItem("refresh_token")
+    if (!refresh_token) {
+      return {
+        success: false,
+        message: "No refresh token available",
+        timestamp: Date.now()
+      }
     }
-
     try {
-      const response = await api.post<AuthResponse>("/auth/refresh-token", {
-        refreshToken: refreshToken
+      const response = await api.post('/auth/refresh-token', { 
+        refresh_token: refresh_token
       })
-
+      
       if (response.data.success && response.data.data) {
-        const { userInfo, accessToken, refreshToken: newRefreshToken } = response.data.data
+        const { access_token, refresh_token: newRefreshToken } = response.data.data
         
-        // Cập nhật tokens theo chuẩn mới
-        localStorage.setItem("accessToken", accessToken)
+        // Update tokens
+        localStorage.setItem("access_token", access_token)
         if (newRefreshToken) {
-          localStorage.setItem("refreshToken", newRefreshToken)
-        }
-        
-        // Cập nhật user info nếu có
-        if (userInfo) {
-          localStorage.setItem("userInfo", JSON.stringify(userInfo))
+          localStorage.setItem("refresh_token", newRefreshToken)
         }
       }
-
-      return response.data
+      return response.data;
     } catch (error) {
-      // Nếu refresh token hết hạn hoặc không hợp lệ, đăng xuất user
-      this.logout()
-      throw error
+      console.error('Error in refreshToken:', error);
+      return {
+        success: false,
+        message: 'Failed to refresh token'
+      };
     }
   }
 
@@ -360,8 +347,9 @@ class AuthService {
             ...currentUser,
             username: profileResponse.data.username,
             email: profileResponse.data.email,
-            phone: profileResponse.data.phone,
-            avatar: profileResponse.data.avatar
+            phone: profileResponse.data.phone || '',
+            avatar: profileResponse.data.avatar || currentUser.avatar,
+            roles: profileResponse.data.authorities || currentUser.roles // Map authorities to roles
           };
           
           this.updateUserInLocalStorage(updatedUser);
@@ -376,36 +364,45 @@ class AuthService {
   }
 
   /**
-   * Cập nhật thông tin profile
+   * Cập nhật thông tin profile (không bao gồm avatar)
    */
   async updateProfile(data: UpdateProfileData): Promise<UpdateProfileResponse> {
     try {
-      const response = await api.post<UpdateProfileResponse>("/users/profile", data)
+      // Loại bỏ avatar khỏi data để không cập nhật avatar
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { avatar, ...profileDataWithoutAvatar } = data;
       
-      // Cập nhật user info trong localStorage nếu thành công
+      const response = await api.put<UpdateProfileResponse>("/users/profile", profileDataWithoutAvatar)
+      
+      // Sau khi update thành công, gọi GET để refresh thông tin user
       if (response.data.success) {
-        const currentUser = this.getCurrentUser()
-        if (currentUser) {
-          const updatedUser = {
-            ...currentUser,
-            email: data.email,
-            username: data.username,
-            phone: data.phone,
-            // Chỉ update avatar nếu có avatar mới và là full URL, không thì giữ nguyên
-            // Tránh việc cập nhật với object name thay vì full URL
-            avatar: (data.avatar && (data.avatar.startsWith('http://') || data.avatar.startsWith('https://'))) 
-              ? data.avatar 
-              : currentUser.avatar
-          }
-          
-          console.log('Updating localStorage with user:', updatedUser);
-          localStorage.setItem("userInfo", JSON.stringify(updatedUser))
-          
-          // Dispatch event để notify các component khác
-          window.dispatchEvent(new CustomEvent('authStateChanged', {
-            detail: { user: updatedUser, isAuthenticated: true }
-          }))
+        console.log('✅ Profile updated successfully, refreshing user info...');
+        await this.refreshUserInfo();
+      }
+      
+      return response.data
+    } catch (error) {
+      if (error && typeof error === "object" && "response" in error) {
+        const axiosError = error as { response?: { data?: UpdateProfileResponse } }
+        if (axiosError.response?.data) {
+          return axiosError.response.data
         }
+      }
+      throw error
+    }
+  }
+
+  /**
+   * Cập nhật profile chỉ với các field cơ bản (email, username, phone) - không bao gồm avatar
+   */
+  async updateBasicProfile(data: { email: string; username: string; phone?: string }): Promise<UpdateProfileResponse> {
+    try {
+      const response = await api.put<UpdateProfileResponse>("/users/profile", data)
+      
+      // Sau khi update thành công, gọi GET để refresh thông tin user
+      if (response.data.success) {
+        console.log('✅ Basic profile updated successfully, refreshing user info...');
+        await this.refreshUserInfo();
       }
       
       return response.data
@@ -435,18 +432,20 @@ class AuthService {
       const updateData = {
         username: currentProfile.username,
         email: currentProfile.email,
-        phone: currentProfile.phone,
-        avatar: avatarObjectName
+        phone: currentProfile.phone || '', // Provide default empty string
+        avatar: avatarObjectName // Lưu object name trực tiếp, không phải URL
       };
       
-      console.log('📤 Updating profile with new avatar:', updateData);
-      const updateResponse = await this.updateProfile(updateData);
+      console.log('📤 Updating profile with new avatar object name:', updateData);
+      const response = await api.put<UpdateProfileResponse>("/users/profile", updateData);
       
-      if (updateResponse.success) {
+      if (response.data.success) {
         console.log('✅ Profile updated successfully with new avatar');
+        // Gọi GET để refresh thông tin user sau khi update
+        await this.refreshUserInfo();
         return true;
       } else {
-        console.error('❌ Failed to update profile with new avatar:', updateResponse.message);
+        console.error('❌ Failed to update profile with new avatar:', response.data.message);
         return false;
       }
     } catch (error) {
@@ -497,43 +496,71 @@ class AuthService {
    * Google OAuth2 Login - redirect to Google OAuth
    */
   initiateGoogleLogin(): void {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
-    // Remove /api suffix for OAuth endpoint
-    const oauthBaseUrl = baseUrl.replace('/api', '')
-    window.location.href = `${oauthBaseUrl}/oauth2/authorization/google`
+    // Use a consistent approach for the API base URL
+    const baseUrl = 'http://localhost:8080';
+    
+    // Remove /api suffix for OAuth endpoint if needed
+    const oauthBaseUrl = baseUrl.replace('/api', '');
+    window.location.href = `${oauthBaseUrl}/oauth2/authorization/google`;
   }
 
   /**
    * Xử lý callback từ Google OAuth2
    */
-  handleGoogleCallback(): boolean {
+  async handleGoogleCallback(): Promise<boolean> {
     const urlParams = new URLSearchParams(window.location.search)
-    const accessToken = urlParams.get('token')
-    const refreshToken = urlParams.get('refreshToken')
+    const access_token = urlParams.get('token') || ''
+    const refresh_token = urlParams.get('refreshToken') || ''
     const email = urlParams.get('email')
     const username = urlParams.get('username')
 
-    if (accessToken && refreshToken && email && username) {
-      // Tạo userInfo object
-      const userInfo: UserInfo = {
-        id: 0, // Temporary ID, backend sẽ provide proper ID
-        email,
-        username,
-        avatar: '',
-        roles: ['ROLE_USER'] // Default role
+    if (access_token && refresh_token && email && username) {
+      try {
+        // Lưu tokens trước
+        localStorage.setItem('access_token', access_token)
+        localStorage.setItem('refresh_token', refresh_token)
+        
+        console.log('✅ Google OAuth tokens saved, fetching user profile...');
+        
+        // Gọi getProfile để lấy thông tin đầy đủ từ backend, bao gồm avatar
+        const profileResponse = await this.getProfile();
+        
+        if (profileResponse.success && profileResponse.data) {
+          const profileData = profileResponse.data;
+          
+          // Tạo userInfo object với thông tin đầy đủ từ backend
+          const userInfo: UserInfo = {
+            id: profileData.id,
+            email: profileData.email,
+            username: profileData.username,
+            avatar: profileData.avatar || '', // Lấy avatar từ backend
+            roles: profileData.authorities || ['ROLE_USER'] // Map authorities to roles
+          }
+
+          // Lưu userInfo đầy đủ
+          localStorage.setItem('userInfo', JSON.stringify(userInfo))
+          
+          // Dispatch auth state change event
+          window.dispatchEvent(new CustomEvent('authStateChanged', {
+            detail: { user: userInfo, isAuthenticated: true }
+          }))
+
+          console.log('✅ Google OAuth login successful with full profile:', userInfo.username);
+          return true;
+        } else {
+          console.error('❌ Failed to fetch profile after Google OAuth:', profileResponse.message);
+          // Clear tokens nếu không lấy được profile
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          return false;
+        }
+      } catch (profileError) {
+        console.error('❌ Profile fetch error after Google OAuth:', profileError);
+        // Clear tokens nếu lỗi
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        return false;
       }
-
-      // Lưu tokens và userInfo
-      localStorage.setItem('accessToken', accessToken)
-      localStorage.setItem('refreshToken', refreshToken)
-      localStorage.setItem('userInfo', JSON.stringify(userInfo))
-      
-      // Dispatch auth state change event
-      window.dispatchEvent(new CustomEvent('authStateChanged', {
-        detail: { user: userInfo, isAuthenticated: true }
-      }))
-
-      return true
     }
 
     // Xử lý error case
@@ -551,13 +578,15 @@ class AuthService {
    */
   logout(): void {
     localStorage.removeItem('userInfo')
-    localStorage.removeItem('accessToken')
-    localStorage.removeItem('refreshToken')
+    
+    // Standard keys
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('refresh_token')
     
     // Remove legacy keys for cleanup
     localStorage.removeItem('user')
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
+    localStorage.removeItem('accessToken')
+    localStorage.removeItem('refreshToken')
     
     // Dispatch custom event để notify các component khác
     window.dispatchEvent(new CustomEvent('authStateChanged', {
@@ -569,15 +598,18 @@ class AuthService {
    * Get auth header for manual requests
    */
   getAuthHeader(): string | null {
-    const token = localStorage.getItem('accessToken')
-    return token ? `Bearer ${token}` : null
+    const token = localStorage.getItem('access_token')
+    if (token) {
+      return `Bearer ${token}`
+    }
+    return null
   }
 
   /**
    * Check if user is authenticated
    */
   isAuthenticated(): boolean {
-    return !!localStorage.getItem('accessToken')
+    return !!localStorage.getItem('access_token')
   }
 
   /**

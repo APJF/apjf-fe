@@ -1,151 +1,146 @@
-import type { AxiosInstance, AxiosRequestConfig } from 'axios';
 import axios from 'axios';
-import authService, { refreshToken } from '../services/authService';
+import type { AxiosError, AxiosRequestConfig, AxiosInstance } from 'axios';
 
-interface CustomAxiosError {
-  config: AxiosRequestConfig & { _retry?: boolean };
-  response?: { status: number; data?: unknown; statusText?: string };
-  request?: unknown;
-  message?: string;
-}
+// Function to get the API base URL
+const getApiBaseUrl = (): string => {
+  // Using Vite's import.meta.env for environment variables
+  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+};
 
-const instance: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api',
+// Create a new Axios instance
+const api: AxiosInstance = axios.create({
+  baseURL: getApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-const isAxiosError = (error: unknown): error is CustomAxiosError => {
-  return typeof error === 'object' && error !== null && 'config' in error;
-};
-
-const shouldHandleTokenRefresh = (
-  config?: AxiosRequestConfig & { _retry?: boolean },
-  response?: { status?: number }
-): boolean => {
-  return (
-    config?.url !== '/auth/login' &&
-    config?.url !== '/auth/refresh-token' &&
-    response?.status === 401 &&
-    !config?._retry
-  );
-};
-
-const handleTokenRefresh = async (config: AxiosRequestConfig & { _retry?: boolean }) => {
-  const updatedConfig = { ...config, _retry: true };
-  const refreshResponse = await refreshToken();
-  
-  if (!refreshResponse.success) {
-    throw new Error(refreshResponse.message || 'Token refresh failed');
-  }
-  
-  return instance(updatedConfig);
-};
-
-const handleAuthError = (error: unknown) => {
-  console.error('Authentication error:', error);
-  authService.logout();
-  window.location.href = '/login';
-};
-
-instance.interceptors.request.use(
+// Request interceptor to add the auth token to headers
+api.interceptors.request.use(
   (config) => {
-    // Danh sách các endpoint không cần token
+    const token = localStorage.getItem('access_token');
     const publicEndpoints = [
-      '/auth/register',
       '/auth/login',
-      '/auth/verify',
-      '/auth/send-otp',
-      '/auth/reset-password',
+      '/auth/register',
       '/auth/refresh-token',
-      '/oauth2/'
+      '/auth/send-otp',
+      '/auth/verify',
+      '/auth/reset-password',
+      '/oauth2/',
     ];
 
-    // Kiểm tra xem URL hiện tại có phải là public endpoint không
-    const isPublicEndpoint = publicEndpoints.some(endpoint => 
-      config.url?.includes(endpoint)
-    );
+    const isPublicEndpoint = publicEndpoints.some(endpoint => config.url?.includes(endpoint));
 
-    if (!isPublicEndpoint) {
-      // Hỗ trợ cả hai key để tương thích với code cũ và mới
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('access_token');
-      if (token) {
-        config.headers['Authorization'] = `Bearer ${token}`;
+    if (token && !isPublicEndpoint) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    console.log('Request Interceptor:', {
+      url: config.url,
+      hasAuth: !!config.headers['Authorization'],
+    });
+
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Variable to prevent infinite refresh loops
+let isRefreshing = false;
+let failedQueue: { resolve: (value: unknown) => void; reject: (reason?: Error) => void; }[] = [];
+
+const processQueue = (error: Error | null, token: string | null = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// Response interceptor for handling token refresh
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  async (error: AxiosError) => {
+    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+        .then(token => {
+          if (originalRequest.headers) {
+            originalRequest.headers['Authorization'] = 'Bearer ' + token;
+          }
+          return api(originalRequest);
+        })
+        .catch(err => {
+          return Promise.reject(err);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (!refreshToken) {
+        console.error('DEBUG: No refresh token found in localStorage. Logging out.');
+        localStorage.clear();
+        window.location.href = '/login';
+        isRefreshing = false;
+        return Promise.reject(error);
+      }
+
+      try {
+        console.log(`DEBUG: Attempting to refresh token with value: "${refreshToken}"`);
+        const { data } = await axios.post(
+          `${getApiBaseUrl()}/auth/refresh-token`,
+          { refresh_token: refreshToken },
+          { headers: { 'Content-Type': 'application/json' } }
+        );
+
+        const newAccessToken = data.data.access_token;
+        localStorage.setItem('access_token', newAccessToken);
+        
+        if (data.data.refresh_token) {
+            localStorage.setItem('refresh_token', data.data.refresh_token);
+        }
+
+        console.log('Token refreshed successfully.');
+        
+        if (originalRequest.headers) {
+            originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+        }
+        
+        processQueue(null, newAccessToken);
+        return api(originalRequest);
+
+      } catch (refreshError) {
+        const err = refreshError as AxiosError;
+        console.error('DEBUG: Token refresh API call failed.', {
+            status: err.response?.status,
+            data: err.response?.data,
+            message: err.message,
+        });
+        processQueue(err, null);
+        localStorage.clear();
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+
+      } finally {
+        isRefreshing = false;
       }
     }
 
-    // Debug logging - sau khi thêm auth header
-    console.log('Request interceptor:', {
-      url: config.url,
-      isPublicEndpoint,
-      hasAuthHeader: !!config.headers['Authorization'],
-      tokenFound: !!(localStorage.getItem('accessToken') || localStorage.getItem('access_token'))
-    });
-    
-    return config;
-  },
-  (error: unknown) => {
-    if (error instanceof Error) {
-      return Promise.reject(error);
-    }
-    return Promise.reject(new Error('Request failed'));
+    return Promise.reject(error);
   }
 );
 
-const handleResponseError = async (err: unknown) => {
-  if (!isAxiosError(err)) {
-    console.error('Non-Axios error:', err);
-    return Promise.reject(err instanceof Error ? err : new Error('Unknown error occurred'));
-  }
-
-  const { config: originalConfig, response } = err;
-  
-  // Debug logging
-  console.error('API Error:', {
-    url: originalConfig?.url,
-    status: response?.status,
-    data: response?.data,
-    headers: originalConfig?.headers
-  });
-
-  // Nếu là lỗi từ auth endpoint, trả về lỗi nguyên gốc để component xử lý
-  if (originalConfig?.url?.includes('/auth/')) {
-    return Promise.reject(err instanceof Error ? err : new Error('Auth request failed'));
-  }
-
-  // Nếu lỗi 401 và không phải là retry
-  if (response?.status === 401 && !originalConfig?._retry) {
-    return handleUnauthorizedError(err, originalConfig);
-  }
-
-  return Promise.reject(err instanceof Error ? err : new Error('Request failed'));
-};
-
-const handleUnauthorizedError = async (err: CustomAxiosError, originalConfig?: AxiosRequestConfig & { _retry?: boolean }) => {
-  console.log('401 error detected, attempting token refresh...');
-  
-  if (!originalConfig || !shouldHandleTokenRefresh(originalConfig, err.response)) {
-    console.log('Cannot refresh token, redirecting to login...');
-    handleAuthError(err);
-    return Promise.reject(err instanceof Error ? err : new Error('Authentication failed'));
-  }
-
-  try {
-    console.log('Attempting to refresh token...');
-    return await handleTokenRefresh(originalConfig);
-  } catch (refreshError) {
-    console.error('Token refresh failed:', refreshError);
-    handleAuthError(refreshError);
-    return Promise.reject(refreshError instanceof Error ? refreshError : new Error('Authentication failed'));
-  }
-};
-
-instance.interceptors.response.use(
-  (res) => {
-    return res;
-  },
-  handleResponseError
-);
-
-export default instance;
+export default api;

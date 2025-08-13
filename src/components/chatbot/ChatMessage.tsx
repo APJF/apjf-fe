@@ -7,13 +7,13 @@ import { Textarea } from "../ui/Textarea"
 interface ChatMessageProps {
   message: Message
   isLastHumanMessage: boolean
-  editingMessageId: number | null
+  editingMessageId: string | null
   editingContent: string
   isLoading: boolean
   onEditContentChange: (content: string) => void
   onSaveEdit: () => void
   onCancelEdit: () => void
-  onEditMessage: (messageId: number, content: string) => void
+  onEditMessage: (messageId: string, content: string) => void
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = ({

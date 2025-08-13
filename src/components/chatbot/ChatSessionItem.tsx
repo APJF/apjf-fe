@@ -92,7 +92,7 @@ const ChatSessionItem: React.FC<ChatSessionItemProps> = ({
                   variant="ghost"
                   size="sm"
                   className={`transition-opacity h-7 w-7 p-0 ${isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(e: React.MouseEvent) => e.stopPropagation()}
                 >
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>

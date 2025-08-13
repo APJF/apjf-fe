@@ -1,83 +1,13 @@
 import axios from '../api/axios'
 
-export interface Course {
-  id: string
-  title: string
-  description: string | null
-  duration: number
-  level: string
-  image: string | null
-  requirement: string | null
-  status: 'INACTIVE' | 'ACTIVE'
-  prerequisiteCourseId: string | null
-  topics: any[]
-  exams: any[]
-  averageRating: number | null
-}
+import type { Course, CourseApiResponse as CoursesResponse, CreateCourseRequest, UpdateCourseRequest } from '@/types/course'
+import type { ApiResponse } from '@/types/api'
+import type { Topic } from '@/types/topic'
+import type { Exam } from '@/types/exam'
+import type { Chapter } from '@/types/chapter'
 
-export interface CoursesResponse {
-  content: Course[]
-  pageable: {
-    pageNumber: number
-    pageSize: number
-    sort: {
-      empty: boolean
-      sorted: boolean
-      unsorted: boolean
-    }
-    offset: number
-    paged: boolean
-    unpaged: boolean
-  }
-  last: boolean
-  totalElements: number
-  totalPages: number
-  size: number
-  number: number
-  sort: {
-    empty: boolean
-    sorted: boolean
-    unsorted: boolean
-  }
-  first: boolean
-  numberOfElements: number
-  empty: boolean
-}
-
-export interface CreateCourseRequest {
-  id: string
-  title: string
-  description: string
-  duration: number
-  level: string
-  image: string
-  requirement: string
-  status: 'INACTIVE' | 'ACTIVE'
-  prerequisiteCourseId: string
-  topicIds: string[]
-  examIds: string[]
-}
-
-export interface UpdateCourseRequest {
-  id: string
-  title: string
-  description: string
-  duration: number
-  level: string
-  image: string
-  requirement: string
-  status: 'INACTIVE' | 'ACTIVE'
-  prerequisiteCourseId: string
-  topicIds: string[]
-  examIds: string[]
-}
-
-interface ApiResponse<T> {
-  success: boolean
-  message: string
-  data: T
-  timestamp: number
-}
+// Re-export types for easier import
+export type { Course, CreateCourseRequest, UpdateCourseRequest } from '@/types/course'
 
 // Helper function để lấy headers với token
 const getAuthHeaders = () => {
@@ -87,6 +17,22 @@ const getAuthHeaders = () => {
     'Content-Type': 'application/json'
   } : {
     'Content-Type': 'application/json'
+  }
+}
+
+// Helper function để extract image filename từ URL
+const extractImageFilename = (imageUrl: string | null): string => {
+  if (!imageUrl) return ''
+  
+  try {
+    // Extract filename từ URL như: http://localhost:9000/course-image/course_image_6ddd7d93-785a-4307-949e-81d1c184c0ca?...
+    const urlParts = imageUrl.split('/')
+    const lastPart = urlParts[urlParts.length - 1]
+    const filename = lastPart.split('?')[0] // Remove query parameters
+    return filename
+  } catch (error) {
+    console.error('Error extracting image filename:', error)
+    return ''
   }
 }
 
@@ -100,6 +46,19 @@ export const StaffCourseService = {
       return response.data
     } catch (error) {
       console.error('Error fetching courses:', error)
+      throw error
+    }
+  },
+
+  // Lấy danh sách tất cả khóa học không phân trang (cho dropdown)
+  getAllCoursesForSelection: async (): Promise<ApiResponse<Course[]>> => {
+    try {
+      const response = await axios.get('/courses', {
+        headers: getAuthHeaders()
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error fetching all courses for selection:', error)
       throw error
     }
   },
@@ -118,7 +77,7 @@ export const StaffCourseService = {
   },
 
   // Lấy thông tin khóa học với danh sách chương
-  getCourseWithChapters: async (courseId: string): Promise<ApiResponse<Course & { chapters: any[] }>> => {
+  getCourseWithChapters: async (courseId: string): Promise<ApiResponse<Course & { chapters: Chapter[] }>> => {
     try {
       // Lấy thông tin course
       const courseResponse = await axios.get(`/courses/${courseId}`, {
@@ -171,7 +130,7 @@ export const StaffCourseService = {
       
       // Log response details for debugging
       if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { status: number, data?: any, headers?: any } }
+        const axiosError = error as { response?: { status: number, data?: unknown, headers?: unknown } }
         console.error('📥 Response error details:', {
           status: axiosError.response?.status,
           data: axiosError.response?.data,
@@ -192,6 +151,100 @@ export const StaffCourseService = {
       return response.data
     } catch (error) {
       console.error('Error updating course:', error)
+      throw error
+    }
+  },
+
+  // Deactivate khóa học (chuyển status về INACTIVE bằng cách update)
+  deactivateCourse: async (courseId: string): Promise<ApiResponse<Course>> => {
+    try {
+      // Lấy thông tin khóa học hiện tại
+      const currentCourseResponse = await axios.get(`/courses/${courseId}`, {
+        headers: getAuthHeaders()
+      })
+      
+      if (!currentCourseResponse.data.success) {
+        throw new Error('Failed to get current course data')
+      }
+      
+      const currentCourse = currentCourseResponse.data.data
+      
+      // Chuẩn bị data để update, giữ nguyên tất cả giá trị cũ nhưng đổi status thành INACTIVE
+      const updateData: UpdateCourseRequest = {
+        id: currentCourse.id,
+        title: currentCourse.title,
+        description: currentCourse.description ?? '',
+        duration: currentCourse.duration,
+        level: currentCourse.level,
+        image: extractImageFilename(currentCourse.image), // Extract filename từ URL
+        requirement: currentCourse.requirement ?? '',
+        status: 'INACTIVE', // Chỉ thay đổi status
+        prerequisiteCourseId: currentCourse.prerequisiteCourseId,
+        topicIds: currentCourse.topics?.map((topic: Topic) => topic.id.toString()) || [],
+        examIds: currentCourse.exams?.map((exam: Exam) => exam.id) || []
+      }
+      
+      console.log('🔧 Deactivating course with data:', {
+        originalImage: currentCourse.image,
+        extractedImage: extractImageFilename(currentCourse.image),
+        updateData
+      })
+      
+      // Gọi API update
+      const response = await axios.put(`/courses/${courseId}`, updateData, {
+        headers: getAuthHeaders()
+      })
+      
+      return response.data
+    } catch (error) {
+      console.error('Error deactivating course:', error)
+      throw error
+    }
+  },
+
+  // Activate khóa học (chuyển status về ACTIVE bằng cách update)
+  activateCourse: async (courseId: string): Promise<ApiResponse<Course>> => {
+    try {
+      // Lấy thông tin khóa học hiện tại
+      const currentCourseResponse = await axios.get(`/courses/${courseId}`, {
+        headers: getAuthHeaders()
+      })
+      
+      if (!currentCourseResponse.data.success) {
+        throw new Error('Failed to get current course data')
+      }
+      
+      const currentCourse = currentCourseResponse.data.data
+      
+      // Chuẩn bị data để update, giữ nguyên tất cả giá trị cũ nhưng đổi status thành ACTIVE
+      const updateData: UpdateCourseRequest = {
+        id: currentCourse.id,
+        title: currentCourse.title,
+        description: currentCourse.description ?? '',
+        duration: currentCourse.duration,
+        level: currentCourse.level,
+        image: extractImageFilename(currentCourse.image), // Extract filename từ URL
+        requirement: currentCourse.requirement ?? '',
+        status: 'ACTIVE', // Chỉ thay đổi status
+        prerequisiteCourseId: currentCourse.prerequisiteCourseId,
+        topicIds: currentCourse.topics?.map((topic: Topic) => topic.id.toString()) || [],
+        examIds: currentCourse.exams?.map((exam: Exam) => exam.id) || []
+      }
+      
+      console.log('🔧 Activating course with data:', {
+        originalImage: currentCourse.image,
+        extractedImage: extractImageFilename(currentCourse.image),
+        updateData
+      })
+      
+      // Gọi API update
+      const response = await axios.put(`/courses/${courseId}`, updateData, {
+        headers: getAuthHeaders()
+      })
+      
+      return response.data
+    } catch (error) {
+      console.error('Error activating course:', error)
       throw error
     }
   }

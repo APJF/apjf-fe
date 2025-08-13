@@ -11,42 +11,11 @@ const getAuthHeaders = () => {
   }
 }
 
-export interface Chapter {
-  id: string
-  title: string
-  description: string | null
-  status: 'ACTIVE' | 'INACTIVE'
-  courseId: string
-  prerequisiteChapterId: string | null
-  exams: any[]
-}
+import type { Chapter, CreateChapterRequest, UpdateChapterRequest } from '@/types/chapter'
+import type { ApiResponse } from '@/types/api'
 
-export interface CreateChapterRequest {
-  id: string
-  title: string
-  description: string
-  status: 'ACTIVE' | 'INACTIVE'
-  courseId: string
-  prerequisiteChapterId: string
-  exams: any[]
-}
-
-export interface UpdateChapterRequest {
-  id: string
-  title: string
-  description: string
-  status: 'ACTIVE' | 'INACTIVE'
-  courseId: string
-  prerequisiteChapterId: string
-  exams: any[]
-}
-
-interface ApiResponse<T> {
-  success: boolean
-  message: string
-  data: T
-  timestamp: number
-}
+// Re-export types for easier import
+export type { Chapter, CreateChapterRequest, UpdateChapterRequest } from '@/types/chapter'
 
 export const StaffChapterService = {
   // Lấy danh sách chương theo courseId
@@ -58,6 +27,19 @@ export const StaffChapterService = {
       return response.data
     } catch (error) {
       console.error('Error fetching chapters by course:', error)
+      throw error
+    }
+  },
+
+  // Lấy tất cả chương trong course (cho dropdown prerequisite)
+  getAllChaptersByCourse: async (courseId: string): Promise<ApiResponse<Chapter[]>> => {
+    try {
+      const response = await axios.get(`/chapters/course/${courseId}`, {
+        headers: getAuthHeaders()
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error fetching all chapters by course:', error)
       throw error
     }
   },
@@ -97,6 +79,19 @@ export const StaffChapterService = {
       return response.data
     } catch (error) {
       console.error('Error updating chapter:', error)
+      throw error
+    }
+  },
+
+  // Deactivate chương (chuyển status về INACTIVE)
+  deactivateChapter: async (chapterId: string): Promise<ApiResponse<Chapter>> => {
+    try {
+      const response = await axios.patch(`/chapters/${chapterId}/deactivate`, {}, {
+        headers: getAuthHeaders()
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error deactivating chapter:', error)
       throw error
     }
   },

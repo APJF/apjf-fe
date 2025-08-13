@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, LogOut, Settings, BookOpen, ChevronDown, History, Shield, Users } from 'lucide-react';
+import { User, LogOut, Settings, BookOpen, ChevronDown, History, Shield, Users, Crown } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { getAvatarText } from '../../utils/avatarUtils';
+import { getAvatarText } from '../../lib/utils';
 
 export const AuthSection: React.FC = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -12,32 +12,44 @@ export const AuthSection: React.FC = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
+  // Function để check Staff role - sử dụng authorities từ user profile
+  const hasStaffRole = useCallback(() => {
+    if (!user?.roles) return false;
+    return user.roles.some(role => 
+      role && ['ROLE_STAFF', 'ROLE_ADMIN'].includes(role)
+    );
+  }, [user?.roles]);
+
+  // Function để check Manager role
+  const hasManagerRole = useCallback(() => {
+    if (!user?.roles) return false;
+    return user.roles.some(role => 
+      role && ['ROLE_MANAGER', 'ROLE_ADMIN'].includes(role)
+    );
+  }, [user?.roles]);
+
+  // Function để check Admin role
+  const hasAdminRole = useCallback(() => {
+    if (!user?.roles) return false;
+    return user.roles.some(role => 
+      role && role === 'ROLE_ADMIN'
+    );
+  }, [user?.roles]);
+
   // Debug log để kiểm tra user data và reset avatar error khi user thay đổi
   useEffect(() => {
     // Reset avatar error states when user changes
     setAvatarError(false);
     setDropdownAvatarError(false);
     
-    // Only log on significant changes or errors
-    if (!user && localStorage.getItem('userInfo')) {
-      console.log('AuthSection: User is null but localStorage has data');
+    if (user) {
+      console.log('AuthSection: User roles:', user.roles);
+      console.log('AuthSection: User authorities:', user.authorities);
+      console.log('AuthSection: hasStaffRole:', hasStaffRole());
+      console.log('AuthSection: hasManagerRole:', hasManagerRole());
+      console.log('AuthSection: hasAdminRole:', hasAdminRole());
     }
-    if (user?.avatar) {
-      console.log('AuthSection: User avatar URL:', user.avatar);
-    }
-  }, [user]); // Track user changes including avatar
-
-  // Function để check Staff role
-  const hasStaffRole = () => {
-    if (!user?.roles) return false;
-    return user.roles.some(role => role && ['ROLE_STAFF', 'ROLE_ADMIN'].includes(role));
-  };
-
-  // Function để check Manager role
-  const hasManagerRole = () => {
-    if (!user?.roles) return false;
-    return user.roles.some(role => role && ['ROLE_MANAGER', 'ROLE_ADMIN'].includes(role));
-  };
+  }, [user, hasStaffRole, hasManagerRole, hasAdminRole]); // Track user changes including avatar
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -187,6 +199,18 @@ export const AuthSection: React.FC = () => {
                 >
                   <Users className="w-4 h-4" />
                   Manager Dashboard
+                </Link>
+              )}
+
+              {/* Admin Dashboard Link - chỉ hiển thị cho ROLE_ADMIN */}
+              {hasAdminRole() && (
+                <Link
+                  to="/admin/dashboard"
+                  className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+                  onClick={() => setIsDropdownOpen(false)}
+                >
+                  <Crown className="w-4 h-4" />
+                  Admin Dashboard
                 </Link>
               )}
 
