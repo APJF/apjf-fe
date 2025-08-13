@@ -6,7 +6,7 @@ export interface FloatingMessage {
 }
 
 export interface FloatingChatSession {
-  id: string;
+  id: number;
   name: string;
   lastMessage: string;
   timestamp: Date;
@@ -21,4 +21,4 @@ export interface AIFunction {
   description: string;
 }
 
-export type AISessionType = 'qna' | 'planner' | 'speaking' | 'reviewer' | 'learning';
+export type AISessionType = 'qna' | 'planner' | 'reviewer' | 'learning';

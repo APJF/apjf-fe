@@ -2,74 +2,92 @@ import axios from 'axios';
 import { refreshToken } from './authService';
 
 const aiInstance = axios.create({
-  baseURL: 'http://localhost:8090',
+  baseURL: 'http://localhost:8000',
 });
 
 aiInstance.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token');
+    console.log('🔑 Token for AI request:', token ? `${token.substring(0, 20)}...` : 'No token');
     if (token) {
       config.headers['Authorization'] = 'Bearer ' + token;
     }
+    console.log('🌐 Request URL:', (config.baseURL || '') + (config.url || ''));
+    console.log('📦 Request data:', config.data);
     return config;
   },
   (error: unknown) => {
+    console.error('❌ Request interceptor error:', error);
     return Promise.reject(new Error(error instanceof Error ? error.message : 'Request failed'));
   }
 );
 
 aiInstance.interceptors.response.use(
-  (res) => {
-    return res;
-  },
-  async (err) => {
-    const originalConfig = err.config;
-
-    if (err.response) {
-      // Access Token was expired
-      if (err.response.status === 401 && !originalConfig._retry) {
-        originalConfig._retry = true;
-
-        try {
-          await refreshToken();
-          return aiInstance(originalConfig);
-        } catch (_error: unknown) {
-          return Promise.reject(new Error(_error instanceof Error ? _error.message : 'Token refresh failed'));
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      try {
+        await refreshToken();
+        const newToken = localStorage.getItem('access_token');
+        if (newToken) {
+          originalRequest.headers['Authorization'] = 'Bearer ' + newToken;
+          return aiInstance(originalRequest);
         }
+      } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError);
+        // Redirect to login or handle as needed
+        window.location.href = '/login';
       }
     }
-
-    return Promise.reject(new Error(err instanceof Error ? err.message : 'Response failed'));
+    return Promise.reject(new Error(error instanceof Error ? error.message : 'Unknown error'));
   }
 );
 
 // Types for new chatbot API
+export type SessionType = 'qna' | 'planner' | 'reviewer' | 'learning';
+
 export interface ChatSession {
-  id: string;
-  name: string;
-  session_type: 'qna' | 'planner' | 'speaking' | 'reviewer' | 'learning';
-  user_id: string;
-  created_at: string;
+  id: number;
+  session_name: string;
   updated_at: string;
-  last_message?: string;
+}
+
+export interface SessionsResponse {
+  user_id: string;
+  sessions: ChatSession[];
 }
 
 export interface CreateSessionRequest {
   user_id: string;
-  session_type: 'qna' | 'planner' | 'speaking' | 'reviewer' | 'learning';
+  session_type: SessionType;
   first_message: string;
-  context?: Record<string, any>;
+  context?: {
+    exam_result_id?: number;
+  };
 }
 
-export interface UpdateSessionRequest {
-  name?: string;
-  session_type?: 'qna' | 'planner' | 'speaking' | 'reviewer' | 'learning';
-  context?: Record<string, any>;
+export interface CreateSessionResponse {
+  session_id: number;
+  session_name: string;
+  ai_first_response: string;
+}
+
+export interface SendMessageRequest {
+  session_id: number;
+  user_input: string;
+}
+
+export interface SendMessageResponse {
+  session_id: number;
+  human_message_id: number;
+  ai_message_id: number;
+  ai_response: string;
 }
 
 export interface ChatMessage {
   id: string;
-  session_id: string;
   content: string;
   role: 'user' | 'assistant';
   timestamp: string;
@@ -92,45 +110,43 @@ export function getCurrentUserId(): string {
   }
 }
 
+/**
+ * Utility function để lấy exam_result_id cho context của reviewer AI
+ */
+export function getExamResultId(): number | undefined {
+  try {
+    // Có thể lấy từ URL params hoặc từ state navigation
+    const urlParams = new URLSearchParams(window.location.search);
+    const examResultId = urlParams.get('exam_result_id');
+    return examResultId ? parseInt(examResultId, 10) : undefined;
+  } catch (error) {
+    console.error('Error getting exam result ID:', error);
+    return undefined;
+  }
+}
+
 export const chatbotService = {
-  // Legacy methods (keep for backward compatibility)
-  invokeStateless: async (userInput: string) => {
-    const response = await aiInstance.post('/chat/invoke/stateless', { user_input: userInput });
-    return response.data;
-  },
-
-  invoke: async (sessionId: string, userInput: string) => {
-    const response = await aiInstance.post('/chat/invoke', { session_id: sessionId, user_input: userInput });
-    return response.data;
-  },
-
-  editAndResubmit: async (sessionId: string, correctedInput: string) => {
-    const response = await aiInstance.post('/chat/edit_and_resubmit', { session_id: sessionId, corrected_input: correctedInput });
-    return response.data;
-  },
-
-  getSessionHistory: async (sessionId: string) => {
-    const response = await aiInstance.get(`/sessions/${sessionId}/history`);
-    return response.data;
-  },
-
-  // New API methods
   /**
    * Tạo phiên chat mới với tin nhắn đầu tiên
    * POST /api/sessions
    */
-  createSession: async (request: CreateSessionRequest): Promise<ChatSession> => {
+  createSession: async (request: CreateSessionRequest): Promise<CreateSessionResponse> => {
     try {
       console.log('🔍 Creating new chat session:', request);
-      const response = await aiInstance.post('/api/sessions', request);
+      console.log('📋 EXACT JSON BEING SENT TO API:');
+      console.log('==================================');
+      console.log(JSON.stringify(request, null, 2));
+      console.log('==================================');
+      
+      const response = await aiInstance.post('/api/sessions/', request);
       console.log('✅ Session created:', response.data);
+      console.log('📝 AI Response breakdown:');
+      console.log('- session_id:', response.data.session_id, typeof response.data.session_id);
+      console.log('- session_name:', response.data.session_name, typeof response.data.session_name);
+      console.log('- ai_first_response length:', response.data.ai_first_response?.length || 0);
+      console.log('- ai_first_response preview:', response.data.ai_first_response?.substring(0, 100) + '...');
       
-      // Check if response has the expected structure {success: true, data: {...}}
-      if (response.data?.success && response.data?.data) {
-        return response.data.data;
-      }
-      
-      // Fallback to direct data if not wrapped
+      // Return direct response data (expecting 200 OK with the response format)
       return response.data;
     } catch (error) {
       console.error('❌ Error creating session:', error);
@@ -140,91 +156,38 @@ export const chatbotService = {
 
   /**
    * Lấy danh sách phiên chat theo user ID
-   * GET /api/sessions?user_id=
+   * GET /api/sessions?user_id=xxx
    */
-  getSessions: async (userId?: string): Promise<ChatSession[]> => {
+  getSessions: async (userId: string): Promise<ChatSession[]> => {
     try {
-      const userIdToUse = userId || getCurrentUserId();
-      console.log('🔍 Fetching sessions for user:', userIdToUse);
-      const response = await aiInstance.get(`/api/sessions?user_id=${userIdToUse}`);
-      console.log('✅ Sessions fetched:', response.data);
+      console.log('🔍 Loading sessions for user:', userId);
+      const response = await aiInstance.get(`/api/sessions/?user_id=${userId}`);
+      console.log('✅ Sessions loaded:', response.data);
       
-      // Check if response has the expected structure {success: true, data: [...]}
-      if (response.data?.success && response.data?.data) {
-        return response.data.data;
+      // Handle response format: { user_id: string, sessions: ChatSession[] }
+      if (response.data?.sessions) {
+        return response.data.sessions;
       }
       
       // Fallback to direct data if not wrapped
-      return Array.isArray(response.data) ? response.data : [];
+      return response.data || [];
     } catch (error) {
-      console.error('❌ Error fetching sessions:', error);
+      console.error('❌ Error loading sessions:', error);
       throw error;
     }
   },
 
   /**
-   * Cập nhật thông tin phiên chat (rename, change type, etc.)
-   * PUT/PATCH /api/sessions/{id}
+   * Gửi tin nhắn tiếp theo trong phiên chat
+   * POST /api/messages
    */
-  updateSession: async (sessionId: string, request: UpdateSessionRequest): Promise<ChatSession> => {
+  sendMessage: async (request: SendMessageRequest): Promise<SendMessageResponse> => {
     try {
-      console.log('🔍 Updating session:', sessionId, request);
-      const response = await aiInstance.put(`/api/sessions/${sessionId}`, request);
-      console.log('✅ Session updated:', response.data);
-      
-      // Check if response has the expected structure {success: true, data: {...}}
-      if (response.data?.success && response.data?.data) {
-        return response.data.data;
-      }
-      
-      // Fallback to direct data if not wrapped
-      return response.data;
-    } catch (error) {
-      console.error('❌ Error updating session:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Xóa phiên chat
-   * DELETE /api/sessions/{id}
-   */
-  deleteSession: async (sessionId: string): Promise<void> => {
-    try {
-      console.log('🔍 Deleting session:', sessionId);
-      await aiInstance.delete(`/api/sessions/${sessionId}`);
-      console.log('✅ Session deleted');
-    } catch (error) {
-      console.error('❌ Error deleting session:', error);
-      throw error;
-    }
-  },
-
-  /**
-   * Rename session (wrapper cho updateSession)
-   */
-  renameSession: async (sessionId: string, newName: string): Promise<ChatSession> => {
-    return chatbotService.updateSession(sessionId, { name: newName });
-  },
-
-  /**
-   * Gửi tin nhắn trong phiên chat
-   * POST /api/sessions/{id}/messages
-   */
-  sendMessage: async (sessionId: string, message: string): Promise<ChatMessage> => {
-    try {
-      console.log('🔍 Sending message to session:', sessionId, message);
-      const response = await aiInstance.post(`/api/sessions/${sessionId}/messages`, {
-        content: message
-      });
+      console.log('🔍 Sending message:', request);
+      const response = await aiInstance.post('/api/messages/', request);
       console.log('✅ Message sent:', response.data);
       
-      // Check if response has the expected structure {success: true, data: {...}}
-      if (response.data?.success && response.data?.data) {
-        return response.data.data;
-      }
-      
-      // Fallback to direct data if not wrapped
+      // Return direct response data (expecting 200 OK with the response format)
       return response.data;
     } catch (error) {
       console.error('❌ Error sending message:', error);
@@ -233,25 +196,19 @@ export const chatbotService = {
   },
 
   /**
-   * Lấy tin nhắn trong phiên chat
-   * GET /api/sessions/{id}/messages
+   * Temporary compatibility methods (to be removed later)
    */
-  getMessages: async (sessionId: string): Promise<ChatMessage[]> => {
-    try {
-      console.log('🔍 Fetching messages for session:', sessionId);
-      const response = await aiInstance.get(`/api/sessions/${sessionId}/messages`);
-      console.log('✅ Messages fetched:', response.data);
-      
-      // Check if response has the expected structure {success: true, data: [...]}
-      if (response.data?.success && response.data?.data) {
-        return response.data.data;
-      }
-      
-      // Fallback to direct data if not wrapped
-      return Array.isArray(response.data) ? response.data : [];
-    } catch (error) {
-      console.error('❌ Error fetching messages:', error);
-      throw error;
-    }
+  getMessages: async (_sessionId: string): Promise<ChatMessage[]> => {
+    // Placeholder - return empty for now since we handle messages in real-time
+    return [];
   },
+
+  renameSession: async (sessionId: string, newName: string): Promise<ChatSession> => {
+    // Placeholder - return dummy session for now
+    return {
+      id: parseInt(sessionId),
+      session_name: newName,
+      updated_at: new Date().toISOString()
+    };
+  }
 };

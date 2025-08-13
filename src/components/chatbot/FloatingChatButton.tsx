@@ -10,76 +10,102 @@ interface FloatingChatButtonProps {
 
 // Updated AI session types
 const AI_SESSION_TYPES: Array<{ id: AISessionType; name: string; description: string }> = [
-  { id: 'qna', name: 'Q&A Trợ lý', description: 'Trả lời câu hỏi chung' },
-  { id: 'planner', name: 'Lập kế hoạch', description: 'Hỗ trợ lập kế hoạch học tập' },
-  { id: 'speaking', name: 'Luyện nói', description: 'Thực hành giao tiếp tiếng Nhật' },
-  { id: 'reviewer', name: 'Ôn tập', description: 'Hỗ trợ ôn tập kiến thức' },
-  { id: 'learning', name: 'Học tập', description: 'Hướng dẫn học tập' }
+  { id: 'qna', name: 'Trợ lý', description: 'Trả lời câu hỏi chung' },
+  { id: 'planner', name: 'Lộ trình học', description: 'Hỗ trợ lập kế hoạch học tập' },
+  { id: 'reviewer', name: 'Đánh giá', description: 'Hỗ trợ ôn tập kiến thức' },
+  { id: 'learning', name: 'Hướng dẫn học tập', description: 'Hướng dẫn học tập' }
 ];
 
 export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatButtonProps>) {
   const [sessions, setSessions] = useState<FloatingChatSession[]>([]);
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
   const [currentSessionType, setCurrentSessionType] = useState<AISessionType>('qna');
   const [input, setInput] = useState('');
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
   const [showSessionTypeDropdown, setShowSessionTypeDropdown] = useState(false);
   const [isSessionsPanelCollapsed, setIsSessionsPanelCollapsed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [isCreatingNewSession, setIsCreatingNewSession] = useState(false);
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
   const currentUserId = getCurrentUserId();
 
+  // Helper function to get session type label
+  const getSessionTypeLabel = (sessionType: AISessionType): string => {
+    switch (sessionType) {
+      case 'qna': return 'Trợ lý';
+      case 'planner': return 'Lộ trình học';
+      case 'reviewer': return 'Đánh giá';
+      case 'learning': return 'Hướng dẫn học tập';
+      default: return 'Trợ lý';
+    }
+  };
+
   // Convert API ChatSession to FloatingChatSession
   const convertToFloatingSession = (apiSession: ChatSession): FloatingChatSession => ({
     id: apiSession.id,
-    name: apiSession.name || 'Phiên chat mới',
-    lastMessage: apiSession.last_message || 'Phiên chat mới được tạo',
-    timestamp: new Date(apiSession.updated_at || apiSession.created_at),
-    sessionType: apiSession.session_type,
+    name: apiSession.session_name,
+    lastMessage: 'Phiên chat đã tạo',
+    timestamp: new Date(apiSession.updated_at),
+    sessionType: 'qna', // Default, since API doesn't return session_type in list
     messages: [], // Will be loaded separately when needed
     isTemporary: false
   });
 
-  const loadSessionMessages = useCallback(async (sessionId: string) => {
+  const loadSessionMessages = useCallback(async (sessionId: number) => {
+    console.log('🔄 loadSessionMessages called for session:', sessionId);
     try {
-      const messages = await chatbotService.getMessages(sessionId);
+      console.log('📞 Calling getMessages API...');
+      const messages = await chatbotService.getMessages(sessionId.toString());
+      console.log('✅ Got messages from API:', messages);
+      
       const floatingMessages: FloatingMessage[] = messages.map(msg => ({
         id: msg.id,
         content: msg.content,
         role: msg.role,
         timestamp: new Date(msg.timestamp)
       }));
+      console.log('🔄 Converted to floating messages:', floatingMessages);
 
-      setSessions(prev => prev.map(s => 
-        s.id === sessionId ? { ...s, messages: floatingMessages } : s
-      ));
+      setSessions(prev => {
+        console.log('Previous sessions before update:', prev);
+        const updated = prev.map(s => 
+          s.id === sessionId ? { ...s, messages: floatingMessages } : s
+        );
+        console.log('Updated sessions after adding messages:', updated);
+        return updated;
+      });
     } catch (error) {
-      console.error('Error loading session messages:', error);
+      console.error('❌ Error loading session messages:', error);
     }
   }, []);
 
   const loadSessions = useCallback(async () => {
+    console.log('🔄 loadSessions called');
     try {
       setIsLoading(true);
+      console.log('📞 Calling getSessions API with user ID:', currentUserId);
       const apiSessions = await chatbotService.getSessions(currentUserId);
+      console.log('✅ Got sessions from API:', apiSessions);
+      
       const floatingSessions = apiSessions.map(convertToFloatingSession);
+      console.log('🔄 Converted to floating sessions:', floatingSessions);
       setSessions(floatingSessions);
       
-      // Set active session to the first one if no active session
-      if (!activeSessionId && floatingSessions.length > 0) {
+      // Set active session to the first one if no active session AND not creating new session
+      if (!activeSessionId && !isCreatingNewSession && floatingSessions.length > 0) {
+        console.log('🎯 Setting first session as active:', floatingSessions[0].id);
         setActiveSessionId(floatingSessions[0].id);
         loadSessionMessages(floatingSessions[0].id);
       }
     } catch (error) {
-      console.error('Error loading sessions:', error);
+      console.error('❌ Error loading sessions:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [currentUserId, activeSessionId, loadSessionMessages]);
+  }, [currentUserId, activeSessionId, isCreatingNewSession, loadSessionMessages]);
 
   // Load sessions when component mounts
   useEffect(() => {
@@ -93,65 +119,42 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
   };
 
   const handleCreateNewSession = () => {
-    // Create a temporary session immediately (like ChatGPT behavior)
-    const tempSession: FloatingChatSession = {
-      id: `temp_${Date.now()}`,
-      name: 'Phiên chat mới',
-      lastMessage: 'Bắt đầu cuộc trò chuyện...',
-      timestamp: new Date(),
-      sessionType: currentSessionType,
-      messages: [],
-      isTemporary: true
-    };
+    console.log('🆕 handleCreateNewSession called');
+    console.log('Previous activeSessionId:', activeSessionId);
     
-    setSessions([tempSession, ...sessions]);
-    setActiveSessionId(tempSession.id);
-    setIsCreatingSession(true);
+    // Reset chat interface to blank state
+    setActiveSessionId(null);
+    setInput('');
+    setIsCreatingNewSession(true);
+    console.log('✅ Reset to blank state - activeSessionId: null, input: "", isCreatingNewSession: true');
+    
+    // Don't add any session to the list yet - wait for first message
   };
 
-  const handleDeleteSession = async (sessionId: string) => {
+  const handleDeleteSession = async (sessionId: number) => {
     try {
-      const sessionToDelete = sessions.find(s => s.id === sessionId);
-      
-      // If it's a temporary session, just remove from state
-      if (sessionToDelete?.isTemporary) {
-        const updatedSessions = sessions.filter(s => s.id !== sessionId);
-        setSessions(updatedSessions);
-        
-        if (activeSessionId === sessionId && updatedSessions.length > 0) {
-          setActiveSessionId(updatedSessions[0].id);
-        }
-        return;
-      }
-
-      // Delete from API if it's a real session
-      await chatbotService.deleteSession(sessionId);
+      // Remove from state immediately 
       const updatedSessions = sessions.filter(s => s.id !== sessionId);
       setSessions(updatedSessions);
       
       if (activeSessionId === sessionId && updatedSessions.length > 0) {
         setActiveSessionId(updatedSessions[0].id);
-        loadSessionMessages(updatedSessions[0].id);
+      } else if (activeSessionId === sessionId) {
+        setActiveSessionId(null);
       }
+      
+      // Note: We don't have delete API endpoint yet, so just remove from state
     } catch (error) {
       console.error('Error deleting session:', error);
     }
   };
 
-  const handleRenameSession = async (sessionId: string, newName: string) => {
+  const handleRenameSession = async (sessionId: number, newName: string) => {
     try {
-      const sessionToUpdate = sessions.find(s => s.id === sessionId);
+      // Update the session name via API
+      await chatbotService.renameSession(sessionId.toString(), newName);
       
-      // If it's a temporary session, just update in state
-      if (sessionToUpdate?.isTemporary) {
-        setSessions(sessions.map(s => 
-          s.id === sessionId ? { ...s, name: newName } : s
-        ));
-        return;
-      }
-
-      // Update via API if it's a real session
-      await chatbotService.renameSession(sessionId, newName);
+      // Update local state
       setSessions(sessions.map(s => 
         s.id === sessionId ? { ...s, name: newName } : s
       ));
@@ -161,94 +164,203 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
   };
 
   const handleSessionTypeChange = (sessionType: AISessionType) => {
+    console.log('🔄 handleSessionTypeChange called');
+    console.log('Previous session type:', currentSessionType);
+    console.log('New session type:', sessionType);
+    console.log('Active session:', activeSession);
+    
     setCurrentSessionType(sessionType);
+    
+    console.log('✅ Session type updated to:', sessionType);
+    if (sessionType === 'reviewer') {
+      console.log('🏥 REVIEWER AI SELECTED - Will include exam_result_id in context');
+    }
     
     // If there's an active temporary session, update its type
     if (activeSession?.isTemporary) {
+      console.log('🔄 Updating temporary session type');
       setSessions(sessions.map(s => 
         s.id === activeSessionId ? { ...s, sessionType } : s
       ));
     }
     
     setShowSessionTypeDropdown(false);
+    console.log('✅ Session type changed and dropdown closed');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || !activeSession) return;
+    
+    console.log('=== handleSubmit called ===');
+    console.log('Input:', input);
+    console.log('Input trimmed:', input.trim());
+    console.log('ActiveSessionId:', activeSessionId);
+    console.log('CurrentSessionType:', currentSessionType);
+    console.log('Current URL:', window.location.href);
+    
+    if (!input.trim()) {
+      console.log('❌ Input is empty, returning');
+      return;
+    }
 
-    const userMessage: FloatingMessage = {
-      id: Date.now().toString(),
-      content: input.trim(),
-      role: 'user',
-      timestamp: new Date()
-    };
+    setIsLoading(true);
+    console.log('🔄 Setting loading to true');
 
     try {
-      // If this is a temporary session, create it on the server first
-      if (activeSession.isTemporary && isCreatingSession) {
-        console.log('Creating new session with first message...');
+      // If no active session OR creating new session, create new session with first message
+      if (!activeSessionId || isCreatingNewSession) {
+        console.log('🆕 Creating new session with first message...');
+        console.log('🔍 Conditions - activeSessionId:', activeSessionId, 'isCreatingNewSession:', isCreatingNewSession);
         
-        const newSession = await chatbotService.createSession({
+        // Build context for reviewer AI type
+        const context: Record<string, number | string> = {};
+        
+        // Check if we're on exam result review page
+        const currentPath = window.location.pathname;
+        console.log('Current path:', currentPath);
+        
+        if (currentSessionType === 'reviewer') {
+          console.log('🔍 Reviewer AI type selected, checking for exam_result_id...');
+          
+          // Try to extract exam_result_id from URL path like /exam-result/114/review
+          const examResultRegex = /\/exam-result\/(\d+)/;
+          const examResultMatch = examResultRegex.exec(currentPath);
+          if (examResultMatch) {
+            const examResultId = parseInt(examResultMatch[1]);
+            context.exam_result_id = examResultId;
+            console.log('✅ Found exam_result_id from URL:', examResultId);
+          } else {
+            console.log('⚠️ Reviewer AI selected but no exam_result_id found in URL');
+          }
+        }
+        
+        console.log('Context to send:', context);
+        console.log('User ID:', currentUserId);
+
+        const createSessionRequest = {
           user_id: currentUserId,
           session_type: currentSessionType,
           first_message: input.trim(),
-          context: {}
-        });
+          context
+        };
+        
+        console.log('� EXACT REQUEST TO BE SENT:');
+        console.log('==================================');
+        console.log(JSON.stringify(createSessionRequest, null, 2));
+        console.log('==================================');
+        console.log('🔍 Request details breakdown:');
+        console.log('- user_id:', createSessionRequest.user_id, typeof createSessionRequest.user_id);
+        console.log('- session_type:', createSessionRequest.session_type, typeof createSessionRequest.session_type);
+        console.log('- first_message:', createSessionRequest.first_message, typeof createSessionRequest.first_message);
+        console.log('- context:', createSessionRequest.context, typeof createSessionRequest.context);
+        console.log('==================================');
+        
+        console.log('�🚀 Sending createSession request:', createSessionRequest);
+        const newSession = await chatbotService.createSession(createSessionRequest);
+        console.log('✅ Session created successfully:', newSession);
 
-        // Update the temporary session to be a real session
-        const realSession: FloatingChatSession = {
-          ...activeSession,
-          id: newSession.id,
-          isTemporary: false,
-          messages: [userMessage]
+        // Create session object for UI with initial messages
+        const userMessage: FloatingMessage = {
+          id: 'user-' + Date.now(),
+          content: input.trim(),
+          role: 'user',
+          timestamp: new Date()
         };
 
-        setSessions(prev => prev.map(s => 
-          s.id === activeSessionId ? realSession : s
-        ));
-        setActiveSessionId(newSession.id);
-        setIsCreatingSession(false);
+        const aiMessage: FloatingMessage = {
+          id: 'ai-' + Date.now(),
+          content: newSession.ai_first_response,
+          role: 'assistant',
+          timestamp: new Date()
+        };
 
-        // Load messages for the new session (including AI response)
-        setTimeout(() => {
-          loadSessionMessages(newSession.id);
-        }, 1000);
+        const sessionForUI: FloatingChatSession = {
+          id: newSession.session_id,
+          name: `${getSessionTypeLabel(currentSessionType)} - ${new Date().toLocaleString()}`,
+          sessionType: currentSessionType,
+          messages: [userMessage, aiMessage],
+          lastMessage: newSession.ai_first_response.substring(0, 50) + '...',
+          timestamp: new Date()
+        };
         
-      } else if (!activeSession.isTemporary) {
-        // Send message to existing session
-        await chatbotService.sendMessage(activeSession.id, input.trim());
+        console.log('📝 Session for UI with messages:', sessionForUI);
+
+        // Add to sessions list and set as active
+        setSessions(prev => {
+          console.log('Previous sessions:', prev);
+          const updated = [...prev, sessionForUI];
+          console.log('Updated sessions:', updated);
+          return updated;
+        });
+        setActiveSessionId(newSession.session_id);
+        setIsCreatingNewSession(false);
+        console.log('🎯 Set active session ID to:', newSession.session_id);
+        console.log('✅ Reset isCreatingNewSession to false');
+        console.log('🎉 Session created with initial messages!');
         
-        // Add user message to UI immediately
-        setSessions(sessions.map(s => 
+      } else {
+        console.log('💬 Sending message to existing session:', activeSessionId);
+        
+        const sendMessageRequest = {
+          session_id: activeSessionId,
+          user_input: input.trim()
+        };
+        
+        console.log('🚀 Sending message request:', sendMessageRequest);
+        const response = await chatbotService.sendMessage(sendMessageRequest);
+        console.log('✅ Message sent successfully:', response);
+
+        // Add both user message and AI response to UI immediately
+        const userMessage: FloatingMessage = {
+          id: response.human_message_id.toString(),
+          content: input.trim(),
+          role: 'user',
+          timestamp: new Date()
+        };
+
+        const aiMessage: FloatingMessage = {
+          id: response.ai_message_id.toString(),
+          content: response.ai_response,
+          role: 'assistant',
+          timestamp: new Date()
+        };
+
+        // Update sessions with both messages
+        setSessions(prev => prev.map(s => 
           s.id === activeSessionId 
             ? { 
                 ...s, 
-                messages: [...s.messages, userMessage],
-                lastMessage: input.trim(),
+                messages: [...s.messages, userMessage, aiMessage],
+                lastMessage: response.ai_response.substring(0, 50) + '...',
                 timestamp: new Date()
               }
             : s
         ));
 
-        // Load updated messages (including AI response)
-        setTimeout(() => {
-          loadSessionMessages(activeSession.id);
-        }, 1000);
+        console.log('🎉 Added messages to UI - User:', userMessage, 'AI:', aiMessage);
       }
 
       setInput('');
+      console.log('🧹 Cleared input field');
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('❌ Error in handleSubmit:', error);
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: unknown; status?: number } };
+        console.error('Response data:', axiosError.response?.data);
+        console.error('Response status:', axiosError.response?.status);
+      }
+    } finally {
+      setIsLoading(false);
+      console.log('✅ Setting loading to false');
     }
   };
 
-  const handleSessionClick = (sessionId: string) => {
+  const handleSessionClick = (sessionId: number) => {
     setActiveSessionId(sessionId);
     const session = sessions.find(s => s.id === sessionId);
     
-    // Load messages if it's not a temporary session and messages haven't been loaded
-    if (session && !session.isTemporary && session.messages.length === 0) {
+    // Load messages if messages haven't been loaded
+    if (session && session.messages.length === 0) {
       loadSessionMessages(sessionId);
     }
     
@@ -258,7 +370,7 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
     }
   };
 
-  const handleMenuToggle = (sessionId: string) => {
+  const handleMenuToggle = (sessionId: number) => {
     setOpenMenuId(openMenuId === sessionId ? null : sessionId);
   };
 
@@ -290,7 +402,7 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
 
   const getCurrentSessionTypeName = () => {
     const sessionType = AI_SESSION_TYPES.find(type => type.id === currentSessionType);
-    return sessionType?.name || 'Q&A';
+    return sessionType?.name || 'Trợ lý';
   };
 
   return (
@@ -370,7 +482,7 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
                         
                         <div className="flex items-center justify-between mt-2">
                           <span className="text-xs text-gray-500 truncate">
-                            {AI_SESSION_TYPES.find(type => type.id === session.sessionType)?.name || 'Q&A'}
+                            {AI_SESSION_TYPES.find(type => type.id === session.sessionType)?.name || 'Trợ lý'}
                           </span>
                           <span className="text-xs text-gray-500">
                             {formatTime(session.timestamp)}

@@ -67,8 +67,8 @@ export interface ExamStartResponse {
 // Submit Exam Request - POST /api/student/exams/submit
 export interface ExamSubmitRequest {
   examId: string;
-  startedAt: string | null;
-  submittedAt: string | null;
+  startedAt: string;
+  submittedAt: string;
   questionResults: {
     questionId: string;
     selectedOptionId: string | null; // For multiple choice questions
@@ -82,9 +82,17 @@ export interface ExamSubmitResponse {
   examId: string;
   examTitle: string;
   score: number;
-  submittedAt: string | null;
+  submittedAt: string;
   status: 'COMPLETED' | 'FAILED' | 'PASSED';
   questionResults: QuestionResult[];
+}
+
+// API Wrapper Response for Submit Exam
+export interface ExamSubmitApiResponse {
+  success: boolean;
+  message: string;
+  data: ExamSubmitResponse;
+  timestamp: number;
 }
 
 // Exam Result - GET /api/student/exams/result/{resultId}
