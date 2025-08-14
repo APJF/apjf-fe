@@ -67,7 +67,15 @@
     "profile": "Profile"
   },
   "common": {
-    "minutes": "minutes"
+    "minutes": "minutes",
+    "edit": "Edit",
+    "delete": "Delete",
+    "cancel": "Cancel", 
+    "confirm": "Confirm",
+    "save": "Save",
+    "submit": "Submit",
+    "all": "All",
+    "processing": "Processing..."
   },
   "home": {
     "heroTitleStart": "Master",
@@ -168,7 +176,29 @@
     "studentReviews": "Student Reviews",
     "sortNewest": "Newest",
     "sortOldest": "Oldest",
-    "noMatchingReviews":"No matching results"
+    "noMatchingReviews":"No matching results",
+    "loginToReview": "Please login to write a review",
+    "errorLoadingReviews": "An error occurred while loading reviews",
+    "reviewAddedSuccess": "Your review has been added successfully",
+    "reviewAddedError": "An error occurred while adding review",
+    "reviewUpdateSuccess": "Your review has been updated successfully", 
+    "reviewUpdateError": "An error occurred while updating review",
+    "reviewDeleteSuccess": "Review has been deleted successfully",
+    "reviewDeleteError": "An error occurred while deleting review",
+    "deleteReviewTitle": "Confirm delete review",
+    "deleteReviewDescription": "Are you sure you want to delete this review? This action cannot be undone.",
+    "writeReview": "Write a review",
+    "editReview": "Edit review",
+    "cancelEdit": "Cancel edit",
+    "submitReview": "Submit review",
+    "updateReview": "Update review",
+    "reviewPlaceholder": "Share your experience with this course...",
+    "reviewMinLength": "Please write a review with at least 8 characters",
+    "selectRating": "Please select a star rating",
+    "submittingReview": "Submitting...",
+    "submitReviewError": "Cannot submit review. Please try again",
+    "thankYouForReview": "Thank you for your review!",
+    "reviewAlreadyExists": "You have already reviewed this course. You can edit your existing review."
   },
   "chapterDetail": {
     "backToCourse": "Back to course",

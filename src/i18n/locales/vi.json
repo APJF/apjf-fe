@@ -67,7 +67,15 @@
     "profile": "Hồ sơ"
   },
   "common": {
-    "minutes": "phút"
+    "minutes": "phút",
+    "edit": "Chỉnh sửa",
+    "delete": "Xóa",
+    "cancel": "Hủy",
+    "confirm": "Xác nhận",
+    "save": "Lưu",
+    "submit": "Gửi",
+    "all": "Tất cả",
+    "processing": "Đang xử lý..."
   },
   "home": {
     "heroTitleStart": "Làm chủ",
@@ -168,7 +176,29 @@
     "studentReviews":"Đánh giá của học viên",
     "sortNewest":"Mới nhất",
     "sortOldest":"Cũ nhất",
-    "noMatchingReviews":"Không có kết quả phù hợp"
+    "noMatchingReviews":"Không có kết quả phù hợp",
+    "loginToReview": "Vui lòng đăng nhập để viết đánh giá",
+    "errorLoadingReviews": "Có lỗi xảy ra khi tải đánh giá",
+    "reviewAddedSuccess": "Đánh giá của bạn đã được thêm thành công",
+    "reviewAddedError": "Có lỗi xảy ra khi thêm đánh giá",
+    "reviewUpdateSuccess": "Đánh giá của bạn đã được cập nhật thành công", 
+    "reviewUpdateError": "Có lỗi xảy ra khi cập nhật đánh giá",
+    "reviewDeleteSuccess": "Đánh giá đã được xóa thành công",
+    "reviewDeleteError": "Có lỗi xảy ra khi xóa đánh giá",
+    "deleteReviewTitle": "Xác nhận xóa đánh giá",
+    "deleteReviewDescription": "Bạn có chắc chắn muốn xóa đánh giá này? Hành động này không thể hoàn tác.",
+    "writeReview": "Viết đánh giá",
+    "editReview": "Chỉnh sửa đánh giá",
+    "cancelEdit": "Hủy chỉnh sửa",
+    "submitReview": "Gửi đánh giá",
+    "updateReview": "Cập nhật đánh giá",
+    "reviewPlaceholder": "Chia sẻ trải nghiệm của bạn về khóa học này...",
+    "reviewMinLength": "Vui lòng viết đánh giá ít nhất 8 ký tự",
+    "selectRating": "Vui lòng chọn số sao đánh giá",
+    "submittingReview": "Đang gửi...",
+    "submitReviewError": "Không thể gửi đánh giá. Vui lòng thử lại",
+    "thankYouForReview": "Cảm ơn bạn đã đánh giá!",
+    "reviewAlreadyExists": "Bạn đã đánh giá khóa học này rồi. Bạn có thể chỉnh sửa đánh giá hiện có."
   },
   "chapterDetail": {
     "backToCourse": "Quay lại khóa học",

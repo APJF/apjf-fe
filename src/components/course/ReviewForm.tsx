@@ -3,6 +3,7 @@
 import type React from "react"
 import { useState } from "react"
 import { StarInput } from "../ui/StarInput"
+import { useLanguage } from "../../contexts/LanguageContext"
 
 export interface NewReviewInput {
   rating: number
@@ -13,12 +14,14 @@ export default function ReviewForm({
   onSubmit,
   initialData,
   isEditing = false,
+  onCancelEdit,
 }: Readonly<{
   onSubmit: (data: NewReviewInput) => Promise<void> | void
   initialData?: NewReviewInput
   isEditing?: boolean
   onCancelEdit?: () => void
 }>) {
+  const { t } = useLanguage()
   const [rating, setRating] = useState(initialData?.rating || 0)
   const [comment, setComment] = useState(initialData?.comment || "")
   const [submitting, setSubmitting] = useState(false)
@@ -29,24 +32,32 @@ export default function ReviewForm({
     e.preventDefault()
     setError(null)
     setMessage(null)
+    
+    console.log('🔍 ReviewForm.handleSubmit - Starting validation');
+    console.log('📊 Current rating value:', rating, 'type:', typeof rating);
+    console.log('💬 Current comment:', comment.trim());
+    
     if (!comment.trim() || comment.trim().length < 8) {
-      setError("Vui lòng viết đánh giá ít nhất 8 ký tự.")
+      setError(t('courseDetail.reviewMinLength'))
       return
     }
-    if (rating === 0) {
-      setError("Vui lòng chọn số sao đánh giá.")
+    if (rating === 0 || rating < 0.5 || rating > 5) {
+      console.warn('⚠️ Invalid rating:', rating);
+      setError(t('courseDetail.selectRating'))
       return
     }
+    
+    console.log('✅ Validation passed - submitting review');
     setSubmitting(true)
     try {
       await onSubmit({ rating, comment: comment.trim()})
       if (!isEditing) {
-        setMessage("Cảm ơn bạn đã đánh giá!")
+        setMessage(t('courseDetail.thankYouForReview'))
         setComment("")
         setRating(0)
       }
     } catch {
-      setError("Không thể gửi đánh giá. Vui lòng thử lại.")
+      setError(t('courseDetail.submitReviewError'))
     } finally {
       setSubmitting(false)
     }
@@ -57,7 +68,7 @@ export default function ReviewForm({
       {/* Review text (compact) */}
       <div>
         <label htmlFor="comment" className="text-xs font-semibold text-gray-700 mb-1 block">
-          Đánh giá của bạn
+          {isEditing ? t('courseDetail.editReview') : t('courseDetail.writeReview')}
         </label>
         <textarea
           id="comment"
@@ -65,21 +76,36 @@ export default function ReviewForm({
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           className="w-full rounded-md border border-gray-300 p-2.5 text-sm focus:ring-1 focus:ring-rose-700 focus:border-transparent"
-          placeholder="Chia sẻ trải nghiệm của bạn về khóa học này..."
+          placeholder={t('courseDetail.reviewPlaceholder')}
         />
       </div>
 
       {/* Stars + Submit: same row, tight spacing */}
       <div className="mt-1 flex items-center gap-3">
         <StarInput value={rating} onChange={setRating} />
-        <button
-          type="submit"
-          disabled={submitting}
-          className="ml-auto h-8 px-3 rounded-lg bg-rose-700 text-white text-sm font-medium hover:bg-rose-800 disabled:opacity-60"
-          aria-label="Submit review"
-        >
-          {submitting ? "Đang gửi..." : "Gửi đánh giá"}
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          {isEditing && onCancelEdit && (
+            <button
+              type="button"
+              onClick={onCancelEdit}
+              className="h-8 px-3 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50"
+            >
+              {t('courseDetail.cancelEdit')}
+            </button>
+          )}
+          <button
+            type="submit"
+            disabled={submitting}
+            className="h-8 px-3 rounded-lg bg-rose-700 text-white text-sm font-medium hover:bg-rose-800 disabled:opacity-60"
+            aria-label={isEditing ? t('courseDetail.updateReview') : t('courseDetail.submitReview')}
+          >
+            {(() => {
+              if (submitting) return t('courseDetail.submittingReview')
+              if (isEditing) return t('courseDetail.updateReview')
+              return t('courseDetail.submitReview')
+            })()}
+          </button>
+        </div>
       </div>
 
       {/* Messages (only render when needed to avoid extra empty space) */}

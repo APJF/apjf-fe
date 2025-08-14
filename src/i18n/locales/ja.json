@@ -67,7 +67,15 @@
     "profile": "プロフィール"
   },
   "common": {
-    "minutes": "分"
+    "minutes": "分",
+    "edit": "編集",
+    "delete": "削除",
+    "cancel": "キャンセル",
+    "confirm": "確認", 
+    "save": "保存",
+    "submit": "送信",
+    "all": "全て",
+    "processing": "処理中..."
   },
   "home": {
     "heroTitleStart": "日本語を",
@@ -168,7 +176,29 @@
     "studentReviews": "学生のレビュー",
     "sortNewest": "新しい順",
     "sortOldest": "古い順",
-    "noMatchingReviews":"一致する結果はありません"
+    "noMatchingReviews":"一致する結果はありません",
+    "loginToReview": "レビューを書くにはログインしてください",
+    "errorLoadingReviews": "レビューの読み込み中にエラーが発生しました",
+    "reviewAddedSuccess": "レビューが正常に追加されました",
+    "reviewAddedError": "レビューの追加中にエラーが発生しました",
+    "reviewUpdateSuccess": "レビューが正常に更新されました", 
+    "reviewUpdateError": "レビューの更新中にエラーが発生しました",
+    "reviewDeleteSuccess": "レビューが正常に削除されました",
+    "reviewDeleteError": "レビューの削除中にエラーが発生しました",
+    "deleteReviewTitle": "レビューの削除を確認",
+    "deleteReviewDescription": "このレビューを削除してもよろしいですか？この操作は元に戻せません。",
+    "writeReview": "レビューを書く",
+    "editReview": "レビューを編集",
+    "cancelEdit": "編集をキャンセル",
+    "submitReview": "レビューを送信",
+    "updateReview": "レビューを更新",
+    "reviewPlaceholder": "このコースについてのご感想をお聞かせください...",
+    "reviewMinLength": "少なくとも8文字のレビューを書いてください",
+    "selectRating": "星評価を選択してください",
+    "submittingReview": "送信中...",
+    "submitReviewError": "レビューを送信できません。もう一度お試しください",
+    "thankYouForReview": "レビューをありがとうございます！",
+    "reviewAlreadyExists": "このコースは既にレビューされています。既存のレビューを編集できます。"
   },
   "chapterDetail": {
     "backToCourse": "コースに戻る",

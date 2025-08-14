@@ -2,6 +2,7 @@ import React from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './Dialog'
 import { Button } from './Button'
 import { AlertTriangle, XCircle } from 'lucide-react'
+import { useLanguage } from '../../contexts/LanguageContext'
 
 interface ConfirmDialogProps {
   isOpen: boolean
@@ -21,11 +22,13 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onConfirm,
   title,
   description,
-  confirmText = 'Xác nhận',
-  cancelText = 'Hủy',
+  confirmText,
+  cancelText,
   variant = 'default',
   isLoading = false
 }) => {
+  const { t } = useLanguage()
+
   const getIcon = () => {
     switch (variant) {
       case 'danger':
@@ -47,6 +50,10 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         return 'bg-blue-600 hover:bg-blue-700 text-white'
     }
   }
+
+  const defaultConfirmText = confirmText || t('common.confirm')
+  const defaultCancelText = cancelText || t('common.cancel')
+  const loadingText = t('common.processing') || 'Đang xử lý...'
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -71,14 +78,14 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             className="w-full sm:w-auto"
             disabled={isLoading}
           >
-            {cancelText}
+            {defaultCancelText}
           </Button>
           <Button
             onClick={onConfirm}
             className={`w-full sm:w-auto ${getConfirmButtonStyle()}`}
             disabled={isLoading}
           >
-            {isLoading ? 'Đang xử lý...' : confirmText}
+            {isLoading ? loadingText : defaultConfirmText}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,7 +1,7 @@
 "use client"
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/Tabs"
-import { Avatar, AvatarFallback } from "../ui/Avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/Avatar"
 import { StarDisplay } from "../ui/StarDisplay"
 import ReviewForm, { type NewReviewInput } from "./ReviewForm"
 import { useMemo, useState, useEffect, useCallback } from "react"
@@ -9,11 +9,12 @@ import { useNavigate, useParams } from "react-router-dom"
 import { ExamService, type CourseExam } from "../../services/examService"
 import { Clock, FileText, AlertCircle, MoreVertical, Pencil, Trash2 } from "lucide-react"
 import { useLanguage } from "../../contexts/LanguageContext"
-import { ReviewService, type CreateReviewData } from "../../services/reviewService"
+import { ReviewService } from "../../services/reviewService"
 import type { Review } from "../../types/review"
 import { useToast } from "../../hooks/useToast"
 import { useAuth } from "../../hooks/useAuth"
 import { ConfirmDialog } from "../ui/ConfirmDialog"
+import type { AxiosError } from "axios"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -83,14 +84,28 @@ export default function CourseTabs({
     setReviewsLoading(true)
     setReviewsError(null)
     try {
+      console.log('🔍 CourseTabs.fetchReviews - Starting with courseId:', courseId);
+      
       const response = await ReviewService.getReviewsByCourseId(courseId)
+      console.log('📥 fetchReviews - API Response:', response);
+      
       if (response.success) {
+        console.log('✅ Reviews data received:', response.data?.length || 0, 'reviews');
+        console.log('🖼️ Avatar URLs:', response.data?.map(r => ({ 
+          username: r.user.username, 
+          avatar: r.user.avatar 
+        })));
         setReviews(response.data || [])
       } else {
+        console.warn('⚠️ fetchReviews - API returned success=false:', response.message);
         setReviewsError(response.message || t("courseDetail.errorLoadingReviews"))
       }
     } catch (error) {
-      console.error("Error fetching reviews:", error)
+      console.error("❌ Error fetching reviews:", error)
+      console.error('🔍 fetchReviews error context:', {
+        courseId,
+        timestamp: new Date().toISOString()
+      });
       setReviewsError(t("courseDetail.errorLoadingReviews"))
     } finally {
       setReviewsLoading(false)
@@ -99,8 +114,12 @@ export default function CourseTabs({
 
   useEffect(() => {
     if (courseId) {
+      console.log('🎬 CourseTabs useEffect - courseId changed:', courseId);
+      console.log('🚀 Starting to fetch exams and reviews');
       fetchExams()
       fetchReviews()
+    } else {
+      console.warn('⚠️ CourseTabs useEffect - no courseId provided');
     }
   }, [courseId, fetchExams, fetchReviews])
 
@@ -112,20 +131,63 @@ export default function CourseTabs({
     }
   }
 
+  // Check if current user already has a review for this course
+  const userExistingReview = useMemo(() => {
+    return reviews.find(review => review.user.id === user?.id)
+  }, [reviews, user?.id])
+
   const handleAddReview = async (data: NewReviewInput) => {
     if (!courseId) return
 
+    // Check if user already has a review
+    if (userExistingReview) {
+      console.warn('⚠️ User already has a review for this course');
+      showToast("error", t("courseDetail.reviewAlreadyExists") || "Bạn đã đánh giá khóa học này rồi")
+      return;
+    }
+
     try {
-      console.log(courseId, data.comment, data.rating)
-      const response = await ReviewService.createReview({ courseId, ...data });
+      console.log('🔍 CourseTabs.handleAddReview - Starting with courseId:', courseId);
+      console.log('📤 Review data:', data);
+      console.log('👤 Current user:', user);
+      
+      // Keep original rating (support half-stars)
+      const reviewData = { courseId, ...data };
+      console.log('📋 Final payload for API:', reviewData);
+      console.log('⭐ Rating value:', data.rating);
+      
+      const response = await ReviewService.createReview(reviewData);
+      console.log('✅ handleAddReview - API Response:', response);
+      
       if (response.success) {
         showToast("success", t("courseDetail.reviewAddedSuccess"))
-        setReviews((prev) => [response.data, ...prev])
+        console.log('📥 New review from API:', response.data);
+        setReviews((prev) => {
+          const updatedReviews = [response.data, ...prev];
+          console.log('🔄 Updated reviews list:', updatedReviews.length, 'total reviews');
+          return updatedReviews;
+        });
       } else {
-        showToast("error", t("courseDetail.reviewAddedError"))
+        console.warn('⚠️ API returned success=false:', response.message);
+        showToast("error", response.message || t("courseDetail.reviewAddedError"))
       }
-    } catch (error) {
-      showToast("error", t("courseDetail.reviewAddedError"))
+    } catch (error: unknown) {
+      console.error('❌ Error in handleAddReview:', error);
+      console.error('🔍 Error context:', {
+        courseId,
+        reviewData: data,
+        userId: user?.id,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Try to extract meaningful error message from server response
+      const axiosError = error as AxiosError;
+      const serverMessage = axiosError?.response?.data as { message?: string };
+      if (serverMessage?.message) {
+        showToast("error", serverMessage.message);
+      } else {
+        showToast("error", t("courseDetail.reviewAddedError"));
+      }
     }
   }
 
@@ -133,17 +195,38 @@ export default function CourseTabs({
     if (!isEditing) return
 
     try {
-      const response = await ReviewService.updateReview(isEditing.id, { courseId: courseId!, ...data });
+      console.log('🔍 CourseTabs.handleUpdateReview - Starting with reviewId:', isEditing.id);
+      console.log('📤 Update data:', data);
+      console.log('🎯 Review being edited:', isEditing);
+      
+      const updateData = { courseId: courseId!, ...data };
+      console.log('📋 Final update payload:', updateData);
+      
+      const response = await ReviewService.updateReview(isEditing.id, updateData);
+      console.log('✅ handleUpdateReview - API Response:', response);
+      
       if (response.success) {
         showToast("success", t("courseDetail.reviewUpdateSuccess"))
-        setReviews((prev) =>
-          prev.map((r) => (r.id === isEditing.id ? response.data : r))
-        )
+        console.log('📥 Updated review from API:', response.data);
+        setReviews((prev) => {
+          const updatedReviews = prev.map((r) => (r.id === isEditing.id ? response.data : r));
+          console.log('🔄 Updated reviews list after edit');
+          return updatedReviews;
+        });
         setIsEditing(null)
+        console.log('✅ Exited edit mode');
       } else {
+        console.warn('⚠️ API returned success=false:', response.message);
         showToast("error", t("courseDetail.reviewUpdateError"))
       }
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error('❌ Error in handleUpdateReview:', error);
+      console.error('🔍 Error context:', {
+        reviewId: isEditing?.id,
+        updateData: data,
+        courseId,
+        timestamp: new Date().toISOString()
+      });
       showToast("error", t("courseDetail.reviewUpdateError"))
     }
   }
@@ -152,18 +235,36 @@ export default function CourseTabs({
     if (!reviewToDelete) return
 
     try {
+      console.log('🔍 CourseTabs.handleDeleteReview - Starting with reviewId:', reviewToDelete.id);
+      console.log('🗑️ Review to delete:', reviewToDelete);
+      
       const response = await ReviewService.deleteReview(reviewToDelete.id)
+      console.log('✅ handleDeleteReview - API Response:', response);
+      
       if (response.success) {
         showToast("success", t("courseDetail.reviewDeleteSuccess"))
-        setReviews((prev) => prev.filter((r) => r.id !== reviewToDelete.id))
+        console.log('🔄 Removing review from list:', reviewToDelete.id);
+        setReviews((prev) => {
+          const filteredReviews = prev.filter((r) => r.id !== reviewToDelete.id);
+          console.log('📉 Reviews count after delete:', filteredReviews.length);
+          return filteredReviews;
+        });
       } else {
+        console.warn('⚠️ API returned success=false:', response.message);
         showToast("error", t("courseDetail.reviewDeleteError"))
       }
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error('❌ Error in handleDeleteReview:', error);
+      console.error('🔍 Error context:', {
+        reviewId: reviewToDelete?.id,
+        reviewData: reviewToDelete,
+        timestamp: new Date().toISOString()
+      });
       showToast("error", t("courseDetail.reviewDeleteError"))
     } finally {
       setIsDeleteDialogOpen(false)
       setReviewToDelete(null)
+      console.log('🔒 Closed delete dialog and cleared reviewToDelete');
     }
   }
 
@@ -225,7 +326,7 @@ export default function CourseTabs({
           aria-label="No minimum rating"
           title="Any"
         >
-          Tất cả
+          {t('common.all') || 'Tất cả'}
         </button>
       </div>
     )
@@ -332,13 +433,25 @@ export default function CourseTabs({
 
           {/* Form for adding/editing a review */}
           {user ? (
-            <ReviewForm
-              key={isEditing ? isEditing.id : 'new'}
-              onSubmit={handleReviewSubmit}
-              initialData={isEditing ? { rating: isEditing.rating, comment: isEditing.comment } : undefined}
-              isEditing={!!isEditing}
-              onCancelEdit={() => setIsEditing(null)}
-            />
+            userExistingReview && !isEditing ? (
+              <div className="text-sm text-center text-gray-600 p-4 border border-dashed rounded-lg bg-blue-50">
+                <p>{t('courseDetail.reviewAlreadyExists')}</p>
+                <button
+                  onClick={() => setIsEditing(userExistingReview)}
+                  className="mt-2 text-blue-600 hover:text-blue-800 underline"
+                >
+                  {t('courseDetail.editReview')}
+                </button>
+              </div>
+            ) : (
+              <ReviewForm
+                key={isEditing ? isEditing.id : 'new'}
+                onSubmit={handleReviewSubmit}
+                initialData={isEditing ? { rating: isEditing.rating, comment: isEditing.comment } : undefined}
+                isEditing={!!isEditing}
+                onCancelEdit={() => setIsEditing(null)}
+              />
+            )
           ) : (
             <div className="text-sm text-center text-gray-600 p-4 border border-dashed rounded-lg">
               {t('courseDetail.loginToReview')}
@@ -387,7 +500,10 @@ export default function CourseTabs({
                     <header className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-8 w-8">
-                          <AvatarFallback className="bg-rose-50 text-rose-700 text-sm">{r.user?.avatar}</AvatarFallback>
+                          <AvatarImage src={r.user?.avatar} alt={r.user.username || 'User'} />
+                          <AvatarFallback className="bg-rose-50 text-rose-700 text-sm">
+                            {r.user.username ? r.user.username.charAt(0).toUpperCase() : 'U'}
+                          </AvatarFallback>
                         </Avatar>
                         <div>
                           <div className="text-sm font-medium text-gray-900">{r.user.username || 'Anonymous'}</div>
@@ -431,6 +547,7 @@ export default function CourseTabs({
         onConfirm={handleDeleteReview}
         title={t('courseDetail.deleteReviewTitle')}
         description={t('courseDetail.deleteReviewDescription')}
+        variant="danger"
       />
     </div>
   )
