@@ -51,6 +51,7 @@ export type SessionType = 'qna' | 'planner' | 'reviewer' | 'learning';
 export interface ChatSession {
   id: number;
   session_name: string;
+  type: string; // 'QNA', 'REVIEWER', 'PLANNER', 'LEARNING'
   updated_at: string;
 }
 
@@ -84,6 +85,18 @@ export interface SendMessageResponse {
   human_message_id: number;
   ai_message_id: number;
   ai_response: string;
+}
+
+export interface SessionMessage {
+  id: number;
+  order: number;
+  type: 'human' | 'ai';
+  content: string;
+}
+
+export interface SessionDetailResponse {
+  session_id: number;
+  messages: SessionMessage[];
 }
 
 export interface ChatMessage {
@@ -196,19 +209,91 @@ export const chatbotService = {
   },
 
   /**
-   * Temporary compatibility methods (to be removed later)
+   * Lấy lịch sử messages của một session
+   * GET /api/sessions/{sessionId}
    */
-  getMessages: async (_sessionId: string): Promise<ChatMessage[]> => {
-    // Placeholder - return empty for now since we handle messages in real-time
-    return [];
+  getMessages: async (sessionId: string): Promise<ChatMessage[]> => {
+    try {
+      console.log('🔍 Loading messages for session:', sessionId);
+      const response = await aiInstance.get(`/api/sessions/${sessionId}`);
+      console.log('✅ Session detail loaded:', response.data);
+      
+      const sessionDetail: SessionDetailResponse = response.data;
+      
+      // Convert SessionMessage[] to ChatMessage[] and sort by order
+      const sortedMessages = [...sessionDetail.messages].sort((a, b) => a.order - b.order);
+      const chatMessages: ChatMessage[] = sortedMessages.map(msg => ({
+          id: msg.id.toString(),
+          content: msg.content,
+          role: msg.type === 'human' ? 'user' : 'assistant',
+          timestamp: new Date().toISOString() // API không trả timestamp, dùng current time
+        }));
+      
+      console.log('🔄 Converted messages:', chatMessages);
+      return chatMessages;
+    } catch (error) {
+      console.error('❌ Error loading session messages:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Xóa một session
+   * DELETE /api/sessions/{sessionId}
+   */
+  deleteSession: async (sessionId: number): Promise<void> => {
+    try {
+      console.log('🗑️ Deleting session:', sessionId);
+      console.log('🌐 DELETE URL will be:', `http://localhost:8000/api/sessions/${sessionId}`);
+      
+      const response = await aiInstance.delete(`/api/sessions/${sessionId}`);
+      console.log('✅ Session deleted successfully, response:', response);
+    } catch (error) {
+      console.error('❌ Error deleting session:', error);
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: unknown; status?: number; statusText?: string } };
+        console.error('🔍 DELETE Error details:');
+        console.error('- Status:', axiosError.response?.status);
+        console.error('- Status Text:', axiosError.response?.statusText);
+        console.error('- Response data:', axiosError.response?.data);
+        console.error('- Full URL attempted:', `http://localhost:8000/api/sessions/${sessionId}`);
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Đổi tên session  
+   * PUT /api/sessions/{sessionId}
+   */
+  updateSessionName: async (sessionId: number, newName: string): Promise<ChatSession> => {
+    try {
+      console.log('✏️ Updating session name:', sessionId, 'to:', newName);
+      console.log('🌐 PUT URL will be:', `http://localhost:8000/api/sessions/${sessionId}`);
+      console.log('📦 PUT payload:', { session_name: newName });
+      
+      const response = await aiInstance.put(`/api/sessions/${sessionId}`, {
+        session_name: newName
+      });
+      console.log('✅ Session name updated, response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error updating session name:', error);
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: unknown; status?: number; statusText?: string } };
+        console.error('🔍 PUT Error details:');
+        console.error('- Status:', axiosError.response?.status);
+        console.error('- Status Text:', axiosError.response?.statusText);
+        console.error('- Response data:', axiosError.response?.data);
+        console.error('- Full URL attempted:', `http://localhost:8000/api/sessions/${sessionId}`);
+        console.error('- Payload sent:', { session_name: newName });
+      }
+      throw error;
+    }
   },
 
   renameSession: async (sessionId: string, newName: string): Promise<ChatSession> => {
-    // Placeholder - return dummy session for now
-    return {
-      id: parseInt(sessionId),
-      session_name: newName,
-      updated_at: new Date().toISOString()
-    };
+    // Use the real updateSessionName method
+    return await chatbotService.updateSessionName(parseInt(sessionId), newName);
   }
 };

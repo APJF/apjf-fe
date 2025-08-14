@@ -44,15 +44,28 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
   };
 
   // Convert API ChatSession to FloatingChatSession
-  const convertToFloatingSession = (apiSession: ChatSession): FloatingChatSession => ({
-    id: apiSession.id,
-    name: apiSession.session_name,
-    lastMessage: 'Phiên chat đã tạo',
-    timestamp: new Date(apiSession.updated_at),
-    sessionType: 'qna', // Default, since API doesn't return session_type in list
-    messages: [], // Will be loaded separately when needed
-    isTemporary: false
-  });
+  const convertToFloatingSession = (apiSession: ChatSession): FloatingChatSession => {
+    // Map API type to our session type
+    const getSessionType = (apiType: string): AISessionType => {
+      switch (apiType.toUpperCase()) {
+        case 'QNA': return 'qna';
+        case 'REVIEWER': return 'reviewer';  
+        case 'PLANNER': return 'planner';
+        case 'LEARNING': return 'learning';
+        default: return 'qna';
+      }
+    };
+
+    return {
+      id: apiSession.id,
+      name: apiSession.session_name,
+      lastMessage: 'Phiên chat đã tạo',
+      timestamp: new Date(apiSession.updated_at),
+      sessionType: getSessionType(apiSession.type),
+      messages: [], // Will be loaded separately when needed
+      isTemporary: false
+    };
+  };
 
   const loadSessionMessages = useCallback(async (sessionId: number) => {
     console.log('🔄 loadSessionMessages called for session:', sessionId);
@@ -86,8 +99,8 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
     console.log('🔄 loadSessions called');
     try {
       setIsLoading(true);
-      console.log('📞 Calling getSessions API with user ID:', currentUserId);
-      const apiSessions = await chatbotService.getSessions(currentUserId);
+      console.log('📞 Calling getSessions API with user ID:', getCurrentUserId());
+      const apiSessions = await chatbotService.getSessions(getCurrentUserId());
       console.log('✅ Got sessions from API:', apiSessions);
       
       const floatingSessions = apiSessions.map(convertToFloatingSession);
@@ -105,14 +118,63 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
     } finally {
       setIsLoading(false);
     }
-  }, [currentUserId, activeSessionId, isCreatingNewSession, loadSessionMessages]);
+  }, [activeSessionId, isCreatingNewSession, loadSessionMessages]);
 
-  // Load sessions when component mounts
+  // Force reload sessions without dependencies - for delete/rename operations
+  const forceReloadSessions = async () => {
+    try {
+      console.log('🔄 forceReloadSessions - Starting session reload...');
+      console.log('🔍 Current sessions state before reload:', sessions.map(s => ({ id: s.id, name: s.name })));
+      
+      setIsLoading(true);
+      console.log('📞 Force calling getSessions API with user ID:', getCurrentUserId());
+      const apiSessions = await chatbotService.getSessions(getCurrentUserId());
+      console.log('📥 API returned sessions:', apiSessions?.map(s => ({ id: s.id, session_name: s.session_name })) || []);
+      
+      const floatingSessions: FloatingChatSession[] = apiSessions.map(convertToFloatingSession);
+      console.log('🔄 Force converted to floating sessions:', floatingSessions.map(s => ({ id: s.id, name: s.name })));
+      
+      setSessions(floatingSessions);
+      console.log('✅ Sessions state updated with new data');
+      
+      // Update active session if current one no longer exists
+      if (activeSessionId) {
+        const existingSession = floatingSessions.find(s => s.id === activeSessionId);
+        if (!existingSession) {
+          console.log('⚠️ Active session no longer exists, selecting first available');
+          if (floatingSessions.length > 0) {
+            setActiveSessionId(floatingSessions[0].id);
+            console.log('🎯 Set new active session:', floatingSessions[0].id);
+          } else {
+            setActiveSessionId(null);
+            console.log('🔄 No sessions available, reset active session to null');
+          }
+        } else {
+          console.log('✅ Active session still exists:', activeSessionId);
+        }
+      } else if (floatingSessions.length > 0) {
+        // No active session, set the first one as active
+        setActiveSessionId(floatingSessions[0].id);
+        console.log('🎯 Set first session as active:', floatingSessions[0].id);
+      }
+      
+      console.log('🔍 Final sessions state after reload:', floatingSessions.map(s => ({ id: s.id, name: s.name })));
+    } catch (error) {
+      console.error('❌ Error in forceReloadSessions:', error);
+      console.error('🔍 Error type:', typeof error);
+      console.error('🔍 Error message:', error instanceof Error ? error.message : 'Unknown error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Load sessions when component mounts ONLY
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && sessions.length === 0) {
+      console.log('🎬 Initial load of sessions');
       loadSessions();
     }
-  }, [isOpen, loadSessions]);
+  }, [isOpen, sessions.length, loadSessions]);
 
   const toggleSessionsPanel = () => {
     setIsSessionsPanelCollapsed(!isSessionsPanelCollapsed);
@@ -133,33 +195,65 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
 
   const handleDeleteSession = async (sessionId: number) => {
     try {
-      // Remove from state immediately 
-      const updatedSessions = sessions.filter(s => s.id !== sessionId);
-      setSessions(updatedSessions);
+      console.log('🗑️ handleDeleteSession - Attempting to delete session:', sessionId);
+      console.log('🔍 Current sessions list:', sessions.map(s => ({ id: s.id, name: s.name })));
       
-      if (activeSessionId === sessionId && updatedSessions.length > 0) {
-        setActiveSessionId(updatedSessions[0].id);
-      } else if (activeSessionId === sessionId) {
-        setActiveSessionId(null);
+      // Call real API to delete session
+      await chatbotService.deleteSession(sessionId);
+      console.log('✅ chatbotService.deleteSession completed successfully');
+
+      // Reload sessions list to sync with server
+      console.log('🔄 Reloading sessions list after delete...');
+      await forceReloadSessions();
+      console.log('✅ forceReloadSessions completed after delete');
+      
+      // Handle active session selection
+      console.log('🎯 Checking active session selection...');
+      if (activeSessionId === sessionId) {
+        console.log('🎯 Deleted session was active, finding new active session...');
+        if (sessions.length > 1) {
+          // Find a different session to set as active
+          const remainingSession = sessions.find(s => s.id !== sessionId);
+          if (remainingSession) {
+            setActiveSessionId(remainingSession.id);
+            console.log('🎯 Set new active session:', remainingSession.id);
+          } else {
+            setActiveSessionId(null);
+            console.log('🔄 Reset active session to null - no sessions left');
+          }
+        } else {
+          setActiveSessionId(null);
+          console.log('🔄 Reset active session to null - was last session');
+        }
+      } else {
+        console.log('🎯 Deleted session was not active, keeping current active session:', activeSessionId);
       }
-      
-      // Note: We don't have delete API endpoint yet, so just remove from state
     } catch (error) {
-      console.error('Error deleting session:', error);
+      console.error('❌ Error in handleDeleteSession:', error);
+      console.error('🔍 Error details - sessionId:', sessionId);
+      console.error('🔍 Error details - sessions:', sessions.length);
     }
   };
 
-  const handleRenameSession = async (sessionId: number, newName: string) => {
+    const handleRenameSession = async (sessionId: number, newName: string) => {
     try {
-      // Update the session name via API
-      await chatbotService.renameSession(sessionId.toString(), newName);
+      console.log('✏️ handleRenameSession - Attempting to rename session:', sessionId, 'to:', newName);
+      console.log('🔍 Current session:', sessions.find(s => s.id === sessionId));
       
-      // Update local state
-      setSessions(sessions.map(s => 
-        s.id === sessionId ? { ...s, name: newName } : s
-      ));
+      // Call real API to update session name
+      await chatbotService.updateSessionName(sessionId, newName);
+      console.log('✅ chatbotService.updateSessionName completed successfully');
+
+      // Reload sessions list to sync with server
+      console.log('🔄 Reloading sessions list after rename...');
+      await forceReloadSessions();
+      console.log('✅ forceReloadSessions completed after rename');
+      
+      console.log('🔍 Sessions after reload:', sessions.map(s => ({ id: s.id, name: s.name })));
     } catch (error) {
-      console.error('Error renaming session:', error);
+      console.error('❌ Error in handleRenameSession:', error);
+      console.error('🔍 Error details - sessionId:', sessionId);
+      console.error('🔍 Error details - newName:', newName);
     }
   };
 
@@ -203,6 +297,10 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
       return;
     }
 
+    const currentInput = input.trim();
+    setInput(''); // Clear input immediately for better UX
+    console.log('🧹 Cleared input field immediately');
+
     setIsLoading(true);
     console.log('🔄 Setting loading to true');
 
@@ -240,7 +338,7 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
         const createSessionRequest = {
           user_id: currentUserId,
           session_type: currentSessionType,
-          first_message: input.trim(),
+          first_message: currentInput,
           context
         };
         
@@ -262,7 +360,7 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
         // Create session object for UI with initial messages
         const userMessage: FloatingMessage = {
           id: 'user-' + Date.now(),
-          content: input.trim(),
+          content: currentInput,
           role: 'user',
           timestamp: new Date()
         };
@@ -298,50 +396,84 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
         console.log('✅ Reset isCreatingNewSession to false');
         console.log('🎉 Session created with initial messages!');
         
+        // Optional: Reload sessions in background to ensure sync
+        setTimeout(async () => {
+          console.log('🔄 Background reload sessions after create...');
+          await forceReloadSessions();
+          console.log('✅ Background sessions reload completed');
+        }, 1000);
+        
       } else {
         console.log('💬 Sending message to existing session:', activeSessionId);
         
+        // 1. Show user message immediately
+        const userMessage: FloatingMessage = {
+          id: 'temp-user-' + Date.now(),
+          content: currentInput,
+          role: 'user',
+          timestamp: new Date()
+        };
+
+        // 2. Add typing indicator
+        const typingMessage: FloatingMessage = {
+          id: 'temp-typing-' + Date.now(),
+          content: '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏', // Spinning dots - will be replaced with CSS animation
+          role: 'assistant',
+          timestamp: new Date()
+        };
+
+        // 3. Update UI immediately with user message + typing indicator
+        setSessions(prev => prev.map(s => 
+          s.id === activeSessionId 
+            ? { 
+                ...s, 
+                messages: [...s.messages, userMessage, typingMessage],
+                lastMessage: 'AI đang trả lời...',
+                timestamp: new Date()
+              }
+            : s
+        ));
+        
+        console.log('🎭 Added user message and typing indicator immediately');
+        
         const sendMessageRequest = {
           session_id: activeSessionId,
-          user_input: input.trim()
+          user_input: currentInput
         };
         
         console.log('🚀 Sending message request:', sendMessageRequest);
         const response = await chatbotService.sendMessage(sendMessageRequest);
         console.log('✅ Message sent successfully:', response);
 
-        // Add both user message and AI response to UI immediately
-        const userMessage: FloatingMessage = {
+        // 4. Replace user message and typing indicator with real messages
+        const realUserMessage: FloatingMessage = {
           id: response.human_message_id.toString(),
-          content: input.trim(),
+          content: currentInput,
           role: 'user',
           timestamp: new Date()
         };
 
-        const aiMessage: FloatingMessage = {
+        const realAiMessage: FloatingMessage = {
           id: response.ai_message_id.toString(),
           content: response.ai_response,
           role: 'assistant',
           timestamp: new Date()
         };
 
-        // Update sessions with both messages
+        // 5. Replace temporary messages with real ones
         setSessions(prev => prev.map(s => 
           s.id === activeSessionId 
             ? { 
                 ...s, 
-                messages: [...s.messages, userMessage, aiMessage],
+                messages: [...s.messages.slice(0, -2), realUserMessage, realAiMessage], // Remove last 2 temp messages, add real ones
                 lastMessage: response.ai_response.substring(0, 50) + '...',
                 timestamp: new Date()
               }
             : s
         ));
 
-        console.log('🎉 Added messages to UI - User:', userMessage, 'AI:', aiMessage);
+        console.log('🎉 Replaced temp messages with real messages');
       }
-
-      setInput('');
-      console.log('🧹 Cleared input field');
     } catch (error) {
       console.error('❌ Error in handleSubmit:', error);
       if (error && typeof error === 'object' && 'response' in error) {
@@ -399,6 +531,15 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
       minute: '2-digit' 
     });
   };
+
+  // Typing indicator component
+  const TypingIndicator = () => (
+    <div className="flex space-x-1">
+      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+    </div>
+  );
 
   const getCurrentSessionTypeName = () => {
     const sessionType = AI_SESSION_TYPES.find(type => type.id === currentSessionType);
@@ -612,7 +753,11 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
                         : 'bg-gray-100 text-gray-800'
                     }`}
                   >
-                    <p>{message.content}</p>
+                    {message.id.includes('temp-typing') ? (
+                      <TypingIndicator />
+                    ) : (
+                      <p>{message.content}</p>
+                    )}
                     <p className={`text-xs mt-1 ${
                       message.role === 'user' ? 'text-red-100' : 'text-gray-500'
                     }`}>
