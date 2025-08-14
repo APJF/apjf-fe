@@ -7,16 +7,20 @@ import { StarInput } from "../ui/StarInput"
 export interface NewReviewInput {
   rating: number
   comment: string
-  user?: string
 }
 
 export default function ReviewForm({
   onSubmit,
+  initialData,
+  isEditing = false,
 }: Readonly<{
   onSubmit: (data: NewReviewInput) => Promise<void> | void
+  initialData?: NewReviewInput
+  isEditing?: boolean
+  onCancelEdit?: () => void
 }>) {
-  const [rating, setRating] = useState(0)
-  const [comment, setComment] = useState("")
+  const [rating, setRating] = useState(initialData?.rating || 0)
+  const [comment, setComment] = useState(initialData?.comment || "")
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -35,10 +39,12 @@ export default function ReviewForm({
     }
     setSubmitting(true)
     try {
-      await onSubmit({ rating, comment: comment.trim() })
-      setMessage("Cảm ơn bạn đã đánh giá!")
-      setComment("")
-      setRating(0)
+      await onSubmit({ rating, comment: comment.trim()})
+      if (!isEditing) {
+        setMessage("Cảm ơn bạn đã đánh giá!")
+        setComment("")
+        setRating(0)
+      }
     } catch {
       setError("Không thể gửi đánh giá. Vui lòng thử lại.")
     } finally {

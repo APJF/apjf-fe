@@ -164,7 +164,11 @@
     "noExams": "Chưa có bài kiểm tra nào cho khóa học này",
     "examDuration": "phút",
     "examQuestions": "câu",
-    "courseDescription": "Mô tả khóa học"
+    "courseDescription": "Mô tả khóa học",
+    "studentReviews":"Đánh giá của học viên",
+    "sortNewest":"Mới nhất",
+    "sortOldest":"Cũ nhất",
+    "noMatchingReviews":"Không có kết quả phù hợp"
   },
   "chapterDetail": {
     "backToCourse": "Quay lại khóa học",
