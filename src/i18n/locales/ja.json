@@ -164,7 +164,11 @@
     "noExams": "このコースにはまだ試験がありません",
     "examDuration": "分",
     "examQuestions": "問題",
-    "courseDescription": "コース説明"
+    "courseDescription": "コース説明",
+    "studentReviews": "学生のレビュー",
+    "sortNewest": "新しい順",
+    "sortOldest": "古い順",
+    "noMatchingReviews":"一致する結果はありません"
   },
   "chapterDetail": {
     "backToCourse": "コースに戻る",

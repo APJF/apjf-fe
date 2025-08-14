@@ -155,15 +155,8 @@ export default function CourseDetailPage() {
     );
   }
 
-  // Mock data for demo (in real app, these would come from API)
   const description = course.description || t('courseDetail.defaultDescription');
     
-  const reviews = [
-    { id: 1, user: "Anh Trần", rating: 5, comment: "Khóa học rất chất lượng, giảng viên dễ hiểu.", date: "2025-05-12" },
-    { id: 2, user: "Minh Nguyễn", rating: 4.5, comment: "Nội dung đầy đủ, có thể thêm bài tập nâng cao.", date: "2025-04-03" },
-    { id: 3, user: "Lan Phạm", rating: 4, comment: "Tổng quan tốt, phần cuối hơi nhanh.", date: "2025-03-21" },
-  ];
-
   // Create breadcrumb items
   const breadcrumbItems: BreadcrumbItem[] = [
     { label: t('header.home'), href: '/' },
@@ -243,7 +236,6 @@ export default function CourseDetailPage() {
               title: ch.title,
               duration: 0 // Tạm thời set duration = 0, có thể tính từ units sau
             }))} 
-            initialReviews={reviews} 
           />
         </div>
 

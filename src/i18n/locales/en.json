@@ -164,7 +164,11 @@
     "noExams": "No exams available for this course yet",
     "examDuration": "min",
     "examQuestions": "questions",
-    "courseDescription": "Course Description"
+    "courseDescription": "Course Description",
+    "studentReviews": "Student Reviews",
+    "sortNewest": "Newest",
+    "sortOldest": "Oldest",
+    "noMatchingReviews":"No matching results"
   },
   "chapterDetail": {
     "backToCourse": "Back to course",
