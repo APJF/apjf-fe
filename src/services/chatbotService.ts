@@ -264,16 +264,16 @@ export const chatbotService = {
 
   /**
    * Đổi tên session  
-   * PUT /api/sessions/{sessionId}
+   * PATCH /api/sessions/{sessionId}
    */
   updateSessionName: async (sessionId: number, newName: string): Promise<ChatSession> => {
     try {
       console.log('✏️ Updating session name:', sessionId, 'to:', newName);
-      console.log('🌐 PUT URL will be:', `http://localhost:8000/api/sessions/${sessionId}`);
-      console.log('📦 PUT payload:', { session_name: newName });
+      console.log('🌐 PATCH URL will be:', `http://localhost:8000/api/sessions/${sessionId}`);
+      console.log('📦 PATCH payload:', { name: newName });
       
-      const response = await aiInstance.put(`/api/sessions/${sessionId}`, {
-        session_name: newName
+      const response = await aiInstance.patch(`/api/sessions/${sessionId}`, {
+        name: newName
       });
       console.log('✅ Session name updated, response:', response.data);
       return response.data;
@@ -281,12 +281,12 @@ export const chatbotService = {
       console.error('❌ Error updating session name:', error);
       if (error && typeof error === 'object' && 'response' in error) {
         const axiosError = error as { response?: { data?: unknown; status?: number; statusText?: string } };
-        console.error('🔍 PUT Error details:');
+        console.error('🔍 PATCH Error details:');
         console.error('- Status:', axiosError.response?.status);
         console.error('- Status Text:', axiosError.response?.statusText);
         console.error('- Response data:', axiosError.response?.data);
         console.error('- Full URL attempted:', `http://localhost:8000/api/sessions/${sessionId}`);
-        console.error('- Payload sent:', { session_name: newName });
+        console.error('- Payload sent:', { name: newName });
       }
       throw error;
     }

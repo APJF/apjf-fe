@@ -129,6 +129,54 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
     }
   }, [activeSessionId, isCreatingNewSession, loadSessionMessages]);
 
+  // Force reload sessions without dependencies - for delete/rename operations
+  const forceReloadSessions = async () => {
+    try {
+      console.log('🔄 forceReloadSessions - Starting session reload...');
+      console.log('🔍 Current sessions state before reload:', sessions.map(s => ({ id: s.id, name: s.name })));
+      
+      setIsLoading(true);
+      console.log('📞 Force calling getSessions API with user ID:', getCurrentUserId());
+      const apiSessions = await chatbotService.getSessions(getCurrentUserId());
+      console.log('📥 API returned sessions:', apiSessions?.map(s => ({ id: s.id, session_name: s.session_name })) || []);
+      
+      const floatingSessions: FloatingChatSession[] = apiSessions.map(convertToFloatingSession);
+      console.log('🔄 Force converted to floating sessions:', floatingSessions.map(s => ({ id: s.id, name: s.name })));
+      
+      setSessions(floatingSessions);
+      console.log('✅ Sessions state updated with new data');
+      
+      // Update active session if current one no longer exists
+      if (activeSessionId) {
+        const existingSession = floatingSessions.find(s => s.id === activeSessionId);
+        if (!existingSession) {
+          console.log('⚠️ Active session no longer exists, selecting first available');
+          if (floatingSessions.length > 0) {
+            setActiveSessionId(floatingSessions[0].id);
+            console.log('🎯 Set new active session:', floatingSessions[0].id);
+          } else {
+            setActiveSessionId(null);
+            console.log('🔄 No sessions available, reset active session to null');
+          }
+        } else {
+          console.log('✅ Active session still exists:', activeSessionId);
+        }
+      } else if (floatingSessions.length > 0) {
+        // No active session, set the first one as active
+        setActiveSessionId(floatingSessions[0].id);
+        console.log('🎯 Set first session as active:', floatingSessions[0].id);
+      }
+      
+      console.log('🔍 Final sessions state after reload:', floatingSessions.map(s => ({ id: s.id, name: s.name })));
+    } catch (error) {
+      console.error('❌ Error in forceReloadSessions:', error);
+      console.error('🔍 Error type:', typeof error);
+      console.error('🔍 Error message:', error instanceof Error ? error.message : 'Unknown error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Load sessions when component mounts ONLY
   useEffect(() => {
     if (isOpen && sessions.length === 0) {
@@ -191,9 +239,6 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
       chatbotService.deleteSession(sessionId)
         .then(() => {
           console.log('✅ chatbotService.deleteSession completed successfully');
-          // 4. Reload sessions to ensure proper sync with backend
-          console.log('🔄 Reloading sessions to ensure proper sync with backend...');
-          loadSessions();
         })
         .catch(error => {
           console.error('❌ Background delete failed, reverting optimistic update:', error);
@@ -228,9 +273,6 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
       chatbotService.updateSessionName(sessionId, newName)
         .then(() => {
           console.log('✅ chatbotService.updateSessionName completed successfully');
-          // 3. Reload sessions to get proper order from backend (backend sorts by updated_at)
-          console.log('🔄 Reloading sessions to get proper order from backend...');
-          loadSessions();
         })
         .catch(error => {
           console.error('❌ Background rename failed, reverting optimistic update:', error);
