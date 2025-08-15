@@ -1,19 +1,113 @@
 import axios from '../api/axios'
-import type { ExamData, ExamSummary } from '../types/exam'
+import type { ExamSummary } from '../types/exam'
+
+interface Question {
+  id: string
+  content: string
+  scope: string
+  type: string
+  explanation: string
+  fileUrl: string | null
+  createdAt: string
+  options: any[] | null
+  unitIds: string[]
+}
+
+interface PagedQuestions {
+  content: Question[]
+  pageable: {
+    pageNumber: number
+    pageSize: number
+    sort: any
+    offset: number
+    paged: boolean
+    unpaged: boolean
+  }
+  last: boolean
+  totalElements: number
+  totalPages: number
+  first: boolean
+  numberOfElements: number
+  size: number
+  number: number
+  sort: any
+  empty: boolean
+}
+
+interface Chapter {
+  id: string
+  title: string
+  description: string
+  status: string
+  courseId: string
+  prerequisiteChapterId: string | null
+}
+
+interface Unit {
+  id: string
+  title: string
+  description: string
+  status: string
+  chapterId: string
+  prerequisiteUnitId: string | null
+}
 
 export class StaffExamService {
   private static readonly BASE_URL = '/api/staff/exams'
 
   // Tạo exam mới
-  static async createExam(examData: ExamData): Promise<ExamData> {
-    const token = localStorage.getItem('token')
-    const response = await axios.post(this.BASE_URL, examData, {
+  static async createExam(examData: any): Promise<any> {
+    const response = await axios.post('/exams', examData, {
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     })
     return response.data
+  }
+
+  // Thêm câu hỏi vào exam
+  static async addQuestionsToExam(examId: string, questionIds: string[]): Promise<any> {
+    const response = await axios.post(`/exams/${examId}/questions`, questionIds, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    return response.data
+  }
+
+  // Lấy danh sách câu hỏi với filter
+  static async getQuestions(params?: {
+    unitId?: string
+    page?: number
+    size?: number
+    search?: string
+    type?: string
+    scope?: string
+  }): Promise<PagedQuestions> {
+    const searchParams = new URLSearchParams()
+    
+    if (params?.unitId) searchParams.append('unitId', params.unitId)
+    if (params?.page !== undefined) searchParams.append('page', params.page.toString())
+    if (params?.size !== undefined) searchParams.append('size', params.size.toString())
+    if (params?.search) searchParams.append('search', params.search)
+    if (params?.type && params.type !== 'all') searchParams.append('type', params.type)
+    if (params?.scope && params.scope !== 'all') searchParams.append('scope', params.scope)
+    
+    const url = `/questions${searchParams.toString() ? '?' + searchParams.toString() : ''}`
+    const response = await axios.get(url)
+    return response.data.data // API trả về { success, message, data, timestamp }
+  }
+
+  // Lấy danh sách chapters theo courseId
+  static async getChaptersByCourseId(courseId: string): Promise<Chapter[]> {
+    const response = await axios.get(`/courses/${courseId}/chapters`)
+    return response.data.data // API trả về { success, message, data, timestamp }
+  }
+
+  // Lấy danh sách units theo chapterId
+  static async getUnitsByChapterId(chapterId: string): Promise<Unit[]> {
+    const response = await axios.get(`/chapters/${chapterId}/units`)
+    return response.data.data // API trả về { success, message, data, timestamp }
   }
 
   // Lấy danh sách exam theo scope
@@ -74,11 +168,11 @@ export class StaffExamService {
   }
 
   // Lấy chi tiết exam
-  static async getExamById(examId: string): Promise<ExamData> {
+  static async getExamById(examId: string): Promise<any> {
     // const token = localStorage.getItem('token')
     
     // Mock data for development - replace with real API call later
-    const mockExamData: ExamData = {
+    const mockExamData: any = {
       id: examId,
       title: 'Kiểm tra giữa kỳ N5 - Ngữ pháp cơ bản',
       description: 'Bài kiểm tra đánh giá kiến thức ngữ pháp cơ bản của học viên trong khóa học N5',
@@ -158,7 +252,7 @@ export class StaffExamService {
   }
 
   // Cập nhật exam
-  static async updateExam(examId: string, examData: Partial<ExamData>): Promise<ExamData> {
+  static async updateExam(examId: string, examData: Partial<any>): Promise<any> {
     const token = localStorage.getItem('token')
     const response = await axios.put(`${this.BASE_URL}/${examId}`, examData, {
       headers: {
@@ -180,7 +274,7 @@ export class StaffExamService {
   }
 
   // Thay đổi trạng thái exam
-  static async updateExamStatus(examId: string, status: 'ACTIVE' | 'INACTIVE'): Promise<ExamData> {
+  static async updateExamStatus(examId: string, status: 'ACTIVE' | 'INACTIVE'): Promise<any> {
     const token = localStorage.getItem('token')
     const response = await axios.patch(`${this.BASE_URL}/${examId}/status`, { status }, {
       headers: {

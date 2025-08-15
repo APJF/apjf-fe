@@ -8,10 +8,8 @@ import { Badge } from '../../components/ui/Badge'
 import { StaffNavigation } from '../../components/layout/StaffNavigation'
 import { CourseService } from '../../services/courseService' // Sử dụng CourseService thay vì StaffCourseService
 import { StaffCourseService } from '../../services/staffCourseService'
-import { StaffExamService } from '../../services/staffExamService'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
-import type { Course, Chapter } from '../../types/course' // Sử dụng Course và Chapter types
-import type { ExamSummary } from '../../types/exam'
+import type { Course, Chapter, CourseExam } from '../../types/course' // Sử dụng Course, Chapter và CourseExam types
 
 // Function to sort chapters by prerequisite order
 function sortChaptersByPrerequisite(chapters: Chapter[]): Chapter[] {
@@ -96,6 +94,20 @@ const getStatusText = (status: string) => {
   }
 }
 
+// Hàm lấy text hiển thị cho exam type
+const getExamTypeText = (type: string) => {
+  switch (type) {
+    case 'MULTIPLE_CHOICE':
+      return 'Trắc nghiệm'
+    case 'TRUE_FALSE':
+      return 'Đúng/Sai'
+    case 'WRITING':
+      return 'Tự luận'
+    default:
+      return type
+  }
+}
+
 export const StaffCourseDetailPage: React.FC = () => {
   const { courseId } = useParams<{ courseId: string }>()
   const navigate = useNavigate()
@@ -103,7 +115,7 @@ export const StaffCourseDetailPage: React.FC = () => {
   
   const [course, setCourse] = useState<Course | null>(null)
   const [chapters, setChapters] = useState<Chapter[]>([])
-  const [exams, setExams] = useState<ExamSummary[]>([])
+  const [exams, setExams] = useState<CourseExam[]>([])
   const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -155,12 +167,18 @@ export const StaffCourseDetailPage: React.FC = () => {
         setChapters([]);
       }
 
-      // Load exams for this course
+      // Load exams for this course using new API
       try {
-        const examsData = await StaffExamService.getExamsByScope('course', courseId);
-        setExams(examsData);
+        const examsResponse = await CourseService.getExamsByCourseId(courseId);
+        if (examsResponse.success) {
+          setExams(examsResponse.data);
+          console.log('✅ Course exams loaded:', examsResponse.data);
+        } else {
+          console.error('❌ Course exams fetch failed:', examsResponse.message);
+          setExams([]);
+        }
       } catch (examError) {
-        console.log('Exam service error:', examError);
+        console.log('Course exams service error:', examError);
         setExams([]);
       }
     } catch (error) {
@@ -591,10 +609,10 @@ export const StaffCourseDetailPage: React.FC = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
+                  <div className={`space-y-3 ${exams.length > 3 ? 'max-h-64 overflow-y-auto pr-2' : ''}`}>
                     {exams.length > 0 ? (
                       exams.map((exam) => (
-                        <div key={exam.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
+                        <div key={exam.examId} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
                               <h4 className="font-semibold text-gray-900 mb-1">{exam.title}</h4>
@@ -606,10 +624,10 @@ export const StaffCourseDetailPage: React.FC = () => {
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <BookOpen className="h-3 w-3" />
-                                  {exam.questionCount || 0} câu hỏi
+                                  {exam.totalQuestions} câu hỏi
                                 </span>
-                                <Badge className={exam.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
-                                  {exam.status === 'ACTIVE' ? 'Đang hoạt động' : 'Tạm dừng'}
+                                <Badge variant="outline" className="text-blue-600 border-blue-200">
+                                  {getExamTypeText(exam.type)}
                                 </Badge>
                               </div>
                             </div>
@@ -617,7 +635,7 @@ export const StaffCourseDetailPage: React.FC = () => {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => navigate(`/staff/exams/${exam.id}/edit`, {
+                                onClick={() => navigate(`/staff/exams/${exam.examId}/edit`, {
                                   state: {
                                     scope: 'course',
                                     scopeId: course.id,

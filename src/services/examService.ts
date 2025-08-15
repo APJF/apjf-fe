@@ -441,13 +441,13 @@ export class ExamService {
 
   /**
    * Lấy danh sách options của câu hỏi theo questionId
-   * GET /api/options/by-question/{questionId}
+   * GET /api/questions/{questionId}/options
    * @deprecated Use getQuestionDetails instead
    */
   static async getQuestionOptions(questionId: string): Promise<QuestionOption[]> {
     try {
       console.log('🔍 Fetching options for question ID:', questionId);
-      const response = await api.get(`/options/by-question/${questionId}`);
+      const response = await api.get(`/questions/${questionId}/options`);
       console.log('✅ Question options response:', response.data);
       
       // Check if response has the expected structure {success: true, data: [...]}
