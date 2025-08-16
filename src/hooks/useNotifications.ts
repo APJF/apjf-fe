@@ -14,7 +14,7 @@ export function useNotifications() {
   const { user } = useAuth();
   const isAuthenticated = !!user;
 
-  // Load notifications
+  // Load notifications - memoize để tránh tạo function mới liên tục
   const loadNotifications = useCallback(async (pageNum: number = 1, reset: boolean = false) => {
     // Don't make API calls if user is not authenticated
     if (!isAuthenticated) {
@@ -81,15 +81,23 @@ export function useNotifications() {
     }
     
     try {
-      await NotificationService.markAsRead(notificationId);
+      // Optimistically update local state first for instant UI feedback
       setNotifications(prev => 
         prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
       );
       setUnreadCount(prev => Math.max(0, prev - 1));
+      
+      await NotificationService.markAsRead(notificationId);
+      
+      // ✅ KHÔNG refresh nữa - trust optimistic update vì API đã thành công
+      console.log('✅ Notification marked as read successfully');
+      
     } catch (error) {
-      console.error('Failed to mark notification as read:', error);
+      console.error('❌ Failed to mark notification as read:', error);
+      // Chỉ khi API call thất bại mới refresh để revert optimistic update
+      loadNotifications(1, true);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, loadNotifications]);
 
   // Mark all as read
   const markAllAsRead = useCallback(async () => {
@@ -99,18 +107,31 @@ export function useNotifications() {
     }
     
     try {
-      await NotificationService.markAllAsRead();
+      // Optimistically update local state first for instant UI feedback
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       setUnreadCount(0);
+      
+      await NotificationService.markAllAsRead();
+      
+      // ✅ KHÔNG refresh nữa - trust optimistic update vì API đã thành công
+      console.log('✅ All notifications marked as read successfully');
+      
     } catch (error) {
-      console.error('Failed to mark all notifications as read:', error);
+      console.error('❌ Failed to mark all notifications as read:', error);
+      // Chỉ khi API call thất bại mới refresh để revert
+      loadNotifications(1, true);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, loadNotifications]);
 
   // Refresh notifications
   const refresh = useCallback(() => {
+    if (!isAuthenticated) {
+      console.log('🔐 User not authenticated, skipping refresh');
+      return;
+    }
+    console.log('🔄 Refreshing notifications...');
     loadNotifications(1, true);
-  }, [loadNotifications]);
+  }, [isAuthenticated, loadNotifications]);
 
   return {
     notifications,
