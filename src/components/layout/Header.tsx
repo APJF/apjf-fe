@@ -1,6 +1,6 @@
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Link } from 'react-router-dom';
-import { Menu, X, BookOpen, Bell, Globe, Package, MessageCircle, FileText, Settings } from "lucide-react"
+import { Menu, X, BookOpen, Bell, Globe, Package, MessageCircle, Settings } from "lucide-react"
 import { AuthSection } from "./AuthSection";
 import { Button } from "../ui/Button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/DropdownMenu";
@@ -62,65 +62,7 @@ const Flag = ({ country }: { country: string }) => {
   return flags[country as keyof typeof flags] || null
 }
 
-// Extended notification interface for mock data
-interface ExtendedNotification extends Notification {
-  icon?: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  color?: string;
-  time?: string;
-  unread?: boolean;
-}
 
-// Mock notifications data with extended properties
-const mockNotifications: ExtendedNotification[] = [
-  {
-    id: "1",
-    type: 'info',
-    title: "Khóa học mới",
-    message: "Khóa học 'Ngữ pháp N5' đã được cập nhật với bài học mới",
-    isRead: false,
-    createdAt: new Date(Date.now() - 2 * 60 * 1000).toISOString(), // 2 minutes ago
-    time: "2 phút trước",
-    unread: true,
-    icon: Package,
-    color: "bg-gradient-to-br from-green-400 to-green-600"
-  },
-  {
-    id: "2",
-    type: 'info',
-    title: "Cập nhật hệ thống",
-    message: "Phiên bản 2.1.0 đã được triển khai với nhiều tính năng mới",
-    isRead: false,
-    createdAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(), // 1 hour ago
-    time: "1 giờ trước",
-    unread: true,
-    icon: Settings,
-    color: "bg-gradient-to-br from-blue-400 to-blue-600"
-  },
-  {
-    id: "3",
-    type: 'info',
-    title: "Tin nhắn từ giáo viên",
-    message: "Sensei Yamada đã gửi phản hồi về bài tập của bạn",
-    isRead: true,
-    createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), // 3 hours ago
-    time: "3 giờ trước",
-    unread: false,
-    icon: MessageCircle,
-    color: "bg-gradient-to-br from-purple-400 to-purple-600"
-  },
-  {
-    id: "4",
-    type: 'info',
-    title: "Báo cáo học tập tuần",
-    message: "Báo cáo tiến độ học tập tuần từ 01/01 - 07/01 đã sẵn sàng",
-    isRead: false,
-    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-    time: "1 ngày trước",
-    unread: true,
-    icon: FileText,
-    color: "bg-gradient-to-br from-orange-400 to-orange-600"
-  }
-]
 
 // Helper function to get icon for notification type
 const getNotificationIcon = (type: string, icon?: React.ComponentType<React.SVGProps<SVGSVGElement>>) => {
@@ -162,14 +104,18 @@ const formatTimeAgoWithI18n = (dateString: string, t: (key: string) => string) =
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [notificationOpen, setNotificationOpen] = useState(false)
+  const refreshRef = useRef<(() => void) | null>(null)
   
   // Use language hook
   const { currentLanguage, availableLanguages, changeLanguage, t } = useLanguage();
   
-  // Use the existing notifications hook or fallback to mock data
+  // Use the notifications hook - it will handle authentication internally
   const notificationsData = useNotifications();
-  const notifications = notificationsData?.notifications || mockNotifications;
-  const unreadCount = notificationsData?.unreadCount || mockNotifications.filter(n => n.unread || !n.isRead).length;
+  const notifications = notificationsData?.notifications || [];
+  const unreadCount = notificationsData?.unreadCount || 0;
+  
+  // Store refresh function in ref to avoid dependency issues
+  refreshRef.current = notificationsData?.refresh || null;
 
   const navItems = [
     { href: "/", label: t('header.home') },
@@ -198,14 +144,12 @@ export function Header() {
   }
 
   // Helper function to get notification display properties
-  const getNotificationProps = (notification: Notification | ExtendedNotification) => {
-    const isExtended = 'icon' in notification;
+  const getNotificationProps = (notification: Notification) => {
     return {
-      icon: isExtended ? notification.icon : getNotificationIcon(notification.type),
-      color: isExtended ? notification.color : getNotificationColor(notification.type),
-      time: isExtended ? notification.time : formatTimeAgoWithI18n(notification.createdAt, t),
-      unread: isExtended ? notification.unread : !notification.isRead,
-      // Translate notification title and message
+      icon: getNotificationIcon(notification.type),
+      color: getNotificationColor(notification.type),
+      time: formatTimeAgoWithI18n(notification.createdAt, t),
+      unread: !notification.isRead,
       title: getTranslatedNotificationTitle(notification.title, t),
       message: getTranslatedNotificationMessage(notification.message, t)
     };

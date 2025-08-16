@@ -171,7 +171,7 @@ export default function ChapterDetailPage() {
     }
     
     fetchChapterData()
-  }, [chapterId])
+  }, [chapterId, t])
 
   // Initialize selected material when units data loads
   useEffect(() => {
@@ -294,7 +294,7 @@ export default function ChapterDetailPage() {
           {/* Left Content - Material Viewer (8/12) */}
           <div className="col-span-8">
             {selectedMaterial ? (
-              <Card className="border-gray-200 shadow-sm min-h-[600px]">
+              <Card className="border-gray-200 shadow-sm">
                 <CardHeader className="py-3 px-4">
                   {/* Navigation Header */}
                   <div className="flex items-center justify-between">
@@ -350,12 +350,14 @@ export default function ChapterDetailPage() {
                       />
                     </div>
                   ) : (
-                    <PDFViewer materialId={selectedMaterial.id} fileUrl={selectedMaterial.fileUrl} />
+                    <div className="min-h-[900px]">
+                      <PDFViewer materialId={selectedMaterial.id} fileUrl={selectedMaterial.fileUrl} />
+                    </div>
                   )}
                 </CardContent>
               </Card>
             ) : (
-              <Card className="border-gray-200 shadow-sm min-h-[600px]">
+              <Card className="border-gray-200 shadow-sm min-h-[700px]">
                 <CardContent className="p-4 flex items-center justify-center">
                   <div className="text-center text-gray-500">
                     <p>Chọn một material để xem nội dung</p>

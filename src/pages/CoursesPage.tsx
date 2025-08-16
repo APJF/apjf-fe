@@ -5,7 +5,9 @@ import { useNavigate } from "react-router-dom"
 import { Search, Star, Clock, BookOpen, AlertCircle } from "lucide-react"
 import PaginationButton from "../components/ui/PaginationButton"
 import type { Course } from '../types/course'
+import type { Topic } from '../types/topic'
 import { CourseService } from '../services/courseService'
+import { TopicService } from '../services/topicService'
 import { Breadcrumb, type BreadcrumbItem } from '../components/ui/Breadcrumb'
 import { useLanguage } from '../contexts/LanguageContext'
 
@@ -13,7 +15,7 @@ interface ProcessedCourse {
   id: string
   title: string
   image: string | null
-  rating: number
+  rating: number | null // Updated to allow null
   duration: number // hours
   price: number
   topic: string
@@ -21,39 +23,94 @@ interface ProcessedCourse {
   description: string
 }
 
-// Star rating selector with 0.5-step selection (hover and click)
+// Helper function to round rating to nearest 0.5
+const roundRatingToHalf = (rating: number | null): number | null => {
+  if (rating === null || rating === undefined) return null;
+  // Round to nearest 0.5: Math.round(rating * 2) / 2
+  return Math.round(rating * 2) / 2;
+};
+
+// Component to display stars based on rating
+const StarDisplay: React.FC<{ rating: number | null; showText?: boolean }> = ({ 
+  rating, 
+  showText = true 
+}) => {
+  if (rating === null || rating === undefined) {
+    return (
+      <div className="flex items-center gap-1 text-gray-400">
+        <span className="text-sm font-medium">Chưa có đánh giá</span>
+      </div>
+    );
+  }
+
+  const roundedRating = roundRatingToHalf(rating) || 0;
+  const fullStars = Math.floor(roundedRating);
+  const hasHalfStar = roundedRating % 1 !== 0;
+  const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+
+  return (
+    <div className="flex items-center gap-1">
+      <div className="flex items-center">
+        {/* Full stars */}
+        {[...Array(fullStars)].map((_, i) => (
+          <Star key={`full-star-${roundedRating}-${i}`} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+        ))}
+        
+        {/* Half star */}
+        {hasHalfStar && (
+          <div key={`half-star-${roundedRating}`} className="relative w-4 h-4">
+            <Star className="w-4 h-4 fill-gray-200 text-gray-200" />
+            <div className="absolute inset-0 overflow-hidden" style={{ width: '50%' }}>
+              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+            </div>
+          </div>
+        )}
+        
+        {/* Empty stars */}
+        {[...Array(emptyStars)].map((_, i) => (
+          <Star key={`empty-star-${roundedRating}-${i}`} className="w-4 h-4 fill-gray-200 text-gray-200" />
+        ))}
+      </div>
+      
+      {showText && (
+        <span className="text-sm font-medium text-gray-700">
+          {roundedRating.toFixed(1)}
+        </span>
+      )}
+    </div>
+  );
+};
+
+// Star rating selector with whole number selection only
 const StarRating: React.FC<{ rating: number; onRatingChange: (rating: number) => void }> = ({
   rating,
   onRatingChange,
 }) => {
   const [hover, setHover] = useState(0)
 
-  const handleClick = (e: React.MouseEvent<HTMLButtonElement>, i: number) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const isHalf = x < rect.width / 2
-    const value = i - (isHalf ? 0.5 : 0)
-    onRatingChange(value)
+  const handleClick = (starNumber: number) => {
+    onRatingChange(starNumber)
   }
 
-  const handleMove = (e: React.MouseEvent<HTMLButtonElement>, i: number) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const isHalf = x < rect.width / 2
-    setHover(i - (isHalf ? 0.5 : 0))
+  const handleMouseEnter = (starNumber: number) => {
+    setHover(starNumber)
   }
 
-  const colorFor = (i: number) => {
+  const handleMouseLeave = () => {
+    setHover(0)
+  }
+
+  const getStarColor = (starNumber: number) => {
     const current = hover || rating
-    if (current >= i) return "fill-yellow-400 text-yellow-400"
-    if (current >= i - 0.5) return "fill-yellow-300 text-yellow-300"
-    return "fill-gray-200 text-gray-300"
+    return current >= starNumber 
+      ? "fill-yellow-400 text-yellow-400" 
+      : "fill-gray-200 text-gray-300"
   }
 
   return (
     <fieldset 
       className="flex items-center gap-2" 
-      onMouseLeave={() => setHover(0)}
+      onMouseLeave={handleMouseLeave}
     >
       <legend className="sr-only">Rating filter</legend>
       <div className="flex items-center gap-1">
@@ -61,12 +118,12 @@ const StarRating: React.FC<{ rating: number; onRatingChange: (rating: number) =>
           <button
             key={i}
             type="button"
-            onMouseMove={(e) => handleMove(e, i)}
-            onClick={(e) => handleClick(e, i)}
+            onMouseEnter={() => handleMouseEnter(i)}
+            onClick={() => handleClick(i)}
             className="w-4 h-4 hover:scale-[1.08] transition-transform"
             aria-label={`Set minimum rating to ${i}`}
           >
-            <Star className={`w-full h-full ${colorFor(i)}`} />
+            <Star className={`w-full h-full ${getStarColor(i)}`} />
           </button>
         ))}
       </div>
@@ -75,12 +132,16 @@ const StarRating: React.FC<{ rating: number; onRatingChange: (rating: number) =>
   )
 }
 
-const CourseCard: React.FC<{ course: ProcessedCourse }> = ({ course }) => {
+const CourseCard: React.FC<{ course: ProcessedCourse; allCourses: Course[] }> = ({ course, allCourses }) => {
   const navigate = useNavigate()
 
   const handleCourseClick = () => {
     navigate(`/courses/${course.id}`)
   }
+
+  // Get original course data to access all topics
+  const originalCourse = allCourses.find((c: Course) => c.id === course.id)
+  const courseTopics = originalCourse?.topics || []
 
   return (
     <button 
@@ -98,6 +159,42 @@ const CourseCard: React.FC<{ course: ProcessedCourse }> = ({ course }) => {
         <div className="absolute top-4 right-4 bg-rose-700 text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg">
           Miễn phí
         </div>
+        
+        {/* Topics indicator - subtle hint khi không hover */}
+        {courseTopics.length > 0 && (
+          <div className="absolute bottom-4 left-4 bg-black/50 backdrop-blur-sm text-white px-2 py-1 rounded-md text-xs font-medium shadow-md group-hover:opacity-0 transition-opacity duration-300">
+            {courseTopics.length} chủ đề
+          </div>
+        )}
+        
+        {/* Topics badges - chỉ hiển thị khi hover, đẹp và trong suốt hơn */}
+        {courseTopics.length > 0 && (
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-end justify-center pb-6">
+            <div className="flex flex-wrap gap-2 max-w-[90%] justify-center">
+              {courseTopics.slice(0, 3).map((topic: Topic, index) => (
+                <div 
+                  key={topic.id}
+                  className="bg-white/95 backdrop-blur-md text-gray-800 px-3 py-1.5 rounded-full text-sm font-medium shadow-xl border border-white/30 transform translate-y-3 group-hover:translate-y-0 transition-all duration-300"
+                  style={{ 
+                    transitionDelay: `${index * 100}ms` 
+                  }}
+                >
+                  {topic.name}
+                </div>
+              ))}
+              {courseTopics.length > 3 && (
+                <div 
+                  className="bg-gradient-to-r from-blue-500/95 to-purple-500/95 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-sm font-medium shadow-xl border border-white/30 transform translate-y-3 group-hover:translate-y-0 transition-all duration-300"
+                  style={{ 
+                    transitionDelay: `${courseTopics.slice(0, 3).length * 100}ms` 
+                  }}
+                >
+                  +{courseTopics.length - 3} khác
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
       <div className="p-5">
         <div className="flex items-start justify-between mb-3">
@@ -108,10 +205,7 @@ const CourseCard: React.FC<{ course: ProcessedCourse }> = ({ course }) => {
         </div>
         <p className="text-gray-600 text-sm mb-4 line-clamp-2">{course.title}</p>
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1">
-            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-            <span className="text-sm font-medium text-gray-700">{course.rating || "Chưa có"}</span>
-          </div>
+          <StarDisplay rating={course.rating} />
           <div className="flex items-center gap-1 text-gray-500">
             <Clock className="w-4 h-4" />
             <span className="text-sm">{course.duration}h</span>
@@ -130,10 +224,11 @@ const Pagination: React.FC<{ currentPage: number; totalPages: number; onPageChan
   t,
 }) => {
   if (totalPages <= 1) return null
-  const left = currentPage - 1 >= 1 ? currentPage - 1 : null
-  const center = currentPage
-  const right = currentPage + 1 <= totalPages ? currentPage + 1 : null
-
+  
+  // Logic mới: hiển thị trang đầu tiên, trang hiện tại, trang cuối cùng
+  const firstPage = 1
+  const lastPage = totalPages
+  
   return (
     <div className="flex items-center justify-center gap-3 mt-10">
       <button
@@ -155,9 +250,24 @@ const Pagination: React.FC<{ currentPage: number; totalPages: number; onPageChan
       </button>
 
       <div className="grid grid-cols-3 gap-2">
-        <PaginationButton page={left} onClick={onPageChange} />
-        <PaginationButton page={center} isActive onClick={onPageChange} />
-        <PaginationButton page={right} onClick={onPageChange} />
+        {/* Trang đầu tiên */}
+        <PaginationButton 
+          page={currentPage === firstPage ? null : firstPage} 
+          onClick={onPageChange} 
+        />
+        
+        {/* Trang hiện tại */}
+        <PaginationButton 
+          page={currentPage} 
+          isActive 
+          onClick={onPageChange} 
+        />
+        
+        {/* Trang cuối cùng */}
+        <PaginationButton 
+          page={currentPage === lastPage ? null : lastPage} 
+          onClick={onPageChange} 
+        />
       </div>
 
       <button
@@ -184,11 +294,12 @@ const Pagination: React.FC<{ currentPage: number; totalPages: number; onPageChan
 export default function CoursesPage() {
   const { t } = useLanguage()
   const [allCourses, setAllCourses] = useState<Course[]>([])
+  const [allTopics, setAllTopics] = useState<Topic[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
   const [searchTerm, setSearchTerm] = useState("")
-  const [sortBy, setSortBy] = useState<"rating" | "duration" | "title">("rating")
+  const [sortBy, setSortBy] = useState<"rating" | "level">("rating")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [filterTopic, setFilterTopic] = useState<string>("all")
   const [filterLevel, setFilterLevel] = useState<string>("all")
@@ -202,47 +313,65 @@ export default function CoursesPage() {
       id: course.id,
       title: course.title,
       image: course.image,
-      rating: course.averageRating || 0,
+      rating: course.averageRating || null, // Keep null for courses without ratings
       duration: course.duration || 0, // Use hours from API directly
       price: 0, // All courses are free
-      topic: course.topics?.[0]?.name || "Tiếng Nhật",
+      topic: course.topics?.[0]?.name || "Không có topic", // Lấy topic đầu tiên từ API
       level: course.level,
       description: course.description || ""
     }))
   }, [allCourses])
 
-  const topics = ["all", "Tiếng Nhật"] // Simplified since API doesn't return topics
+  // Topics from API + "all" option
+  const topics = useMemo(() => {
+    const topicNames = ["all"]
+    allTopics.forEach(topic => {
+      if (topic.name?.trim()) {
+        topicNames.push(topic.name.trim())
+      }
+    })
+    return topicNames
+  }, [allTopics])
+
   const levels = ["all", "N5", "N4", "N3", "N2", "N1"]
 
   const filteredAndSorted = useMemo(() => {
     const filtered = processedCourses.filter((c) => {
       const matchesSearch =
         c.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.description.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesTopic = filterTopic === "all" || c.topic === filterTopic
+      
+      // Improved topic matching - check if any topic in the course matches the filter
+      const matchesTopic = filterTopic === "all" || 
+        allCourses.find(course => course.id === c.id)?.topics?.some((topic: Topic) => topic.name === filterTopic)
+      
       const matchesLevel = filterLevel === "all" || c.level === filterLevel
-      const matchesRating = c.rating >= minRating
+      
+      // Handle null ratings - if minRating is 0, include courses with null ratings
+      const matchesRating = minRating === 0 || (c.rating !== null && c.rating >= minRating)
+      
       return matchesSearch && matchesTopic && matchesLevel && matchesRating
     })
 
     filtered.sort((a, b) => {
-      let aVal: string | number, bVal: string | number
-      if (sortBy === "title") {
-        aVal = a.title.toLowerCase()
-        bVal = b.title.toLowerCase()
-      } else {
-        aVal = a[sortBy]
-        bVal = b[sortBy]
+      if (sortBy === "rating") {
+        // Handle null ratings: null ratings go to the end
+        const aVal = a.rating ?? -1 // null becomes -1 (lowest)
+        const bVal = b.rating ?? -1 // null becomes -1 (lowest)
+        return sortOrder === "desc" ? bVal - aVal : aVal - bVal
+      } else if (sortBy === "level") {
+        // Level order: N5 (lowest) -> N4 -> N3 -> N2 -> N1 (highest)
+        const levelOrder: { [key: string]: number } = { N5: 1, N4: 2, N3: 3, N2: 4, N1: 5 }
+        const aVal = levelOrder[a.level] || 0
+        const bVal = levelOrder[b.level] || 0
+        return sortOrder === "desc" ? bVal - aVal : aVal - bVal
       }
-      if (sortOrder === "asc") {
-        return aVal > bVal ? 1 : -1
-      } else {
-        return aVal < bVal ? 1 : -1
-      }
+      return 0
     })
 
     return filtered
-  }, [processedCourses, searchTerm, sortBy, sortOrder, filterTopic, filterLevel, minRating])
+  }, [processedCourses, searchTerm, sortBy, sortOrder, filterTopic, filterLevel, minRating, allCourses])
 
   const totalPages = Math.ceil(filteredAndSorted.length / itemsPerPage) || 1
   const start = (currentPage - 1) * itemsPerPage
@@ -261,6 +390,22 @@ export default function CoursesPage() {
     setMinRating(0)
     setCurrentPage(1)
   }
+
+  // Fetch topics
+  const fetchTopics = useCallback(async () => {
+    try {
+      const response = await TopicService.getAllTopics()
+      if (response.success) {
+        setAllTopics(response.data || [])
+      } else {
+        console.error('Failed to fetch topics:', response.message)
+        setAllTopics([])
+      }
+    } catch (err) {
+      console.error('Error fetching topics:', err)
+      setAllTopics([])
+    }
+  }, [])
 
   // Fetch courses
   const fetchCourses = useCallback(async () => {
@@ -288,8 +433,12 @@ export default function CoursesPage() {
   }, [t])
 
   useEffect(() => {
-    fetchCourses()
-  }, [fetchCourses])
+    // Fetch both topics and courses in parallel
+    Promise.all([
+      fetchTopics(),
+      fetchCourses()
+    ])
+  }, [fetchTopics, fetchCourses])
 
   // Create breadcrumb items
   const breadcrumbItems: BreadcrumbItem[] = [
@@ -325,17 +474,15 @@ export default function CoursesPage() {
                 value={`${sortBy}-${sortOrder}`}
                 onChange={(e) => {
                   const [f, o] = e.target.value.split("-")
-                  setSortBy(f as "rating" | "duration" | "title")
+                  setSortBy(f as "rating" | "level")
                   setSortOrder(o as "asc" | "desc")
                 }}
                 className="h-9 w-full px-3 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-rose-700 focus:border-transparent"
               >
-                <option value="rating-desc">{t('courses.rating')}: {t('courses.newest')}</option>
-                <option value="rating-asc">{t('courses.rating')}: {t('courses.oldest')}</option>
-                <option value="duration-asc">{t('courses.hours')}: {t('courses.oldest')}</option>
-                <option value="duration-desc">{t('courses.hours')}: {t('courses.newest')}</option>
-                <option value="title-asc">A-Z</option>
-                <option value="title-desc">Z-A</option>
+                <option value="rating-desc">{t('courses.rating')}: {t('courses.highest')}</option>
+                <option value="rating-asc">{t('courses.rating')}: {t('courses.lowest')}</option>
+                <option value="level-desc">{t('courses.level')}: {t('courses.highest')} (N1)</option>
+                <option value="level-asc">{t('courses.level')}: {t('courses.lowest')} (N5)</option>
               </select>
             </div>
           </div>
@@ -426,7 +573,9 @@ export default function CoursesPage() {
               <p className="text-red-600 text-sm">{error}</p>
             </div>
             <button
-              onClick={fetchCourses}
+              onClick={() => {
+                Promise.all([fetchTopics(), fetchCourses()])
+              }}
               className="ml-auto px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
             >
               {t('courses.retry')}
@@ -441,7 +590,7 @@ export default function CoursesPage() {
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {currentCourses.map((c) => (
-                    <CourseCard key={c.id} course={c} />
+                    <CourseCard key={c.id} course={c} allCourses={allCourses} />
                   ))}
                 </div>
                 <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} t={t} />

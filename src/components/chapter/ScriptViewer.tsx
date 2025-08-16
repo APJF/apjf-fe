@@ -48,7 +48,7 @@ export function ScriptViewer({ script, translation }: ScriptViewerProps) {
   
   const [hasFinishedAudio] = useState(true) // Mock: assume audio finished
   const [showVietnamese, setShowVietnamese] = useState<number[]>([])
-  const [showAllVietnamese, setShowAllVietnamese] = useState(false)
+  const [showScript, setShowScript] = useState(false) // New state for showing/hiding script
 
   const toggleVietnamese = (sentenceId: number) => {
     setShowVietnamese((prev) =>
@@ -57,12 +57,15 @@ export function ScriptViewer({ script, translation }: ScriptViewerProps) {
   }
 
   const toggleAllVietnamese = () => {
-    if (showAllVietnamese) {
+    if (showVietnamese.length === scriptData.length) {
       setShowVietnamese([])
     } else {
       setShowVietnamese(scriptData.map((s) => s.id))
     }
-    setShowAllVietnamese(!showAllVietnamese)
+  }
+
+  const toggleScript = () => {
+    setShowScript(!showScript)
   }
 
   if (!hasFinishedAudio) {
@@ -85,62 +88,79 @@ export function ScriptViewer({ script, translation }: ScriptViewerProps) {
           <Languages className="w-5 h-5 text-gray-600" />
           <span className="text-base font-semibold">Script bài nghe</span>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={toggleAllVietnamese}
-          className="flex items-center space-x-2 text-sm border-gray-300 text-gray-600 hover:bg-gray-50 bg-transparent h-9 px-4 transition-all duration-200"
-        >
-          {showAllVietnamese ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-          <span>{showAllVietnamese ? "Ẩn dịch" : "Hiện dịch"}</span>
-        </Button>
+        <div className="flex items-center space-x-2">
+          {showScript && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleAllVietnamese}
+              className="flex items-center space-x-2 text-sm border-gray-300 text-gray-600 hover:bg-gray-50 bg-transparent h-9 px-4 transition-all duration-200"
+            >
+              {showVietnamese.length === scriptData.length ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              <span>{showVietnamese.length === scriptData.length ? "Ẩn dịch" : "Hiện dịch"}</span>
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleScript}
+            className="flex items-center space-x-2 text-sm border-gray-300 text-gray-600 hover:bg-gray-50 bg-transparent h-9 px-4 transition-all duration-200"
+          >
+            {showScript ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            <span>{showScript ? "Ẩn script" : "Hiện script"}</span>
+          </Button>
+        </div>
       </div>
 
       {/* Script Content */}
-      <div className="space-y-3">
-        {scriptData.length > 0 ? (
-          scriptData.map((sentence) => (
-            <div
-              key={sentence.id}
-              className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-all duration-200 shadow-sm"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <Badge variant="outline" className="text-xs border-gray-300 text-gray-600 bg-gray-50 px-2 py-1">
-                  {sentence.timeStart}s - {sentence.timeEnd}s
-              </Badge>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => toggleVietnamese(sentence.id)}
-                className="h-7 px-3 text-xs text-gray-600 hover:bg-gray-100 transition-all duration-200"
+      {showScript && (
+        <div className="space-y-3">
+          {scriptData.length > 0 ? (
+            scriptData.map((sentence) => (
+              <div
+                key={sentence.id}
+                className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-all duration-200 shadow-sm"
               >
-                {showVietnamese.includes(sentence.id) ? "Ẩn" : "Dịch"}
-              </Button>
+                <div className="flex items-start justify-between mb-3">
+                  <Badge variant="outline" className="text-xs border-gray-300 text-gray-600 bg-gray-50 px-2 py-1">
+                    {sentence.timeStart}s - {sentence.timeEnd}s
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleVietnamese(sentence.id)}
+                    className="h-7 px-3 text-xs text-gray-600 hover:bg-gray-100 transition-all duration-200"
+                  >
+                    {showVietnamese.includes(sentence.id) ? "Ẩn" : "Dịch"}
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  <p className="text-base font-medium text-gray-900 leading-relaxed">{sentence.japanese}</p>
+
+                  {showVietnamese.includes(sentence.id) && (
+                    <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded border-l-4 border-blue-400">
+                      {sentence.vietnamese}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <p>Không có script nào để hiển thị</p>
             </div>
+          )}
+        </div>
+      )}
 
-            <div className="space-y-3">
-              <p className="text-base font-medium text-gray-900 leading-relaxed">{sentence.japanese}</p>
-
-              {showVietnamese.includes(sentence.id) && (
-                <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded border-l-4 border-blue-400">
-                  {sentence.vietnamese}
-                </p>
-              )}
-            </div>
-          </div>
-          ))
-        ) : (
-          <div className="text-center py-8 text-gray-500">
-            <p>Không có script nào để hiển thị</p>
-          </div>
-        )}
-      </div>
-
-      <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <p className="text-sm text-blue-800">
-          💡 <strong>Mẹo học tập:</strong> Hãy thử nghe lại và đọc theo script để cải thiện phát âm của bạn!
-        </p>
-      </div>
+      {showScript && (
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-800">
+            💡 <strong>Mẹo học tập:</strong> Hãy thử nghe lại và đọc theo script để cải thiện phát âm của bạn!
+          </p>
+        </div>
+      )}
     </div>
   )
 }
