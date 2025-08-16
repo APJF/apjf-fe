@@ -29,19 +29,11 @@ import { ApprovalRequestService } from '../../services/approvalRequestService'
 import { CourseService } from '../../services/courseService'
 import { StaffChapterService } from '../../services/staffChapterService'
 import { StaffUnitService } from '../../services/staffUnitService'
-import { MaterialService } from '../../services/materialService'
+import { MaterialService, type Material } from '../../services/materialService'
 import type { ApprovalRequest } from '../../types/approvalRequest'
 import type { Course } from '../../types/course'
 import type { Chapter } from '../../types/chapter'
 import type { UnitDetail } from '../../types/unit'
-
-// Material type definition from API
-interface Material {
-  id: string
-  description: string
-  type: string
-  fileUrl: string
-}
 
 export function StaffManagerFeedbackPage() {
   const [requests, setRequests] = useState<ApprovalRequest[]>([])
@@ -998,11 +990,21 @@ export function StaffManagerFeedbackPage() {
                                     <FileText className="h-4 w-4 text-gray-500 mt-1" />
                                     <div className="flex-1 min-w-0">
                                       <p className="text-sm font-medium text-gray-900 truncate">
-                                        {material.description}
+                                        {material.title || `Material ${material.id}`}
                                       </p>
                                       <p className="text-xs text-gray-500 mt-1">
                                         Loại: {material.type}
                                       </p>
+                                      {material.script && (
+                                        <p className="text-xs text-gray-600 mt-1">
+                                          Nội dung: {material.script}
+                                        </p>
+                                      )}
+                                      {material.translation && (
+                                        <p className="text-xs text-gray-600 mt-1">
+                                          Bản dịch: {material.translation}
+                                        </p>
+                                      )}
                                       {material.fileUrl && (
                                         <a
                                           href={material.fileUrl}

@@ -147,6 +147,24 @@ export interface CreateCourseApiResponse {
 }
 
 // Re-export các API response types từ chapter.ts và unit.ts
+// Course Exam interface - từ API GET /courses/{id}/exams
+export interface CourseExam {
+  examId: string;
+  title: string;
+  description: string;
+  duration: number;
+  totalQuestions: number;
+  type: "MULTIPLE_CHOICE" | "TRUE_FALSE" | "WRITING";
+}
+
+// API Response for Course Exams
+export interface CourseExamsApiResponse {
+  success: boolean;
+  message: string;
+  data: CourseExam[];
+  timestamp: number;
+}
+
 export type { 
   ChaptersApiResponse,
   CreateChapterRequest,

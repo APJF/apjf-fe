@@ -23,26 +23,18 @@ import {
   BookOpen,
   AlertCircle,
   Check,
-  X,
-  Package
+  X
 } from 'lucide-react'
 import { ApprovalRequestService } from '../../services/approvalRequestService'
 import { CourseService } from '../../services/courseService'
 import { StaffChapterService } from '../../services/staffChapterService'
 import { StaffUnitService } from '../../services/staffUnitService'
-import { MaterialService } from '../../services/materialService'
+import { MaterialService, type Material } from '../../services/materialService'
 import type { ApprovalRequest } from '../../types/approvalRequest'
 import type { Course } from '../../types/course'
 import type { Chapter } from '../../types/chapter'
 import type { UnitDetail } from '../../types/unit'
 
-// Material type definition from API
-interface Material {
-  id: string
-  description: string
-  type: string
-  fileUrl: string
-}
 
 export function ManagerApprovalRequestsPage() {
   const [requests, setRequests] = useState<ApprovalRequest[]>([])
@@ -61,8 +53,8 @@ export function ManagerApprovalRequestsPage() {
   const [rejectFeedback, setRejectFeedback] = useState("")
   const [currentTab, setCurrentTab] = useState("all")
   const [unitMaterials, setUnitMaterials] = useState<Material[]>([])
-  const [isLoadingMaterials] = useState(false)
-  
+  const [isLoadingMaterials, setIsLoadingMaterials] = useState(false)
+ 
   // State để lưu thông tin chi tiết
   const [targetDetails, setTargetDetails] = useState<{
     course?: Course
@@ -71,17 +63,20 @@ export function ManagerApprovalRequestsPage() {
   }>({})
   const [isLoadingTargetDetails, setIsLoadingTargetDetails] = useState(false)
   const [courseImageError, setCourseImageError] = useState(false)
-  
+ 
   const itemsPerPage = 6
+
 
   const { user } = useAuth()
   const { showToast } = useToast()
+
 
   // Fetch requests data
   const fetchRequests = async () => {
     try {
       setIsLoading(true)
       setError(null)
+
 
       const response = await ApprovalRequestService.getAllRequests()
       console.log('📋 Manager API Response:', response)
@@ -94,12 +89,13 @@ export function ManagerApprovalRequestsPage() {
     }
   }
 
+
   // Fetch target details based on targetType and targetId
   const fetchTargetDetails = async (targetType: string, targetId: string) => {
     try {
       setIsLoadingTargetDetails(true)
       setTargetDetails({}) // Reset previous details
-      
+     
       switch (targetType) {
         case 'COURSE':
           try {
@@ -111,7 +107,7 @@ export function ManagerApprovalRequestsPage() {
             console.error('Error fetching course details:', error)
           }
           break
-          
+         
         case 'CHAPTER':
           try {
             const chapterResponse = await StaffChapterService.getChapterDetail(targetId)
@@ -122,26 +118,29 @@ export function ManagerApprovalRequestsPage() {
             console.error('Error fetching chapter details:', error)
           }
           break
-          
+         
         case 'UNIT':
           try {
+            setIsLoadingMaterials(true)
             const [unitResponse, materialsResponse] = await Promise.all([
               StaffUnitService.getUnitDetail(targetId),
               MaterialService.getMaterialsByUnit(targetId)
             ])
-            
+           
             if (unitResponse.success) {
               setTargetDetails(prev => ({ ...prev, unit: unitResponse.data }))
             }
-            
+           
             if (materialsResponse.success) {
               setUnitMaterials(materialsResponse.data)
             }
           } catch (error) {
             console.error('Error fetching unit details:', error)
+          } finally {
+            setIsLoadingMaterials(false)
           }
           break
-          
+         
         default:
           console.warn('Unknown targetType:', targetType)
       }
@@ -153,9 +152,11 @@ export function ManagerApprovalRequestsPage() {
     }
   }
 
+
   useEffect(() => {
     fetchRequests()
   }, [])
+
 
   // Calculate statistics
   const stats = useMemo(() => {
@@ -164,29 +165,33 @@ export function ManagerApprovalRequestsPage() {
     const approved = requests.filter((item) => item.decision === "APPROVED").length
     const rejected = requests.filter((item) => item.decision === "REJECTED").length
 
+
     return { total, pending, approved, rejected }
   }, [requests])
 
+
   // Filter and sort data
   const filteredData = useMemo(() => {
-    const filtered = requests.filter((item) => {
+    let filtered = requests.filter((item) => {
       const matchesSearch =
         (item.targetTitle?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
         (item.targetId?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
         (item.createdBy?.toLowerCase() || '').includes(searchTerm.toLowerCase())
 
-      const matchesStatus = statusFilter === "all" || 
+
+      const matchesStatus = statusFilter === "all" ||
         (statusFilter === "PENDING" && item.decision === "PENDING") ||
         (statusFilter === "APPROVED" && item.decision === "APPROVED") ||
         (statusFilter === "REJECTED" && item.decision === "REJECTED")
 
+
       let matchesType = true
       if (typeFilter !== "all") {
         if (currentTab !== "all") {
-          const typeMap = { 
-            subjects: "COURSE", 
-            chapters: "CHAPTER", 
-            units: "UNIT" 
+          const typeMap = {
+            subjects: "COURSE",
+            chapters: "CHAPTER",
+            units: "UNIT"
           }
           matchesType = item.targetType === typeMap[currentTab as keyof typeof typeMap]
         } else {
@@ -194,25 +199,28 @@ export function ManagerApprovalRequestsPage() {
         }
       }
 
+
       // Tab filtering
       if (currentTab !== "all") {
-        const typeMap = { 
-          subjects: "COURSE", 
-          chapters: "CHAPTER", 
-          units: "UNIT" 
+        const typeMap = {
+          subjects: "COURSE",
+          chapters: "CHAPTER",
+          units: "UNIT"
         }
         const tabMatches = item.targetType === typeMap[currentTab as keyof typeof typeMap]
         return matchesSearch && matchesStatus && matchesType && tabMatches
       }
 
+
       return matchesSearch && matchesStatus && matchesType
     })
+
 
     // Sort by time
     filtered.sort((a, b) => {
       const dateA = new Date(a.createdAt).getTime()
       const dateB = new Date(b.createdAt).getTime()
-      
+     
       if (sortBy === "newest") {
         return dateB - dateA
       } else {
@@ -220,19 +228,23 @@ export function ManagerApprovalRequestsPage() {
       }
     })
 
+
     return filtered
   }, [requests, searchTerm, statusFilter, typeFilter, sortBy, currentTab])
+
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1)
   }, [searchTerm, statusFilter, typeFilter, currentTab])
 
+
   // Pagination
   const totalPages = Math.ceil(filteredData.length / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
   const currentData = filteredData.slice(startIndex, endIndex)
+
 
   // Helper functions
   const getDecisionColor = (decision: string) => {
@@ -248,6 +260,7 @@ export function ManagerApprovalRequestsPage() {
     }
   }
 
+
   const getDecisionText = (decision: string) => {
     switch (decision) {
       case "APPROVED":
@@ -260,6 +273,7 @@ export function ManagerApprovalRequestsPage() {
         return decision
     }
   }
+
 
   const getDecisionIcon = (decision: string) => {
     switch (decision) {
@@ -274,6 +288,7 @@ export function ManagerApprovalRequestsPage() {
     }
   }
 
+
   const getTargetTypeIcon = (targetType: string) => {
     switch (targetType) {
       case "COURSE":
@@ -286,6 +301,7 @@ export function ManagerApprovalRequestsPage() {
         return <FileText className="h-4 w-4" />
     }
   }
+
 
   const getTargetTypeText = (targetType: string) => {
     switch (targetType) {
@@ -300,6 +316,7 @@ export function ManagerApprovalRequestsPage() {
     }
   }
 
+
   const getRequestTypeText = (requestType: string) => {
     switch (requestType) {
       case "CREATE":
@@ -313,6 +330,7 @@ export function ManagerApprovalRequestsPage() {
     }
   }
 
+
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'N/A'
     return new Date(dateString).toLocaleDateString('vi-VN', {
@@ -324,29 +342,33 @@ export function ManagerApprovalRequestsPage() {
     })
   }
 
+
   // Handle approval
   const handleApprove = async (requestId: number, feedback?: string) => {
     try {
       setIsActionLoading(true)
       setError(null)
 
+
       await ApprovalRequestService.approveRequest(requestId, feedback)
-      
+     
       // Update local state
-      setRequests(prev => prev.map(req => 
-        req.id === requestId 
+      setRequests(prev => prev.map(req =>
+        req.id === requestId
           ? { ...req, decision: "APPROVED", reviewedAt: new Date().toISOString(), reviewedBy: user?.username || 'Manager' }
           : req
       ))
 
+
       if (selectedRequest && selectedRequest.id === requestId) {
-        setSelectedRequest(prev => prev ? { 
-          ...prev, 
-          decision: "APPROVED", 
+        setSelectedRequest(prev => prev ? {
+          ...prev,
+          decision: "APPROVED",
           reviewedAt: new Date().toISOString(),
           reviewedBy: user?.username || 'Manager'
         } : null)
       }
+
 
       showToast('success', 'Yêu cầu đã được phê duyệt thành công!')
     } catch (err) {
@@ -358,6 +380,7 @@ export function ManagerApprovalRequestsPage() {
     }
   }
 
+
   // Handle rejection
   const handleReject = async (requestId: number, feedback: string) => {
     if (!feedback.trim()) {
@@ -365,18 +388,20 @@ export function ManagerApprovalRequestsPage() {
       return
     }
 
+
     try {
       setIsActionLoading(true)
       setError(null)
 
+
       await ApprovalRequestService.rejectRequest(requestId, feedback)
-      
+     
       // Update local state
-      setRequests(prev => prev.map(req => 
-        req.id === requestId 
-          ? { 
-              ...req, 
-              decision: "REJECTED", 
+      setRequests(prev => prev.map(req =>
+        req.id === requestId
+          ? {
+              ...req,
+              decision: "REJECTED",
               feedback,
               reviewedAt: new Date().toISOString(),
               reviewedBy: user?.username || 'Manager'
@@ -384,15 +409,17 @@ export function ManagerApprovalRequestsPage() {
           : req
       ))
 
+
       if (selectedRequest && selectedRequest.id === requestId) {
-        setSelectedRequest(prev => prev ? { 
-          ...prev, 
-          decision: "REJECTED", 
+        setSelectedRequest(prev => prev ? {
+          ...prev,
+          decision: "REJECTED",
           feedback,
           reviewedAt: new Date().toISOString(),
           reviewedBy: user?.username || 'Manager'
         } : null)
       }
+
 
       setIsRejectDialogOpen(false)
       setRejectingRequest(null)
@@ -407,19 +434,22 @@ export function ManagerApprovalRequestsPage() {
     }
   }
 
+
   const handleRowClick = async (request: ApprovalRequest) => {
     setSelectedRequest(request)
     setIsDetailDialogOpen(true)
-    
+   
     // Fetch target details based on targetType and targetId
     await fetchTargetDetails(request.targetType, request.targetId)
   }
+
 
   const handleRejectClick = (request: ApprovalRequest) => {
     setRejectingRequest(request)
     setRejectFeedback("")
     setIsRejectDialogOpen(true)
   }
+
 
   if (!user) {
     return (
@@ -433,6 +463,7 @@ export function ManagerApprovalRequestsPage() {
     )
   }
 
+
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-6">
@@ -440,8 +471,8 @@ export function ManagerApprovalRequestsPage() {
           <XCircle className="h-4 w-4" />
           <h3 className="font-semibold">Có lỗi xảy ra</h3>
           <p className="mt-2 text-sm">{error}</p>
-          <Button 
-            onClick={fetchRequests} 
+          <Button
+            onClick={fetchRequests}
             className="mt-4"
             size="sm"
           >
@@ -451,6 +482,7 @@ export function ManagerApprovalRequestsPage() {
       </div>
     )
   }
+
 
   return (
     <ManagerNavigation>
@@ -483,6 +515,7 @@ export function ManagerApprovalRequestsPage() {
         </div>
       </div>
 
+
       <div className="max-w-7xl mx-auto p-6">
           {/* Statistics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -500,6 +533,7 @@ export function ManagerApprovalRequestsPage() {
               </div>
             </Card>
 
+
             <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm hover:shadow-2xl transition-all duration-300">
               <div className="p-6">
                 <div className="flex items-center gap-4">
@@ -514,6 +548,7 @@ export function ManagerApprovalRequestsPage() {
               </div>
             </Card>
 
+
             <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm hover:shadow-2xl transition-all duration-300">
               <div className="p-6">
                 <div className="flex items-center gap-4">
@@ -527,6 +562,7 @@ export function ManagerApprovalRequestsPage() {
                 </div>
               </div>
             </Card>
+
 
             <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm hover:shadow-2xl transition-all duration-300">
               <div className="p-6">
@@ -543,6 +579,7 @@ export function ManagerApprovalRequestsPage() {
             </Card>
           </div>
 
+
           {/* Tabs */}
           <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm mb-8">
             <div className="p-6">
@@ -552,6 +589,7 @@ export function ManagerApprovalRequestsPage() {
                 </div>
                 <h2 className="text-lg font-bold text-blue-900">Phân loại yêu cầu</h2>
               </div>
+
 
               <div className="flex flex-wrap gap-2">
                 {[
@@ -568,8 +606,8 @@ export function ManagerApprovalRequestsPage() {
                       setCurrentPage(1)
                     }}
                     className={`flex items-center gap-2 ${
-                      currentTab === value 
-                        ? "bg-blue-600 text-white" 
+                      currentTab === value
+                        ? "bg-blue-600 text-white"
                         : "border-blue-300 text-blue-600 hover:bg-blue-50"
                     }`}
                   >
@@ -581,6 +619,7 @@ export function ManagerApprovalRequestsPage() {
             </div>
           </Card>
 
+
           {/* Filters */}
           <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm mb-8">
             <div className="p-6">
@@ -590,6 +629,7 @@ export function ManagerApprovalRequestsPage() {
                 </div>
                 <h2 className="text-lg font-bold text-blue-900">Bộ lọc và tìm kiếm</h2>
               </div>
+
 
               <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                 <div className="relative">
@@ -602,8 +642,9 @@ export function ManagerApprovalRequestsPage() {
                   />
                 </div>
 
-                <select 
-                  value={statusFilter} 
+
+                <select
+                  value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                   className="px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80 backdrop-blur-sm"
                 >
@@ -613,9 +654,10 @@ export function ManagerApprovalRequestsPage() {
                   <option value="REJECTED">Từ chối</option>
                 </select>
 
+
                 {currentTab === "all" && (
-                  <select 
-                    value={typeFilter} 
+                  <select
+                    value={typeFilter}
                     onChange={(e) => setTypeFilter(e.target.value)}
                     className="px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80 backdrop-blur-sm"
                   >
@@ -626,8 +668,9 @@ export function ManagerApprovalRequestsPage() {
                   </select>
                 )}
 
-                <select 
-                  value={sortBy} 
+
+                <select
+                  value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as "newest" | "oldest")}
                   className="px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white/80 backdrop-blur-sm"
                 >
@@ -635,7 +678,9 @@ export function ManagerApprovalRequestsPage() {
                   <option value="oldest">Cũ nhất</option>
                 </select>
 
+
                 <div></div>
+
 
                 <div className="text-right">
                   <span className="text-sm text-blue-600 bg-blue-100 px-3 py-2 rounded-full font-medium">
@@ -645,6 +690,7 @@ export function ManagerApprovalRequestsPage() {
               </div>
             </div>
           </Card>
+
 
           {/* Requests Table */}
           <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm">
@@ -663,6 +709,7 @@ export function ManagerApprovalRequestsPage() {
                 </div>
               </div>
 
+
               {/* Table Body */}
               <div className="divide-y divide-blue-100">
                 {isLoading && (
@@ -671,7 +718,7 @@ export function ManagerApprovalRequestsPage() {
                     <p className="text-blue-600">Đang tải dữ liệu...</p>
                   </div>
                 )}
-                
+               
                 {!isLoading && currentData.length === 0 && (
                   <div className="px-6 py-12 text-center">
                     <div className="text-blue-500">
@@ -681,12 +728,13 @@ export function ManagerApprovalRequestsPage() {
                     </div>
                   </div>
                 )}
-                
+               
                 {!isLoading && currentData.length > 0 && (
                   currentData.map((item, index) => (
-                    <div
+                    <button
                       key={item.id}
-                      className="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-blue-50/50 transition-colors cursor-pointer"
+                      type="button"
+                      className="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-blue-50/50 transition-colors cursor-pointer text-left w-full border-0 bg-transparent"
                       onClick={() => handleRowClick(item)}
                     >
                       <div className="col-span-1 text-sm text-blue-900 font-medium">
@@ -711,8 +759,8 @@ export function ManagerApprovalRequestsPage() {
                         </div>
                       </div>
                       <div className="col-span-1">
-                        <Badge 
-                          variant="outline" 
+                        <Badge
+                          variant="outline"
                           className="text-xs border-purple-300 text-purple-700"
                         >
                           {getRequestTypeText(item.requestType)}
@@ -745,7 +793,11 @@ export function ManagerApprovalRequestsPage() {
                           </Badge>
                         </div>
                       </div>
-                      <div className="col-span-1" onClick={(e) => e.stopPropagation()}>
+                      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events */}
+                      <div
+                        className="col-span-1 flex gap-1 items-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         {item.decision === "PENDING" && (
                           <div className="flex gap-1">
                             <Button
@@ -781,10 +833,11 @@ export function ManagerApprovalRequestsPage() {
                           <Eye className="h-4 w-4" />
                         </Button>
                       </div>
-                    </div>
+                    </button>
                   ))
                 )}
               </div>
+
 
               {/* Pagination */}
               {filteredData.length > 0 && (
@@ -794,6 +847,7 @@ export function ManagerApprovalRequestsPage() {
                       Hiển thị {startIndex + 1} - {Math.min(endIndex, filteredData.length)} trong tổng số{" "}
                       {filteredData.length} yêu cầu
                     </div>
+
 
                     <div className="flex items-center gap-2">
                       <Button
@@ -805,6 +859,7 @@ export function ManagerApprovalRequestsPage() {
                       >
                         Trước
                       </Button>
+
 
                       <div className="flex gap-1">
                         {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
@@ -824,6 +879,7 @@ export function ManagerApprovalRequestsPage() {
                         ))}
                       </div>
 
+
                       <Button
                         variant="outline"
                         size="sm"
@@ -840,6 +896,7 @@ export function ManagerApprovalRequestsPage() {
             </div>
           </Card>
         </div>
+
 
         {/* Detail Dialog */}
         {isDetailDialogOpen && selectedRequest && (
@@ -858,6 +915,7 @@ export function ManagerApprovalRequestsPage() {
                   </Button>
                 </div>
               </div>
+
 
               <div className="p-6">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -884,6 +942,7 @@ export function ManagerApprovalRequestsPage() {
                       </div>
                     </div>
 
+
                     {selectedRequest.feedback && (
                       <div>
                         <h4 className="font-semibold text-gray-900 mb-2">Phản hồi:</h4>
@@ -892,6 +951,7 @@ export function ManagerApprovalRequestsPage() {
                         </div>
                       </div>
                     )}
+
 
                     {/* Target Details Section */}
                     {isLoadingTargetDetails ? (
@@ -905,7 +965,7 @@ export function ManagerApprovalRequestsPage() {
                           <BookOpen className="h-5 w-5" />
                           Thông tin chi tiết {getTargetTypeText(selectedRequest.targetType).toLowerCase()}
                         </h4>
-                        
+                       
                         {/* Course Details */}
                         {selectedRequest.targetType === 'COURSE' && targetDetails.course && (
                           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
@@ -931,7 +991,7 @@ export function ManagerApprovalRequestsPage() {
                                 <p className="text-blue-700 text-sm">Thông tin chi tiết khóa học</p>
                               </div>
                             </div>
-                            
+                           
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div>
                                 <span className="text-sm font-medium text-gray-600">Mã khóa học:</span>
@@ -967,6 +1027,7 @@ export function ManagerApprovalRequestsPage() {
                           </div>
                         )}
 
+
                         {/* Chapter Details */}
                         {selectedRequest.targetType === 'CHAPTER' && targetDetails.chapter && (
                           <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
@@ -994,6 +1055,7 @@ export function ManagerApprovalRequestsPage() {
                             )}
                           </div>
                         )}
+
 
                         {/* Unit Details */}
                         {selectedRequest.targetType === 'UNIT' && targetDetails.unit && (
@@ -1025,17 +1087,19 @@ export function ManagerApprovalRequestsPage() {
                       </div>
                     )}
 
-                    {/* Materials Section - Only show for UNIT requests */}
+
+                    {/* Materials Section - Only show for UNIT requests (Read-only, no approval needed) */}
                     {selectedRequest.targetType === 'UNIT' && (
                       <div>
                         <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
                           <FileText className="h-5 w-5" />
                           Danh sách Materials
                         </h4>
-                        
+                       
                         {isLoadingMaterials ? (
                           <div className="flex items-center justify-center py-8">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                            <span className="ml-3 text-gray-600">Đang tải materials...</span>
                           </div>
                         ) : (
                           <>
@@ -1045,12 +1109,26 @@ export function ManagerApprovalRequestsPage() {
                                   <div key={material.id} className="bg-gray-50 border rounded-lg p-4">
                                     <div className="flex items-start justify-between">
                                       <div className="flex-1">
-                                        <h5 className="font-medium text-gray-900 mb-1">{material.description}</h5>
-                                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                                        <div className="flex items-center gap-2 mb-2">
                                           <Badge variant="outline" className="text-xs">
                                             {material.type}
                                           </Badge>
+                                          <span className="text-xs text-gray-500 font-mono">
+                                            ID: {material.id}
+                                          </span>
                                         </div>
+                                        {material.script && (
+                                          <div className="mb-2">
+                                            <span className="text-sm font-medium text-gray-600">Nội dung:</span>
+                                            <p className="text-sm text-gray-900">{material.script}</p>
+                                          </div>
+                                        )}
+                                        {material.translation && (
+                                          <div className="mb-2">
+                                            <span className="text-sm font-medium text-gray-600">Bản dịch:</span>
+                                            <p className="text-sm text-gray-900">{material.translation}</p>
+                                          </div>
+                                        )}
                                       </div>
                                       <div className="flex gap-2 ml-4">
                                         <Button
@@ -1066,32 +1144,6 @@ export function ManagerApprovalRequestsPage() {
                                     </div>
                                   </div>
                                 ))}
-                                
-                                {/* Bulk Actions for Unit Materials */}
-                                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mt-4">
-                                  <h5 className="font-medium text-purple-900 mb-3 flex items-center gap-2">
-                                    <Package className="h-4 w-4" />
-                                    Thao tác hàng loạt cho materials
-                                  </h5>
-                                  <div className="flex gap-3">
-                                    <Button
-                                      size="sm"
-                                      onClick={() => showToast('warning', 'Tính năng đang phát triển')}
-                                      className="bg-green-600 hover:bg-green-700 text-white"
-                                    >
-                                      <Check className="h-4 w-4 mr-2" />
-                                      Duyệt tất cả materials
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="destructive"
-                                      onClick={() => showToast('warning', 'Tính năng đang phát triển')}
-                                    >
-                                      <X className="h-4 w-4 mr-2" />
-                                      Từ chối tất cả materials
-                                    </Button>
-                                  </div>
-                                </div>
                               </div>
                             ) : (
                               <div className="text-center py-8 text-gray-500">
@@ -1103,6 +1155,7 @@ export function ManagerApprovalRequestsPage() {
                         )}
                       </div>
                     )}
+
 
                     {selectedRequest.decision === "PENDING" && (
                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
@@ -1140,6 +1193,7 @@ export function ManagerApprovalRequestsPage() {
                     )}
                   </div>
 
+
                   {/* Right Column - Metadata */}
                   <div className="space-y-6">
                     <div className="bg-gray-50 rounded-lg p-4">
@@ -1160,6 +1214,7 @@ export function ManagerApprovalRequestsPage() {
                       </div>
                     </div>
 
+
                     <div className="bg-gray-50 rounded-lg p-4">
                       <h4 className="font-semibold text-gray-900 mb-3">Người tạo yêu cầu</h4>
                       <div className="text-sm">
@@ -1170,6 +1225,7 @@ export function ManagerApprovalRequestsPage() {
                         </div>
                       </div>
                     </div>
+
 
                     {selectedRequest.reviewedBy && (
                       <div className="bg-gray-50 rounded-lg p-4">
@@ -1189,6 +1245,7 @@ export function ManagerApprovalRequestsPage() {
             </div>
           </div>
         )}
+
 
         {/* Reject Dialog */}
         {isRejectDialogOpen && rejectingRequest && (

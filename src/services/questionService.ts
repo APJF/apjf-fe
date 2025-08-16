@@ -5,8 +5,22 @@ import type {
   UpdateQuestionRequest, 
   QuestionsResponse, 
   QuestionResponse,
-  PagedQuestions 
+  PagedQuestions
 } from '../types/question';
+
+// Interface for creating options
+interface CreateOptionRequest {
+  id: string;
+  content: string;
+  isCorrect: boolean;
+}
+
+// Interface for updating options
+interface UpdateOptionRequest {
+  id: string;
+  content: string;
+  isCorrect: boolean;
+}
 
 export class QuestionService {
   private static getAuthHeaders() {
@@ -107,6 +121,50 @@ export class QuestionService {
       console.error('Error deleting question:', error);
       const axiosError = error as { response?: { data?: { message?: string } } };
       throw new Error(axiosError.response?.data?.message || 'Không thể xóa câu hỏi');
+    }
+  }
+
+  /**
+   * Create an option for a question
+   * POST /api/questions/{questionId}/options
+   */
+  static async createQuestionOption(questionId: string, optionData: CreateOptionRequest): Promise<void> {
+    try {
+      const response = await api.post<{ success: boolean; message: string }>(
+        `/questions/${questionId}/options`,
+        optionData,
+        { headers: this.getAuthHeaders() }
+      );
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message);
+      }
+    } catch (error: unknown) {
+      console.error('Error creating question option:', error);
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      throw new Error(axiosError.response?.data?.message || 'Không thể tạo lựa chọn câu hỏi');
+    }
+  }
+
+  /**
+   * Update an option
+   * PUT /api/options/{optionId}
+   */
+  static async updateQuestionOption(optionId: string, optionData: UpdateOptionRequest): Promise<void> {
+    try {
+      const response = await api.put<{ success: boolean; message: string }>(
+        `/options/${optionId}`,
+        optionData,
+        { headers: this.getAuthHeaders() }
+      );
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message);
+      }
+    } catch (error: unknown) {
+      console.error('Error updating question option:', error);
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      throw new Error(axiosError.response?.data?.message || 'Không thể cập nhật lựa chọn câu hỏi');
     }
   }
 }

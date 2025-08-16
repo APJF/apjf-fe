@@ -120,6 +120,20 @@ export interface ExamHistoryItem {
 // Exam History Response - GET /api/student/exams
 export type ExamHistoryResponse = ExamHistoryItem[];
 
+// Exam Summary for Staff - Used in Staff pages to display exam list
+export interface ExamSummary {
+  id: string;
+  title: string;
+  description: string;
+  duration: number; // in minutes
+  totalPoints: number;
+  questionCount: number;
+  difficulty: string;
+  level: string;
+  status: 'ACTIVE' | 'INACTIVE' | 'DRAFT';
+  createdAt: string;
+}
+
 // Legacy types for compatibility (will be gradually replaced)
 export interface Question {
   id: string;

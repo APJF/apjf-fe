@@ -139,6 +139,7 @@ export function StaffCreateQuestion() {
 
   const handleCreateQuestion = async (questionData: FormData) => {
     try {
+      // Step 1: Create the question (without options in the request)
       const createData: CreateQuestionRequest = {
         id: questionData.id,
         content: questionData.content,
@@ -146,12 +147,29 @@ export function StaffCreateQuestion() {
         type: questionData.type,
         explanation: questionData.explanation,
         fileUrl: null, // Luôn set null như yêu cầu
-        options: questionData.options,
+        options: [], // Empty options array since we'll create them separately
         unitIds: questionData.unitIds
       };
 
       await QuestionService.createQuestion(createData);
-      showToast('success', 'Tạo câu hỏi thành công!');
+
+      // Step 2: Create each option separately
+      if (questionData.type === 'MULTIPLE_CHOICE' && questionData.options.length > 0) {
+        for (let i = 0; i < questionData.options.length; i++) {
+          const option = questionData.options[i];
+          const optionId = `${questionData.id}-${i + 1}`; // Generate option ID: questionId-1, questionId-2, etc.
+          
+          const optionData = {
+            id: optionId,
+            content: option.content,
+            isCorrect: option.isCorrect
+          };
+
+          await QuestionService.createQuestionOption(questionData.id, optionData);
+        }
+      }
+
+      showToast('success', 'Tạo câu hỏi và các lựa chọn thành công!');
       setShowQuestionDialog(false);
       resetForm();
       // Refresh current page
@@ -163,6 +181,7 @@ export function StaffCreateQuestion() {
 
   const handleUpdateQuestion = async (id: string, questionData: FormData) => {
     try {
+      // Step 1: Update the question (without options in the request)
       const updateData: CreateQuestionRequest = {
         id: questionData.id,
         content: questionData.content,
@@ -170,12 +189,30 @@ export function StaffCreateQuestion() {
         type: questionData.type,
         explanation: questionData.explanation,
         fileUrl: null,
-        options: questionData.options,
+        options: [], // Empty options array since we'll update them separately
         unitIds: questionData.unitIds
       };
 
       await QuestionService.updateQuestion(id, updateData);
-      showToast('success', 'Cập nhật câu hỏi thành công!');
+
+      // Step 2: Update each option separately
+      if (questionData.type === 'MULTIPLE_CHOICE' && questionData.options.length > 0) {
+        for (let i = 0; i < questionData.options.length; i++) {
+          const option = questionData.options[i];
+          // Use the existing option ID if it exists, otherwise generate new one
+          const optionId = option.id || `${questionData.id}-${i + 1}`;
+          
+          const optionData = {
+            id: optionId,
+            content: option.content,
+            isCorrect: option.isCorrect
+          };
+
+          await QuestionService.updateQuestionOption(optionId, optionData);
+        }
+      }
+
+      showToast('success', 'Cập nhật câu hỏi và các lựa chọn thành công!');
       setShowQuestionDialog(false);
       setEditingQuestion(null);
       resetForm();
@@ -216,6 +253,13 @@ export function StaffCreateQuestion() {
   };
 
   const openEditDialog = (question: Question) => {
+    // Ensure options have proper IDs for editing
+    const optionsWithIds = question.options.map((option, index) => ({
+      ...option,
+      // Use existing ID if available, otherwise generate one
+      id: option.id || `${question.id}-${index + 1}`
+    }));
+
     setFormData({
       id: question.id,
       content: question.content,
@@ -224,7 +268,7 @@ export function StaffCreateQuestion() {
       explanation: question.explanation,
       fileUrl: question.fileUrl || '',
       uploadedFile: null,
-      options: question.options,
+      options: optionsWithIds,
       unitIds: question.unitIds
     });
     setEditingQuestion(question);
@@ -240,7 +284,16 @@ export function StaffCreateQuestion() {
   const addOption = () => {
     if (formData.options.length < 6) {
       setFormData(prev => {
-        const newOptions = [...prev.options, { id: (prev.options.length + 1).toString(), content: '', isCorrect: false }];
+        const optionIndex = prev.options.length + 1;
+        // Generate proper option ID in format: questionId-index
+        const optionId = formData.id ? `${formData.id}-${optionIndex}` : optionIndex.toString();
+        
+        const newOptions = [...prev.options, { 
+          id: optionId, 
+          content: '', 
+          isCorrect: false 
+        }];
+        
         // Nếu chưa có đáp án đúng nào, chọn option đầu tiên làm đáp án đúng
         const hasCorrectAnswer = newOptions.some(opt => opt.isCorrect);
         if (!hasCorrectAnswer && newOptions.length > 0) {
@@ -700,7 +753,24 @@ export function StaffCreateQuestion() {
                     <Input
                       id="questionId"
                       value={formData.id}
-                      onChange={(e) => setFormData(prev => ({ ...prev, id: e.target.value }))}
+                      onChange={(e) => {
+                        const newQuestionId = e.target.value;
+                        setFormData(prev => {
+                          // Update question ID and regenerate option IDs if creating new question
+                          const updatedOptions = !editingQuestion && prev.options.length > 0 && newQuestionId
+                            ? prev.options.map((option, index) => ({
+                                ...option,
+                                id: `${newQuestionId}-${index + 1}`
+                              }))
+                            : prev.options;
+
+                          return {
+                            ...prev,
+                            id: newQuestionId,
+                            options: updatedOptions
+                          };
+                        });
+                      }}
                       placeholder="Nhập ID câu hỏi"
                       className="bg-white/70"
                     />

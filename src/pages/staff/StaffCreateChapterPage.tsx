@@ -32,6 +32,12 @@ const StaffCreateChapterPage: React.FC = () => {
   const [availableChapters, setAvailableChapters] = useState<Chapter[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({
+    id: '',
+    title: '',
+    description: '',
+    prerequisiteChapterId: ''
+  })
 
   const [formData, setFormData] = useState({
     id: '',
@@ -107,16 +113,35 @@ const StaffCreateChapterPage: React.FC = () => {
   }, [courseId, course, fetchCourseData])
 
   const handleInputChange = (field: string, value: string) => {
-    // Validation cho trường ID - không cho phép dấu cách
-    if (field === 'id' && value.includes(' ')) {
-      setError('Mã chương không được chứa dấu cách. Vui lòng sử dụng dấu gạch ngang (-) hoặc underscore (_) thay thế.')
-      return
-    } else if (field === 'id') {
-      // Clear error khi ID hợp lệ
-      setError(null)
+    // Luôn cập nhật giá trị trước
+    setFormData(prev => ({ ...prev, [field]: value }))
+    
+    // Clear main error khi user đang typing
+    setError(null)
+    
+    // Validation cho từng trường và set field error
+    let fieldError = ''
+    
+    if (field === 'id') {
+      // Validation cho trường ID - không cho phép dấu cách
+      const trimmedValue = value.trim()
+      if (value !== trimmedValue || value.includes(' ')) {
+        fieldError = 'Mã chương không được chứa dấu cách. Vui lòng sử dụng dấu gạch ngang (-) hoặc underscore (_) thay thế.'
+      } else if (value && !/^[A-Za-z0-9_-]+$/.test(value)) {
+        fieldError = 'Mã chương chỉ được chứa chữ, số, dấu gạch ngang (-) hoặc underscore (_).'
+      }
     }
     
-    setFormData(prev => ({ ...prev, [field]: value }))
+    if (field === 'title' && !value.trim()) {
+      fieldError = 'Vui lòng nhập tên chương.'
+    }
+    
+    if (field === 'description' && !value.trim()) {
+      fieldError = 'Vui lòng nhập mô tả chương.'
+    }
+    
+    // Cập nhật field error
+    setFieldErrors(prev => ({ ...prev, [field]: fieldError }))
   }
 
   const handleBack = () => {
@@ -130,20 +155,6 @@ const StaffCreateChapterPage: React.FC = () => {
   const isFormValid = formData.id.trim() && 
                      formData.title.trim() && 
                      formData.description.trim()
-
-  const validateFormData = (): boolean => {
-    if (!isFormValid) {
-      setError('Vui lòng điền đầy đủ thông tin bắt buộc')
-      return false
-    }
-
-    if (!courseId) {
-      setError("Không tìm thấy ID khóa học") 
-      return false
-    }
-
-    return true
-  }
 
   const createChapterData = (): CreateChapterRequest => {
     return {
@@ -173,35 +184,97 @@ const StaffCreateChapterPage: React.FC = () => {
     console.error('❌ Error creating chapter:', error)
     
     if (error && typeof error === 'object' && 'response' in error) {
-      const axiosError = error as { response?: { status: number, data?: unknown } }
-      const errorData = axiosError.response?.data as { message?: string }
-      const errorMsg = errorData?.message || 'Lỗi không xác định'
+      const axiosError = error as { response?: { status: number, data?: any } }
       
-      let userFriendlyError = errorMsg
-      if (axiosError.response?.status === 400) {
-        if (errorMsg.includes('prerequisite') || errorMsg.includes('tiên quyết')) {
-          userFriendlyError = 'Lỗi chương tiên quyết: ' + errorMsg
-        } else if (errorMsg.includes('duplicate') || errorMsg.includes('đã tồn tại')) {
-          userFriendlyError = 'Mã chương đã tồn tại trong hệ thống'
+      if (axiosError.response?.status === 400 && axiosError.response?.data) {
+        // Hiển thị chi tiết lỗi từ backend nếu có
+        if (axiosError.response.data.errors) {
+          // Nếu backend trả về mảng lỗi
+          const errorMessages = axiosError.response.data.errors.map((err: any) => err.message).join(' | ')
+          setError(`Lỗi dữ liệu: ${errorMessages}`)
+          showToast('error', `Lỗi dữ liệu: ${errorMessages}`)
+        } else if (axiosError.response.data.message) {
+          const errorMsg = axiosError.response.data.message
+          let userFriendlyError = errorMsg
+          
+          // Phân tích và tạo thông báo lỗi chi tiết
+          if (errorMsg.includes('duplicate') || errorMsg.includes('đã tồn tại') || errorMsg.includes('already exists')) {
+            userFriendlyError = `Mã chương "${formData.id}" đã tồn tại trong hệ thống. Vui lòng sử dụng mã khác.`
+          } else if (errorMsg.includes('prerequisite') || errorMsg.includes('tiên quyết')) {
+            userFriendlyError = `Lỗi chương tiên quyết: ${errorMsg}`
+          } else if (errorMsg.includes('invalid') || errorMsg.includes('không hợp lệ')) {
+            userFriendlyError = `Dữ liệu không hợp lệ: ${errorMsg}`
+          } else if (errorMsg.includes('format') || errorMsg.includes('định dạng')) {
+            userFriendlyError = `Lỗi định dạng: ${errorMsg}`
+          }
+          
+          setError(userFriendlyError)
+          showToast('error', userFriendlyError)
         } else {
-          userFriendlyError = 'Dữ liệu không hợp lệ: ' + errorMsg
+          setError('Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin.')
+          showToast('error', 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin.')
         }
+      } else if (axiosError.response?.status === 403) {
+        const errorMsg = 'Bạn không có quyền tạo chương. Vui lòng kiểm tra lại quyền tài khoản.'
+        setError(errorMsg)
+        showToast('error', errorMsg)
+      } else if (axiosError.response?.status === 401) {
+        const errorMsg = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+        setError(errorMsg)
+        showToast('error', errorMsg)
+      } else if (axiosError.response?.status === 404) {
+        const errorMsg = 'Không tìm thấy khóa học. Vui lòng kiểm tra lại.'
+        setError(errorMsg)
+        showToast('error', errorMsg)
+      } else {
+        const errorMsg = `Có lỗi xảy ra khi tạo chương (Mã lỗi: ${axiosError.response?.status}). Vui lòng thử lại.`
+        setError(errorMsg)
+        showToast('error', errorMsg)
       }
-      
-      const errorMessage = `Lỗi tạo chương (${axiosError.response?.status}): ${userFriendlyError}`
-      showToast('error', errorMessage)
-      setError(errorMessage)
     } else {
       const fallbackError = 'Có lỗi xảy ra khi tạo chương. Vui lòng thử lại.'
-      showToast('error', fallbackError)
       setError(fallbackError)
+      showToast('error', fallbackError)
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!validateFormData()) {
+    // Clear field errors trước khi validate
+    setFieldErrors({
+      id: '',
+      title: '',
+      description: '',
+      prerequisiteChapterId: ''
+    })
+    
+    // Validate tất cả các trường và thu thập lỗi
+    const errors: {[key: string]: string} = {}
+    
+    if (!formData.id.trim()) {
+      errors.id = 'Vui lòng nhập mã chương.'
+    } else if (!/^[A-Za-z0-9_-]+$/.test(formData.id.trim())) {
+      errors.id = 'Mã chương chỉ được chứa chữ, số, dấu gạch ngang (-) hoặc underscore (_), không được chứa dấu cách hoặc ký tự đặc biệt.'
+    }
+    
+    if (!formData.title.trim()) {
+      errors.title = 'Vui lòng nhập tên chương.'
+    }
+    
+    if (!formData.description.trim()) {
+      errors.description = 'Vui lòng nhập mô tả chương.'
+    }
+    
+    if (!courseId) {
+      errors.courseId = 'Không tìm thấy ID khóa học.'
+    }
+    
+    // Nếu có lỗi validation, hiển thị tất cả lỗi field và không submit
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+      setError('Vui lòng kiểm tra và sửa các lỗi trong form.')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
 
@@ -220,6 +293,7 @@ const StaffCreateChapterPage: React.FC = () => {
       handleCreateSuccess()
     } catch (error) {
       handleCreateError(error)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } finally {
       setIsLoading(false)
     }
@@ -422,12 +496,18 @@ const StaffCreateChapterPage: React.FC = () => {
                         value={formData.id}
                         onChange={(e) => handleInputChange("id", e.target.value)}
                         placeholder="Ví dụ: CHAP01"
-                        className="border-blue-300 focus:border-blue-500 focus:ring-blue-500 text-base py-3 bg-white/80 backdrop-blur-sm"
+                        className={`border-blue-300 focus:border-blue-500 focus:ring-blue-500 text-base py-3 bg-white/80 backdrop-blur-sm ${fieldErrors.id ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                         required
                       />
-                      <p className="text-red-600 text-xs mt-1">
-                        ⚠️ Mã chương không được chứa dấu cách. Sử dụng dấu gạch ngang (-) hoặc underscore (_)
-                      </p>
+                      {fieldErrors.id ? (
+                        <p className="text-red-600 text-xs mt-1">
+                          ⚠️ {fieldErrors.id}
+                        </p>
+                      ) : (
+                        <p className="text-blue-600 text-xs mt-1">
+                          💡 Mã chương không được chứa dấu cách. Sử dụng dấu gạch ngang (-) hoặc underscore (_)
+                        </p>
+                      )}
                     </div>
 
                     {/* Chapter Name */}
@@ -443,10 +523,16 @@ const StaffCreateChapterPage: React.FC = () => {
                         value={formData.title}
                         onChange={(e) => handleInputChange("title", e.target.value)}
                         placeholder="Ví dụ: Hiragana - Bảng chữ cái cơ bản"
-                        className="border-blue-300 focus:border-blue-500 focus:ring-blue-500 text-base py-3 bg-white/80 backdrop-blur-sm"
+                        className={`border-blue-300 focus:border-blue-500 focus:ring-blue-500 text-base py-3 bg-white/80 backdrop-blur-sm ${fieldErrors.title ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                         required
                       />
-                      <p className="text-blue-600 text-xs">Nhập tên chương rõ ràng và dễ hiểu cho học viên</p>
+                      {fieldErrors.title ? (
+                        <p className="text-red-600 text-xs mt-1">
+                          ⚠️ {fieldErrors.title}
+                        </p>
+                      ) : (
+                        <p className="text-blue-600 text-xs">Nhập tên chương rõ ràng và dễ hiểu cho học viên</p>
+                      )}
                     </div>
 
                     {/* Chapter Description */}
@@ -466,12 +552,18 @@ const StaffCreateChapterPage: React.FC = () => {
                         onChange={(e) => handleInputChange("description", e.target.value)}
                         placeholder="Mô tả chi tiết về nội dung và mục tiêu của chương học..."
                         rows={5}
-                        className="border-blue-300 focus:border-blue-500 focus:ring-blue-500 resize-none text-base bg-white/80 backdrop-blur-sm"
+                        className={`border-blue-300 focus:border-blue-500 focus:ring-blue-500 resize-none text-base bg-white/80 backdrop-blur-sm ${fieldErrors.description ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                         required
                       />
-                      <p className="text-blue-600 text-xs">
-                        Mô tả nội dung, mục tiêu học tập và những gì học viên sẽ đạt được
-                      </p>
+                      {fieldErrors.description ? (
+                        <p className="text-red-600 text-xs mt-1">
+                          ⚠️ {fieldErrors.description}
+                        </p>
+                      ) : (
+                        <p className="text-blue-600 text-xs">
+                          Mô tả nội dung, mục tiêu học tập và những gì học viên sẽ đạt được
+                        </p>
+                      )}
                     </div>
 
                     {/* Prerequisite Chapter */}

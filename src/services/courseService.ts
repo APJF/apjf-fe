@@ -4,6 +4,7 @@ import type {
   AllCoursesApiResponse,
   CourseDetailApiResponse,
   ChaptersApiResponse,
+  CourseExamsApiResponse,
   CreateCourseRequest,
   CreateCourseApiResponse,
   CreateChapterRequest,
@@ -28,7 +29,15 @@ export class CourseService {
     return response.data;
   }
 
-  // Get all courses for public (status ACTIVE only) - API trả về simple array, không pagination
+
+  // Get exams by course ID (new API)
+  static async getExamsByCourseId(courseId: string): Promise<CourseExamsApiResponse> {
+    const response = await api.get(`/courses/${courseId}/exams`);
+    return response.data;
+  }
+
+  // Get all courses for public (status ACTIVE only)
+
   static async getCourses(filters: CourseFilters = {}): Promise<AllCoursesApiResponse> {
     const params = {
       title: filters.searchTitle?.trim(),
