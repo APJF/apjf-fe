@@ -37,6 +37,14 @@ const StaffCreateCoursePage: React.FC = () => {
   const [dragActive, setDragActive] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({
+    id: '',
+    title: '',
+    description: '',
+    duration: '',
+    level: '',
+    requirement: ''
+  })
 
   // Kiểm tra quyền tạo course
   useEffect(() => {
@@ -86,16 +94,46 @@ const StaffCreateCoursePage: React.FC = () => {
   ]
 
   const handleInputChange = (field: string, value: string) => {
-    // Validation cho trường ID - không cho phép dấu cách
-    if (field === 'id' && value.includes(' ')) {
-      setError('Mã khóa học không được chứa dấu cách. Vui lòng sử dụng dấu gạch ngang (-) hoặc underscore (_) thay thế.')
-      return
-    } else if (field === 'id') {
-      // Clear error khi ID hợp lệ
-      setError(null)
+    // Luôn cập nhật giá trị trước
+    setFormData(prev => ({ ...prev, [field]: value }))
+    
+    // Clear main error khi user đang typing
+    setError(null)
+    
+    // Validation cho từng trường và set field error
+    let fieldError = ''
+    
+    if (field === 'id') {
+      // Loại bỏ dấu cách ở đầu và cuối, nhưng không cho phép dấu cách ở giữa
+      const trimmedValue = value.trim()
+      if (value !== trimmedValue || value.includes(' ')) {
+        fieldError = 'Mã khóa học không được chứa dấu cách. Vui lòng sử dụng dấu gạch ngang (-) hoặc underscore (_) thay thế.'
+      } else if (value && !/^[A-Za-z0-9_-]+$/.test(value)) {
+        fieldError = 'Mã khóa học chỉ được chứa chữ, số, dấu gạch ngang (-) hoặc underscore (_).'
+      }
     }
     
-    setFormData(prev => ({ ...prev, [field]: value }))
+    if (field === 'duration') {
+      // Validation cho trường duration - chỉ cho phép số nguyên dương
+      if (value !== '' && (!/^\d+$/.test(value) || parseInt(value) <= 0)) {
+        fieldError = 'Thời lượng chỉ được nhập số nguyên dương lớn hơn 0 (ví dụ: 40).'
+      }
+    }
+    
+    if (field === 'title' && !value.trim()) {
+      fieldError = 'Vui lòng nhập tên khóa học.'
+    }
+    
+    if (field === 'description' && !value.trim()) {
+      fieldError = 'Vui lòng nhập mô tả khóa học.'
+    }
+    
+    if (field === 'level' && !value) {
+      fieldError = 'Vui lòng chọn trình độ khóa học.'
+    }
+    
+    // Cập nhật field error
+    setFieldErrors(prev => ({ ...prev, [field]: fieldError }))
   }
 
   const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -109,11 +147,13 @@ const StaffCreateCoursePage: React.FC = () => {
     // Kiểm tra kích thước file (8MB limit)
     if (file.size > 8 * 1024 * 1024) {
       setError('Kích thước file không được vượt quá 8MB')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
     
     if (!file.type.startsWith('image/')) {
       setError('Vui lòng chọn file ảnh hợp lệ')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
 
@@ -196,8 +236,48 @@ const StaffCreateCoursePage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!isFormValid) {
-      setError('Vui lòng điền đầy đủ thông tin bắt buộc')
+    // Clear field errors trước khi validate
+    setFieldErrors({
+      id: '',
+      title: '',
+      description: '',
+      duration: '',
+      level: '',
+      requirement: ''
+    })
+    
+    // Validate tất cả các trường và thu thập lỗi
+    const errors: {[key: string]: string} = {}
+    
+    if (!formData.id.trim()) {
+      errors.id = 'Vui lòng nhập mã khóa học.'
+    } else if (!/^[A-Za-z0-9_-]+$/.test(formData.id.trim())) {
+      errors.id = 'Mã khóa học chỉ được chứa chữ, số, dấu gạch ngang (-) hoặc underscore (_), không được chứa dấu cách hoặc ký tự đặc biệt.'
+    }
+    
+    if (!formData.title.trim()) {
+      errors.title = 'Vui lòng nhập tên khóa học.'
+    }
+    
+    if (!formData.description.trim()) {
+      errors.description = 'Vui lòng nhập mô tả khóa học.'
+    }
+    
+    if (!formData.duration.trim()) {
+      errors.duration = 'Vui lòng nhập thời lượng khóa học.'
+    } else if (!/^\d+$/.test(formData.duration.trim()) || parseInt(formData.duration.trim()) <= 0) {
+      errors.duration = 'Thời lượng chỉ được nhập số nguyên dương lớn hơn 0 (ví dụ: 40).'
+    }
+    
+    if (!formData.level) {
+      errors.level = 'Vui lòng chọn trình độ khóa học.'
+    }
+    
+    // Nếu có lỗi validation, hiển thị tất cả lỗi field và không submit
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+      setError('Vui lòng kiểm tra và sửa các lỗi trong form.')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
 
@@ -210,14 +290,12 @@ const StaffCreateCoursePage: React.FC = () => {
       // Upload ảnh trước nếu có file được chọn
       if (selectedFile) {
         try {
-          showToast("warning", "Đang tải ảnh lên...")
           imageFilename = await uploadCourseImage(selectedFile)
-          showToast("success", "Tải ảnh thành công!")
         } catch (uploadError) {
           console.error('Error uploading image:', uploadError)
           const uploadErrorMessage = uploadError instanceof Error ? uploadError.message : 'Có lỗi xảy ra khi tải ảnh lên'
           setError(`Lỗi tải ảnh: ${uploadErrorMessage}`)
-          showToast("error", uploadErrorMessage)
+          window.scrollTo({ top: 0, behavior: 'smooth' })
           return
         }
       }
@@ -236,11 +314,8 @@ const StaffCreateCoursePage: React.FC = () => {
         examIds: []
       }
 
-      console.log('📤 Sending course data:', courseData)
-
       await CourseService.createCourse(courseData)
       
-      // Navigate with force refresh to update course list
       navigate('/staff/courses', { 
         replace: true,
         state: { 
@@ -250,36 +325,30 @@ const StaffCreateCoursePage: React.FC = () => {
         }
       })
     } catch (error) {
-      console.error('❌ Error creating course:', error)
-      
-      // Xử lý error chi tiết
+      // Xử lý error chi tiết từ server
       if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { status: number, data?: unknown } }
-        
-        console.error('📥 Response error details:', {
-          status: axiosError.response?.status,
-          data: axiosError.response?.data
-        })
-        
-        switch (axiosError.response?.status) {
-          case 403:
-            setError('Bạn không có quyền tạo khóa học. Vui lòng kiểm tra lại quyền tài khoản.')
-            break
-          case 401:
-            setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
-            break
-          case 400: {
-            const errorData = axiosError.response?.data as { message?: string }
-            const errorMsg = errorData?.message || 'Dữ liệu không hợp lệ'
-            setError(`Lỗi dữ liệu: ${errorMsg}`)
-            break
+        const axiosError = error as { response?: { status: number, data?: any } }
+        if (axiosError.response?.status === 400 && axiosError.response?.data) {
+          // Hiển thị chi tiết lỗi từ backend nếu có
+          if (axiosError.response.data.errors) {
+            // Nếu backend trả về mảng lỗi
+            setError(axiosError.response.data.errors.map((err: any) => err.message).join(' | '))
+          } else if (axiosError.response.data.message) {
+            setError(`Lỗi dữ liệu: ${axiosError.response.data.message}`)
+          } else {
+            setError('Dữ liệu không hợp lệ')
           }
-          default:
-            setError('Có lỗi xảy ra khi tạo khóa học. Vui lòng thử lại.')
+        } else if (axiosError.response?.status === 403) {
+          setError('Bạn không có quyền tạo khóa học. Vui lòng kiểm tra lại quyền tài khoản.')
+        } else if (axiosError.response?.status === 401) {
+          setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
+        } else {
+          setError('Có lỗi xảy ra khi tạo khóa học. Vui lòng thử lại.')
         }
       } else {
         setError('Có lỗi xảy ra khi tạo khóa học. Vui lòng thử lại.')
       }
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } finally {
       setIsLoading(false)
     }
@@ -328,12 +397,18 @@ const StaffCreateCoursePage: React.FC = () => {
                     placeholder="Nhập mã khóa học (VD: JPD113)"
                     value={formData.id}
                     onChange={(e) => handleInputChange('id', e.target.value)}
-                    className="h-9"
+                    className={`h-9 ${fieldErrors.id ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                     required
                   />
-                  <p className="text-red-600 text-xs mt-1">
-                    ⚠️ Mã khóa học không được chứa dấu cách. Sử dụng dấu gạch ngang (-) hoặc underscore (_)
-                  </p>
+                  {fieldErrors.id ? (
+                    <p className="text-red-600 text-xs mt-1">
+                      ⚠️ {fieldErrors.id}
+                    </p>
+                  ) : (
+                    <p className="text-blue-600 text-xs mt-1">
+                      💡 Mã khóa học không được chứa dấu cách. Sử dụng dấu gạch ngang (-) hoặc underscore (_)
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1">
@@ -345,9 +420,14 @@ const StaffCreateCoursePage: React.FC = () => {
                     placeholder="Nhập tên khóa học"
                     value={formData.title}
                     onChange={(e) => handleInputChange('title', e.target.value)}
-                    className="h-9"
+                    className={`h-9 ${fieldErrors.title ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                     required
                   />
+                  {fieldErrors.title && (
+                    <p className="text-red-600 text-xs mt-1">
+                      ⚠️ {fieldErrors.title}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1">
@@ -359,9 +439,14 @@ const StaffCreateCoursePage: React.FC = () => {
                     placeholder="VD: 40 giờ"
                     value={formData.duration}
                     onChange={(e) => handleInputChange('duration', e.target.value)}
-                    className="h-9"
+                    className={`h-9 ${fieldErrors.duration ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                     required
                   />
+                  {fieldErrors.duration && (
+                    <p className="text-red-600 text-xs mt-1">
+                      ⚠️ {fieldErrors.duration}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1">
@@ -372,7 +457,7 @@ const StaffCreateCoursePage: React.FC = () => {
                     id="level"
                     value={formData.level}
                     onChange={(e) => handleInputChange('level', e.target.value)}
-                    className="w-full h-9 px-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className={`w-full h-9 px-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${fieldErrors.level ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                     required
                   >
                     <option value="">Chọn trình độ</option>
@@ -382,6 +467,11 @@ const StaffCreateCoursePage: React.FC = () => {
                       </option>
                     ))}
                   </select>
+                  {fieldErrors.level && (
+                    <p className="text-red-600 text-xs mt-1">
+                      ⚠️ {fieldErrors.level}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-1">
@@ -418,9 +508,14 @@ const StaffCreateCoursePage: React.FC = () => {
                   placeholder="Mô tả chi tiết về khóa học"
                   value={formData.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}
-                  className="h-20 resize-none"
+                  className={`h-20 resize-none focus:border-black focus:ring-black ${fieldErrors.description ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                   required
                 />
+                {fieldErrors.description && (
+                  <p className="text-red-600 text-xs mt-1">
+                    ⚠️ {fieldErrors.description}
+                  </p>
+                )}
               </div>
 
               {/* Requirement */}
@@ -433,7 +528,7 @@ const StaffCreateCoursePage: React.FC = () => {
                   placeholder="Nhập yêu cầu đầu vào cho khóa học (không bắt buộc)"
                   value={formData.requirement}
                   onChange={(e) => handleInputChange('requirement', e.target.value)}
-                  className="h-16 resize-none"
+                  className="h-16 resize-none focus:border-black focus:ring-black"
                 />
               </div>
 

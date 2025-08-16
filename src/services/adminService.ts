@@ -63,29 +63,10 @@ const getAuthHeaders = () => {
 export const AdminService = {
   // Lấy danh sách tất cả users
   async getAllUsers(): Promise<AdminUser[]> {
-    try {
-      const response = await api.get<AdminUsersResponse>('/admin/users', {
-        headers: getAuthHeaders()
-      })
-      
-      // Log response để debug
-      console.log('Raw API response:', response.data)
-      
-      if (response.data.success === false) {
-        throw new Error(response.data.message || 'API returned success: false')
-      }
-      
-      return response.data.data || []
-    } catch (error: any) {
-      console.error('AdminService.getAllUsers error:', error)
-      
-      // Check if it's the enum error
-      if (error.response?.data?.message?.includes('No enum constant')) {
-        throw new Error(`Backend enum error: ${error.response.data.message}. Vui lòng liên hệ admin để sửa dữ liệu.`)
-      }
-      
-      throw error
-    }
+    const response = await api.get<AdminUsersResponse>('/admin/users', {
+      headers: getAuthHeaders()
+    })
+    return response.data.data
   },
 
   // Lấy danh sách tất cả quyền hạn
