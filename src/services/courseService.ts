@@ -28,16 +28,12 @@ export class CourseService {
     return response.data;
   }
 
-  // Get all courses for public (status ACTIVE only)
+  // Get all courses for public (status ACTIVE only) - API trả về simple array, không pagination
   static async getCourses(filters: CourseFilters = {}): Promise<AllCoursesApiResponse> {
     const params = {
-      page: filters.page || 0,
-      size: filters.size || 12,
-      sortBy: filters.sortBy || 'title',
-      direction: filters.sortDirection || 'asc',
-      status: 'ACTIVE',
       title: filters.searchTitle?.trim(),
       level: filters.level,
+      // API mới trả về tất cả courses và có field topics
     };
 
     // Remove undefined values
@@ -56,7 +52,8 @@ export class CourseService {
     const params = {
       title: filters.searchTitle?.trim(),
       level: filters.level,
-      // API returns all courses without pagination or status filtering
+      // For staff: get all courses including inactive ones
+      includeInactive: true,
     };
 
     // Remove undefined values
