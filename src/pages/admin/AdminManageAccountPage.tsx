@@ -3,6 +3,8 @@ import AdminNavigation from '../../components/layout/AdminNavigation'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
+import { AdminService, type AdminUser, type Authority } from '../../services/adminService'
+import { useToast } from '../../hooks/useToast'
 import { 
   Search, 
   Filter, 
@@ -11,77 +13,104 @@ import {
   Shield, 
   User, 
   Users,
-  Edit3, 
-  Trash2,
   Eye,
-  Plus,
-  Download,
-  Upload
+  X,
+  Settings
 } from 'lucide-react'
-
-interface UserAccount {
-  id: number
-  email: string
-  name?: string
-  username?: string
-  enabled: boolean
-  roles: string[]
-  createdAt: string
-  lastLogin?: string
-  avatar?: string
-}
 
 interface FilterOptions {
   status: 'all' | 'active' | 'inactive'
-  role: 'all' | 'user' | 'staff' | 'admin'
+  role: 'all' | 'ROLE_USER' | 'ROLE_STAFF' | 'ROLE_MANAGER' | 'ROLE_ADMIN'
   search: string
 }
 
-export const AdminManageAccountPage: React.FC = () => {
-  const [users, setUsers] = useState<UserAccount[]>([
-    {
-      id: 1,
-      email: "admin@example.com",
-      name: "System Admin",
-      username: "admin",
-      enabled: true,
-      roles: ["ROLE_ADMIN"],
-      createdAt: "2024-01-01T00:00:00Z",
-      lastLogin: "2024-01-15T10:30:00Z"
-    },
-    {
-      id: 2,
-      email: "staff@example.com",
-      name: "Staff User",
-      username: "staff01",
-      enabled: true,
-      roles: ["ROLE_STAFF"],
-      createdAt: "2024-01-02T00:00:00Z",
-      lastLogin: "2024-01-14T15:20:00Z"
-    },
-    {
-      id: 3,
-      email: "user@example.com",
-      name: "Regular User",
-      username: "user01",
-      enabled: false,
-      roles: ["ROLE_USER"],
-      createdAt: "2024-01-03T00:00:00Z",
-      lastLogin: "2024-01-10T09:15:00Z"
-    },
-    {
-      id: 4,
-      email: "manager@example.com",
-      name: "Manager User",
-      username: "manager01",
-      enabled: true,
-      roles: ["ROLE_MANAGER"],
-      createdAt: "2024-01-04T00:00:00Z",
-      lastLogin: "2024-01-13T14:45:00Z"
-    }
-  ])
+interface EditUserModalProps {
+  user: AdminUser
+  authorities: Authority[]
+  onSave: (userId: number, authorities: string[]) => void
+  onCancel: () => void
+}
 
-  const [filteredUsers, setFilteredUsers] = useState<UserAccount[]>(users)
+const EditUserModal: React.FC<EditUserModalProps> = ({ user, authorities, onSave, onCancel }) => {
+  const [selectedAuthorities, setSelectedAuthorities] = useState<string[]>(user.authorities)
+
+  const handleAuthorityToggle = (authorityId: string) => {
+    setSelectedAuthorities(prev => 
+      prev.includes(authorityId)
+        ? prev.filter(id => id !== authorityId)
+        : [...prev, authorityId]
+    )
+  }
+
+  const handleSave = () => {
+    onSave(user.id, selectedAuthorities)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-96 max-w-full mx-4">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold">Chỉnh sửa quyền hạn</h3>
+          <Button variant="ghost" size="sm" onClick={onCancel}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="mb-4">
+          <div className="flex items-center space-x-3 mb-3">
+            <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
+              <User className="h-5 w-5 text-gray-600" />
+            </div>
+            <div>
+              <div className="font-medium">{user.username}</div>
+              <div className="text-sm text-gray-500">{user.email}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Quyền hạn:
+          </label>
+          <div className="space-y-2">
+            {authorities.map(authority => (
+              <label key={authority.id} className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={selectedAuthorities.includes(authority.authority)}
+                  onChange={() => handleAuthorityToggle(authority.authority)}
+                  className="rounded border-gray-300 text-red-600 focus:ring-red-500 mr-2"
+                />
+                <span className="text-sm">
+                  {authority.authority === 'ROLE_USER' ? 'Người dùng' :
+                   authority.authority === 'ROLE_STAFF' ? 'Nhân viên' :
+                   authority.authority === 'ROLE_MANAGER' ? 'Quản lý' :
+                   authority.authority === 'ROLE_ADMIN' ? 'Quản trị viên' :
+                   authority.name}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex justify-end space-x-3">
+          <Button variant="outline" onClick={onCancel}>
+            Hủy
+          </Button>
+          <Button onClick={handleSave} className="bg-red-600 hover:bg-red-700">
+            Lưu thay đổi
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export const AdminManageAccountPage: React.FC = () => {
+  const { showToast } = useToast()
+  const [users, setUsers] = useState<AdminUser[]>([])
+  const [authorities, setAuthorities] = useState<Authority[]>([])
+  const [filteredUsers, setFilteredUsers] = useState<AdminUser[]>([])
   const [filters, setFilters] = useState<FilterOptions>({
     status: 'all',
     role: 'all',
@@ -89,30 +118,95 @@ export const AdminManageAccountPage: React.FC = () => {
   })
   const [selectedUsers, setSelectedUsers] = useState<number[]>([])
   const [showFilters, setShowFilters] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [editingUser, setEditingUser] = useState<AdminUser | null>(null)
+  const [showEditModal, setShowEditModal] = useState(false)
+
+  // Load initial data
+  useEffect(() => {
+    loadData()
+  }, [])
+
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      const [usersData, authoritiesData] = await Promise.all([
+        AdminService.getAllUsers(),
+        AdminService.getAllAuthorities()
+      ])
+      setUsers(usersData)
+      setAuthorities(authoritiesData)
+    } catch (error: any) {
+      console.error('Error loading data:', error)
+      showToast('error', 'Lỗi khi tải dữ liệu: ' + (error.response?.data?.message || error.message))
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Filter users based on current filters
   useEffect(() => {
-    const filtered = accounts.filter(account => {
-      const matchesSearch = account.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          account.email.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesRole = filterRole === 'all' || account.roles.includes(filterRole as 'ADMIN' | 'MANAGER' | 'STAFF' | 'STUDENT')
-      return matchesSearch && matchesRole
+    const filtered = users.filter(user => {
+      const matchesSearch = user.username.toLowerCase().includes(filters.search.toLowerCase()) ||
+                          user.email.toLowerCase().includes(filters.search.toLowerCase())
+      const matchesStatus = filters.status === 'all' || 
+                           (filters.status === 'active' && user.enabled) ||
+                           (filters.status === 'inactive' && !user.enabled)
+      const matchesRole = filters.role === 'all' || user.authorities.includes(filters.role)
+      return matchesSearch && matchesStatus && matchesRole
     })
 
     setFilteredUsers(filtered)
   }, [users, filters])
 
-  const handleToggleUserStatus = (userId: number) => {
-    setUsers(prev => prev.map(user => 
-      user.id === userId 
-        ? { ...user, enabled: !user.enabled }
-        : user
-    ))
+  const handleToggleUserStatus = async (user: AdminUser) => {
+    try {
+      const reason = user.enabled ? 'Tạm khóa tài khoản' : 'Mở khóa tài khoản'
+      await AdminService.updateUserStatus({
+        userId: user.id,
+        enabled: !user.enabled,
+        reason
+      })
+      
+      // Update local state
+      setUsers(prev => prev.map(u => 
+        u.id === user.id 
+          ? { ...u, enabled: !u.enabled }
+          : u
+      ))
+      
+      showToast('success', user.enabled ? 'Đã khóa tài khoản' : 'Đã mở khóa tài khoản')
+    } catch (error: any) {
+      console.error('Error updating user status:', error)
+      showToast('error', 'Lỗi khi cập nhật trạng thái: ' + (error.response?.data?.message || error.message))
+    }
   }
 
-  const handleDeleteUser = (userId: number) => {
-    if (confirm('Bạn có chắc chắn muốn xóa người dùng này?')) {
-      setUsers(prev => prev.filter(user => user.id !== userId))
+  const handleEditUser = (user: AdminUser) => {
+    setEditingUser(user)
+    setShowEditModal(true)
+  }
+
+  const handleUpdateUserAuthorities = async (userId: number, newAuthorities: string[]) => {
+    try {
+      await AdminService.updateUserAuthorities({
+        userId,
+        authorityIds: newAuthorities
+      })
+      
+      // Update local state
+      setUsers(prev => prev.map(u => 
+        u.id === userId 
+          ? { ...u, authorities: newAuthorities }
+          : u
+      ))
+      
+      showToast('success', 'Đã cập nhật quyền hạn thành công')
+      setShowEditModal(false)
+      setEditingUser(null)
+    } catch (error: any) {
+      console.error('Error updating user authorities:', error)
+      showToast('error', 'Lỗi khi cập nhật quyền hạn: ' + (error.response?.data?.message || error.message))
     }
   }
 
@@ -132,41 +226,63 @@ export const AdminManageAccountPage: React.FC = () => {
     }
   }
 
-  const getRoleBadge = (roles: string[]) => {
-    const role = roles[0] // Take first role
-    switch (role) {
-      case 'ROLE_ADMIN':
-        return <Badge className="bg-red-100 text-red-800 border-red-200">Admin</Badge>
-      case 'ROLE_MANAGER': 
-        return <Badge className="bg-purple-100 text-purple-800 border-purple-200">Manager</Badge>
-      case 'ROLE_STAFF':
-        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Staff</Badge>
-      case 'ROLE_USER':
-        return <Badge className="bg-gray-100 text-gray-800 border-gray-200">User</Badge>
-      default:
-        return <Badge variant="outline">Unknown</Badge>
+  const handleBulkStatusUpdate = async (enabled: boolean) => {
+    try {
+      const reason = enabled ? 'Mở khóa hàng loạt' : 'Khóa hàng loạt'
+      
+      await Promise.all(
+        selectedUsers.map(userId => 
+          AdminService.updateUserStatus({ userId, enabled, reason })
+        )
+      )
+      
+      // Update local state
+      setUsers(prev => prev.map(user => 
+        selectedUsers.includes(user.id)
+          ? { ...user, enabled }
+          : user
+      ))
+      
+      setSelectedUsers([])
+      showToast('success', `Đã ${enabled ? 'mở khóa' : 'khóa'} ${selectedUsers.length} tài khoản`)
+    } catch (error: any) {
+      console.error('Error bulk updating user status:', error)
+      showToast('error', 'Lỗi khi cập nhật hàng loạt: ' + (error.response?.data?.message || error.message))
     }
   }
 
-  const getStatusBadge = (userStatus: boolean) => {
-    switch (userStatus) {
-      case true:
-        return <Badge className="bg-green-100 text-green-800 border-green-200">Active</Badge>
-      case false:
-        return <Badge className="bg-red-100 text-red-800 border-red-200">Inactive</Badge>
-      default:
-        return <Badge className="bg-gray-100 text-gray-800 border-gray-200">Unknown</Badge>
+  const getRoleBadge = (authorities: string[]) => {
+    if (authorities.includes('ROLE_ADMIN')) {
+      return <Badge className="bg-red-100 text-red-800 border-red-200">Admin</Badge>
+    } else if (authorities.includes('ROLE_MANAGER')) {
+      return <Badge className="bg-purple-100 text-purple-800 border-purple-200">Manager</Badge>
+    } else if (authorities.includes('ROLE_STAFF')) {
+      return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Staff</Badge>
+    } else if (authorities.includes('ROLE_USER')) {
+      return <Badge className="bg-gray-100 text-gray-800 border-gray-200">User</Badge>
+    } else {
+      return <Badge variant="outline">No Role</Badge>
     }
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('vi-VN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
+  const getStatusBadge = (enabled: boolean, emailVerified: boolean) => {
+    if (!enabled) {
+      return <Badge className="bg-red-100 text-red-800 border-red-200">Bị khóa</Badge>
+    } else if (!emailVerified) {
+      return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Chưa xác thực</Badge>
+    } else {
+      return <Badge className="bg-green-100 text-green-800 border-green-200">Hoạt động</Badge>
+    }
+  }
+
+  if (loading) {
+    return (
+      <AdminNavigation currentPage="accounts">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg text-gray-600">Đang tải dữ liệu...</div>
+        </div>
+      </AdminNavigation>
+    )
   }
 
   return (
@@ -175,23 +291,8 @@ export const AdminManageAccountPage: React.FC = () => {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Account Management</h1>
-            <p className="text-gray-600 mt-1">Manage user accounts, roles, and permissions</p>
-          </div>
-
-          <div className="flex space-x-3">
-            <Button variant="outline" className="flex items-center space-x-2">
-              <Download className="h-4 w-4" />
-              <span>Export</span>
-            </Button>
-            <Button variant="outline" className="flex items-center space-x-2">
-              <Upload className="h-4 w-4" />
-              <span>Import</span>
-            </Button>
-            <Button className="flex items-center space-x-2 bg-red-600 hover:bg-red-700">
-              <Plus className="h-4 w-4" />
-              <span>Add User</span>
-            </Button>
+            <h1 className="text-3xl font-bold text-gray-900">Quản lý tài khoản</h1>
+            <p className="text-gray-600 mt-1">Quản lý tài khoản người dùng, quyền hạn và trạng thái</p>
           </div>
         </div>
 
@@ -201,7 +302,7 @@ export const AdminManageAccountPage: React.FC = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Users</p>
+                  <p className="text-sm font-medium text-gray-600">Tổng số người dùng</p>
                   <p className="text-2xl font-bold text-gray-900">{users.length}</p>
                 </div>
                 <Users className="h-8 w-8 text-blue-600" />
@@ -213,7 +314,7 @@ export const AdminManageAccountPage: React.FC = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Active Users</p>
+                  <p className="text-sm font-medium text-gray-600">Đang hoạt động</p>
                   <p className="text-2xl font-bold text-green-600">{users.filter(u => u.enabled).length}</p>
                 </div>
                 <UserCheck className="h-8 w-8 text-green-600" />
@@ -225,7 +326,7 @@ export const AdminManageAccountPage: React.FC = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Inactive Users</p>
+                  <p className="text-sm font-medium text-gray-600">Bị khóa</p>
                   <p className="text-2xl font-bold text-red-600">{users.filter(u => !u.enabled).length}</p>
                 </div>
                 <UserX className="h-8 w-8 text-red-600" />
@@ -237,9 +338,9 @@ export const AdminManageAccountPage: React.FC = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Admins</p>
+                  <p className="text-sm font-medium text-gray-600">Quản trị viên</p>
                   <p className="text-2xl font-bold text-purple-600">
-                    {users.filter(u => u.roles.includes('ROLE_ADMIN')).length}
+                    {users.filter(u => u.authorities.includes('ROLE_ADMIN')).length}
                   </p>
                 </div>
                 <Shield className="h-8 w-8 text-purple-600" />
@@ -252,14 +353,14 @@ export const AdminManageAccountPage: React.FC = () => {
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">
-              <CardTitle>User Accounts</CardTitle>
+              <CardTitle>Danh sách tài khoản</CardTitle>
               <Button 
                 variant="outline" 
                 onClick={() => setShowFilters(!showFilters)}
                 className="flex items-center space-x-2"
               >
                 <Filter className="h-4 w-4" />
-                <span>Filters</span>
+                <span>Bộ lọc</span>
               </Button>
             </div>
           </CardHeader>
@@ -270,7 +371,7 @@ export const AdminManageAccountPage: React.FC = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <input
                 type="text"
-                placeholder="Search by email, name, or username..."
+                placeholder="Tìm kiếm theo email hoặc tên người dùng..."
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                 value={filters.search}
                 onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
@@ -281,31 +382,32 @@ export const AdminManageAccountPage: React.FC = () => {
             {showFilters && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
                 <div>
-                  <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                  <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-2">Trạng thái</label>
                   <select
                     id="status-filter"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                     value={filters.status}
                     onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value as FilterOptions['status'] }))}
                   >
-                    <option value="all">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
+                    <option value="all">Tất cả trạng thái</option>
+                    <option value="active">Đang hoạt động</option>
+                    <option value="inactive">Bị khóa</option>
                   </select>
                 </div>
 
                 <div>
-                  <label htmlFor="role-filter" className="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                  <label htmlFor="role-filter" className="block text-sm font-medium text-gray-700 mb-2">Quyền hạn</label>
                   <select
                     id="role-filter"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
                     value={filters.role}
                     onChange={(e) => setFilters(prev => ({ ...prev, role: e.target.value as FilterOptions['role'] }))}
                   >
-                    <option value="all">All Roles</option>
-                    <option value="user">User</option>
-                    <option value="staff">Staff</option>
-                    <option value="admin">Admin</option>
+                    <option value="all">Tất cả quyền hạn</option>
+                    <option value="ROLE_USER">Người dùng</option>
+                    <option value="ROLE_STAFF">Nhân viên</option>
+                    <option value="ROLE_MANAGER">Quản lý</option>
+                    <option value="ROLE_ADMIN">Quản trị viên</option>
                   </select>
                 </div>
               </div>
@@ -315,13 +417,22 @@ export const AdminManageAccountPage: React.FC = () => {
             {selectedUsers.length > 0 && (
               <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <span className="text-blue-800 font-medium">
-                  {selectedUsers.length} user(s) selected
+                  Đã chọn {selectedUsers.length} người dùng
                 </span>
                 <div className="flex space-x-2">
-                  <Button size="sm" variant="outline">Enable</Button>
-                  <Button size="sm" variant="outline">Disable</Button>
-                  <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50">
-                    Delete
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => handleBulkStatusUpdate(true)}
+                  >
+                    Mở khóa
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => handleBulkStatusUpdate(false)}
+                  >
+                    Khóa
                   </Button>
                 </div>
               </div>
@@ -340,12 +451,11 @@ export const AdminManageAccountPage: React.FC = () => {
                         className="rounded border-gray-300 text-red-600 focus:ring-red-500"
                       />
                     </th>
-                    <th className="text-left p-4 font-medium text-gray-900">User</th>
-                    <th className="text-left p-4 font-medium text-gray-900">Status</th>
-                    <th className="text-left p-4 font-medium text-gray-900">Role</th>
-                    <th className="text-left p-4 font-medium text-gray-900">Created</th>
-                    <th className="text-left p-4 font-medium text-gray-900">Last Login</th>
-                    <th className="text-left p-4 font-medium text-gray-900">Actions</th>
+                    <th className="text-left p-4 font-medium text-gray-900">Người dùng</th>
+                    <th className="text-left p-4 font-medium text-gray-900">Trạng thái</th>
+                    <th className="text-left p-4 font-medium text-gray-900">Quyền hạn</th>
+                    <th className="text-left p-4 font-medium text-gray-900">Xác thực email</th>
+                    <th className="text-left p-4 font-medium text-gray-900">Thao tác</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -361,46 +471,53 @@ export const AdminManageAccountPage: React.FC = () => {
                       </td>
                       <td className="p-4">
                         <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                            <User className="h-4 w-4 text-gray-600" />
+                          <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden">
+                            {user.avatar && user.avatar !== 'https://engineering.usask.ca/images/no_avatar.jpg' ? (
+                              <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                            ) : (
+                              <User className="h-4 w-4 text-gray-600" />
+                            )}
                           </div>
                           <div>
                             <div className="font-medium text-gray-900">
-                              {user.name || user.username}
+                              {user.username}
                             </div>
                             <div className="text-sm text-gray-500">{user.email}</div>
+                            {user.phone && (
+                              <div className="text-sm text-gray-500">{user.phone}</div>
+                            )}
                           </div>
                         </div>
                       </td>
-                      <td className="p-4">{getStatusBadge(user.enabled)}</td>
-                      <td className="p-4">{getRoleBadge(user.roles)}</td>
-                      <td className="p-4 text-sm text-gray-600">{formatDate(user.createdAt)}</td>
-                      <td className="p-4 text-sm text-gray-600">
-                        {user.lastLogin ? formatDate(user.lastLogin) : 'Never'}
+                      <td className="p-4">{getStatusBadge(user.enabled, user.emailVerified)}</td>
+                      <td className="p-4">{getRoleBadge(user.authorities)}</td>
+                      <td className="p-4">
+                        {user.emailVerified ? (
+                          <Badge className="bg-green-100 text-green-800 border-green-200">Đã xác thực</Badge>
+                        ) : (
+                          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Chưa xác thực</Badge>
+                        )}
                       </td>
                       <td className="p-4">
                         <div className="flex items-center space-x-2">
                           <Button size="sm" variant="ghost" className="p-1">
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="ghost" className="p-1">
-                            <Edit3 className="h-4 w-4" />
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            className="p-1"
+                            onClick={() => handleEditUser(user)}
+                          >
+                            <Settings className="h-4 w-4" />
                           </Button>
                           <Button 
                             size="sm" 
                             variant="ghost" 
                             className="p-1"
-                            onClick={() => handleToggleUserStatus(user.id)}
+                            onClick={() => handleToggleUserStatus(user)}
                           >
                             {user.enabled ? <UserX className="h-4 w-4 text-red-600" /> : <UserCheck className="h-4 w-4 text-green-600" />}
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            className="p-1 text-red-600 hover:bg-red-50"
-                            onClick={() => handleDeleteUser(user.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </td>
@@ -412,13 +529,26 @@ export const AdminManageAccountPage: React.FC = () => {
               {filteredUsers.length === 0 && (
                 <div className="text-center py-12">
                   <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No users found</h3>
-                  <p className="text-gray-500">Try adjusting your search or filter criteria.</p>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Không tìm thấy người dùng nào</h3>
+                  <p className="text-gray-500">Thử điều chỉnh tiêu chí tìm kiếm hoặc bộ lọc của bạn.</p>
                 </div>
               )}
             </div>
           </CardContent>
         </Card>
+
+        {/* Edit User Modal */}
+        {showEditModal && editingUser && (
+          <EditUserModal
+            user={editingUser}
+            authorities={authorities}
+            onSave={handleUpdateUserAuthorities}
+            onCancel={() => {
+              setShowEditModal(false)
+              setEditingUser(null)
+            }}
+          />
+        )}
       </div>
     </AdminNavigation>
   )
