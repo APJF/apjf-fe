@@ -56,10 +56,10 @@ export function PDFViewer({ materialId, fileUrl }: PDFViewerProps) {
       </div>
 
       {/* PDF Content */}
-      <div className="bg-gray-50 min-h-[450px] overflow-auto rounded-lg border border-gray-200">
+      <div className="bg-gray-50 min-h-[900px] overflow-auto rounded-lg border border-gray-200">
         <iframe
           src={fileUrl}
-          className="w-full h-[450px] border-0 rounded-lg"
+          className="w-full h-[900px] border-0 rounded-lg"
           title={`PDF Material ${materialId}`}
           style={{ transform: `scale(${zoom / 100})`, transformOrigin: "top center" }}
         />
