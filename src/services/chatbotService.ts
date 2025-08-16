@@ -92,6 +92,7 @@ export interface SessionMessage {
   order: number;
   type: 'human' | 'ai';
   content: string;
+  created_at: string;
 }
 
 export interface SessionDetailResponse {
@@ -226,7 +227,7 @@ export const chatbotService = {
           id: msg.id.toString(),
           content: msg.content,
           role: msg.type === 'human' ? 'user' : 'assistant',
-          timestamp: new Date().toISOString() // API không trả timestamp, dùng current time
+          timestamp: msg.created_at // Sử dụng created_at từ API thay vì new Date()
         }));
       
       console.log('🔄 Converted messages:', chatMessages);

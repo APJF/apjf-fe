@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Send, Plus, MoreVertical, Edit2, Trash2, ChevronDown, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
 import type { FloatingChatSession, AISessionType, FloatingMessage } from '../../types/floatingChat';
 import { chatbotService, getCurrentUserId, type ChatSession } from '../../services/chatbotService';
@@ -36,21 +36,25 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
   const [showSessionTypeDropdown, setShowSessionTypeDropdown] = useState(false);
   const [isSessionsPanelCollapsed, setIsSessionsPanelCollapsed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingSessions, setIsLoadingSessions] = useState(false); // Separate loading state for sessions
   const [isCreatingNewSession, setIsCreatingNewSession] = useState(false);
+  const hasLoadedSessionsRef = useRef(false); // Track if sessions have been loaded
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
   const currentUserId = getCurrentUserId();
 
-  // Helper function to get session type label
-  const getSessionTypeLabel = (sessionType: AISessionType): string => {
-    switch (sessionType) {
-      case 'qna': return 'Trợ lý';
-      case 'planner': return 'Lộ trình học';
-      case 'reviewer': return 'Đánh giá';
-      case 'learning': return 'Hướng dẫn học tập';
-      default: return 'Trợ lý';
-    }
-  };
+  // Ref cho messages container để auto-scroll
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+  // Function để scroll xuống tin nhắn mới nhất
+  const scrollToBottom = React.useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
+  // Auto-scroll khi có tin nhắn mới
+  React.useEffect(() => {
+    scrollToBottom();
+  }, [activeSession?.messages, scrollToBottom]);
 
   // Convert API ChatSession to FloatingChatSession
   const convertToFloatingSession = (apiSession: ChatSession): FloatingChatSession => {
@@ -87,7 +91,7 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
         id: msg.id,
         content: msg.content,
         role: msg.role,
-        timestamp: new Date(msg.timestamp)
+        timestamp: new Date(msg.timestamp) // Chuyển đổi từ ISO string sang Date
       }));
       console.log('🔄 Converted to floating messages:', floatingMessages);
 
@@ -99,15 +103,20 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
         console.log('Updated sessions after adding messages:', updated);
         return updated;
       });
+
+      // Auto-scroll xuống tin nhắn mới nhất sau khi load messages
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100); // Small delay để đảm bảo messages đã render
     } catch (error) {
       console.error('❌ Error loading session messages:', error);
     }
-  }, []);
+  }, [scrollToBottom]);
 
   const loadSessions = useCallback(async () => {
     console.log('🔄 loadSessions called');
     try {
-      setIsLoading(true);
+      setIsLoadingSessions(true); // Use separate loading state for sessions
       console.log('📞 Calling getSessions API with user ID:', getCurrentUserId());
       const apiSessions = await chatbotService.getSessions(getCurrentUserId());
       console.log('✅ Got sessions from API:', apiSessions);
@@ -115,6 +124,7 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
       const floatingSessions = apiSessions.map(convertToFloatingSession);
       console.log('🔄 Converted to floating sessions:', floatingSessions);
       setSessions(floatingSessions);
+      hasLoadedSessionsRef.current = true; // Mark as loaded
       
       // Set active session to the first one if no active session AND not creating new session
       if (!activeSessionId && !isCreatingNewSession && floatingSessions.length > 0) {
@@ -125,17 +135,24 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
     } catch (error) {
       console.error('❌ Error loading sessions:', error);
     } finally {
-      setIsLoading(false);
+      setIsLoadingSessions(false); // Use separate loading state for sessions
     }
   }, [activeSessionId, isCreatingNewSession, loadSessionMessages]);
 
   // Load sessions when component mounts ONLY
   useEffect(() => {
-    if (isOpen && sessions.length === 0) {
+    if (isOpen && !hasLoadedSessionsRef.current) {
       console.log('🎬 Initial load of sessions');
       loadSessions();
     }
-  }, [isOpen, sessions.length, loadSessions]);
+  }, [isOpen, loadSessions]);
+
+  // Reset loaded flag when chat is closed
+  useEffect(() => {
+    if (!isOpen) {
+      hasLoadedSessionsRef.current = false;
+    }
+  }, [isOpen]);
 
   const toggleSessionsPanel = () => {
     setIsSessionsPanelCollapsed(!isSessionsPanelCollapsed);
@@ -191,9 +208,7 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
       chatbotService.deleteSession(sessionId)
         .then(() => {
           console.log('✅ chatbotService.deleteSession completed successfully');
-          // 4. Reload sessions to ensure proper sync with backend
-          console.log('🔄 Reloading sessions to ensure proper sync with backend...');
-          loadSessions();
+          // No need to reload sessions - optimistic update is enough
         })
         .catch(error => {
           console.error('❌ Background delete failed, reverting optimistic update:', error);
@@ -228,9 +243,7 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
       chatbotService.updateSessionName(sessionId, newName)
         .then(() => {
           console.log('✅ chatbotService.updateSessionName completed successfully');
-          // 3. Reload sessions to get proper order from backend (backend sorts by updated_at)
-          console.log('🔄 Reloading sessions to get proper order from backend...');
-          loadSessions();
+          // No need to reload sessions - optimistic update is enough
         })
         .catch(error => {
           console.error('❌ Background rename failed, reverting optimistic update:', error);
@@ -300,7 +313,39 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
         console.log('🆕 Creating new session with first message...');
         console.log('🔍 Conditions - activeSessionId:', activeSessionId, 'isCreatingNewSession:', isCreatingNewSession);
         
-        // Build context for reviewer AI type
+        // 1. Create temporary session with user message and typing indicator immediately
+        const tempSessionId = Date.now(); // Temporary ID
+        
+        const userMessage: FloatingMessage = {
+          id: 'temp-user-' + Date.now(),
+          content: currentInput,
+          role: 'user',
+          timestamp: new Date()
+        };
+
+        const typingMessage: FloatingMessage = {
+          id: 'temp-typing-' + Date.now(),
+          content: '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏', // Spinning dots
+          role: 'assistant',
+          timestamp: new Date()
+        };
+
+        const tempSessionForUI: FloatingChatSession = {
+          id: tempSessionId,
+          name: 'Đang tạo phiên...', // Simple temporary name
+          sessionType: currentSessionType,
+          messages: [userMessage, typingMessage],
+          lastMessage: 'AI đang trả lời...',
+          timestamp: new Date()
+        };
+
+        // 2. Show temporary session immediately
+        setSessions(prev => [tempSessionForUI, ...prev]);
+        setActiveSessionId(tempSessionId);
+        setIsCreatingNewSession(false);
+        console.log('🎭 Created temporary session with typing indicator');
+        
+        // 3. Build context for reviewer AI type
         const context: Record<string, number | string> = {};
         
         // Check if we're on exam result review page
@@ -336,44 +381,36 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
         const newSession = await chatbotService.createSession(createSessionRequest);
         console.log('✅ Session created successfully:', newSession);
 
-        // Create session object for UI with initial messages
-        const userMessage: FloatingMessage = {
+        // 4. Replace temporary session with real session
+        const realUserMessage: FloatingMessage = {
           id: 'user-' + Date.now(),
           content: currentInput,
           role: 'user',
           timestamp: new Date()
         };
 
-        const aiMessage: FloatingMessage = {
+        const realAiMessage: FloatingMessage = {
           id: 'ai-' + Date.now(),
           content: newSession.ai_first_response,
           role: 'assistant',
           timestamp: new Date()
         };
 
-        const sessionForUI: FloatingChatSession = {
+        const realSessionForUI: FloatingChatSession = {
           id: newSession.session_id,
-          name: `${getSessionTypeLabel(currentSessionType)} - ${new Date().toLocaleString()}`,
+          name: newSession.session_name, // Use real session name from API
           sessionType: currentSessionType,
-          messages: [userMessage, aiMessage],
+          messages: [realUserMessage, realAiMessage],
           lastMessage: newSession.ai_first_response.substring(0, 50) + '...',
           timestamp: new Date()
         };
-        
-        console.log('📝 Session for UI with messages:', sessionForUI);
 
-        // Add to sessions list and set as active
-        setSessions(prev => {
-          console.log('Previous sessions:', prev);
-          const updated = [...prev, sessionForUI];
-          console.log('Updated sessions:', updated);
-          return updated;
-        });
+        // 5. Replace temporary session with real session
+        setSessions(prev => prev.map(s => 
+          s.id === tempSessionId ? realSessionForUI : s
+        ));
         setActiveSessionId(newSession.session_id);
-        setIsCreatingNewSession(false);
-        console.log('🎯 Set active session ID to:', newSession.session_id);
-        console.log('✅ Reset isCreatingNewSession to false');
-        console.log('🎉 Session created with initial messages!');
+        console.log('� Replaced temporary session with real session!');
         
       } else {
         console.log('💬 Sending message to existing session:', activeSessionId);
@@ -498,10 +535,22 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
   };
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('vi-VN', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
+    const today = new Date();
+    const isToday = date.toDateString() === today.toDateString();
+    
+    if (isToday) {
+      return date.toLocaleTimeString('vi-VN', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    } else {
+      return date.toLocaleString('vi-VN', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
   };
 
   const getCurrentSessionTypeName = () => {
@@ -536,17 +585,17 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
 
             {/* Sessions List */}
             <div className="flex-1 overflow-y-auto">
-              {isLoading && (
+              {isLoadingSessions && (
                 <div className="p-4 text-center text-sm text-gray-500">
                   Đang tải phiên chat...
                 </div>
               )}
-              {!isLoading && sessions.length === 0 && (
+              {!isLoadingSessions && sessions.length === 0 && (
                 <div className="p-4 text-center text-sm text-gray-500">
                   Chưa có phiên chat nào
                 </div>
               )}
-              {!isLoading && sessions.length > 0 && (
+              {!isLoadingSessions && sessions.length > 0 && (
                 sessions.map((session) => (
                   <button
                     key={session.id}
@@ -729,6 +778,8 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
                   </div>
                 </div>
               ))}
+              {/* Element để scroll tới */}
+              <div ref={messagesEndRef} />
             </div>
 
             {/* Input */}
@@ -743,7 +794,7 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
                 />
                 <button
                   type="submit"
-                  disabled={!input.trim()}
+                  disabled={!input.trim() || isLoading}
                   className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                 >
                   <Send size={16} />
