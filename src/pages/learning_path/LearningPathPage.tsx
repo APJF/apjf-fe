@@ -9,7 +9,7 @@ import { learningPathService } from "../../services/learningPathService";
 import type { LearningPath } from "../../services/learningPathService";
 import api from "../../api/axios";
 import { Breadcrumb, type BreadcrumbItem } from '../../components/ui/Breadcrumb';
-import { RoadmapView, type RoadmapStage } from '../../components/roadmap/RoadmapView';
+import { JapanRoadmapView, type RoadmapStage } from '../../components/roadmap/JapanRoadmapView';
 import {
   BookOpen,
   RefreshCw,
@@ -33,7 +33,7 @@ interface LearningModule {
   status: "PENDING" | "STUDYING" | "FINISHED"; // Ensures we use API status enum
 }
 
-// Current Learning Roadmap Component - using RoadmapView
+// Current Learning Roadmap Component - using JapanRoadmapView
 function CurrentLearningRoadmap({ activePath }: { readonly activePath: LearningPath | null }) {
   const navigate = useNavigate();
 
@@ -100,22 +100,30 @@ function CurrentLearningRoadmap({ activePath }: { readonly activePath: LearningP
   ];
 
   return (
-    <RoadmapView
+    <JapanRoadmapView
       stages={roadmapStages}
       title="Lộ trình đang học"
       subtitle={activePath.title}
+      theme="blue"
+      showHeader={true}
+      showNavigation={true}
+      showStageCards={true}
+      showActionButtons={true}
       headerInfo={{
         targetLevel: activePath.targetLevel,
         status: "Đang học",
         duration: activePath.duration,
         coursesCount: activePath.courses?.length || 0,
       }}
-      onViewDetail={() => navigate(`/roadmap-detail/${activePath.id}`)}
-      onStageClick={(stageId) => {
+      onSecondaryAction={() => navigate(`/roadmap-detail/${activePath.id}`)}
+      onStageClick={(stageId: number) => {
         console.log(`Clicked stage ${stageId}`);
         // Handle stage click - navigate to detail page
         navigate(`/roadmap-detail/${activePath.id}?stage=${stageId}`);
       }}
+      primaryActionLabel="Tiếp tục học"
+      secondaryActionLabel="Chi tiết"
+      primaryActionIcon={<Flag className="h-3 w-3" />}
     />
   );
 }

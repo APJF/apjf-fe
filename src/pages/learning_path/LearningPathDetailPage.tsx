@@ -6,7 +6,7 @@ import { Badge } from "../../components/ui/Badge";
 import { Progress } from "../../components/ui/Progress";
 import { Alert } from "../../components/ui/Alert";
 import { Breadcrumb, type BreadcrumbItem } from '../../components/ui/Breadcrumb';
-import { RoadmapView, type RoadmapStage } from '../../components/roadmap/RoadmapView';
+import { JapanRoadmapView, type RoadmapStage } from '../../components/roadmap/JapanRoadmapView';
 import {
   ArrowLeft,
   BookOpen,
@@ -139,7 +139,7 @@ interface StageUnitsViewProps {
   setCurrentStage: (stage: number) => void;
 }
 
-function StageUnitsView({ currentStage, setCurrentStage }: StageUnitsViewProps) {
+function StageUnitsView({ currentStage, setCurrentStage }: Readonly<StageUnitsViewProps>) {
   const unitContainerRef = useRef<HTMLDivElement>(null);
 
   // Generate units logic
@@ -234,20 +234,14 @@ function StageUnitsView({ currentStage, setCurrentStage }: StageUnitsViewProps) 
 
     while (index < units.length) {
       const isEvenRow = layout.length % 2 === 0;
-      if (isEvenRow) {
+      if (isEvenRow || index >= units.length - 1) {
         const rowUnits = units.slice(index, index + 1);
         layout.push(rowUnits);
         index += 1;
       } else {
-        if (index < units.length - 1) {
-          const rowUnits = units.slice(index, index + 2);
-          layout.push(rowUnits);
-          index += 2;
-        } else {
-          const rowUnits = units.slice(index, index + 1);
-          layout.push(rowUnits);
-          index += 1;
-        }
+        const rowUnits = units.slice(index, index + 2);
+        layout.push(rowUnits);
+        index += 2;
       }
     }
 
@@ -276,8 +270,8 @@ function StageUnitsView({ currentStage, setCurrentStage }: StageUnitsViewProps) 
         className="border rounded-lg p-4 bg-gradient-to-br from-blue-50 to-indigo-50 max-h-64 overflow-y-auto"
       >
         <div className="space-y-3">
-          {pathLayout.map((row, rowIndex) => (
-            <div key={rowIndex} className={`flex ${row.length === 1 ? 'justify-center' : 'justify-between'} items-center`}>
+          {pathLayout.map((row) => (
+            <div key={`row-${row[0]}`} className={`flex ${row.length === 1 ? 'justify-center' : 'justify-between'} items-center`}>
               {row.map((unitNumber) => {
                 const status = getUnitStatus(unitNumber);
                 return (
@@ -589,9 +583,20 @@ export default function LearningPathDetailPage() {
                       </div>
 
                       <div className="ml-4 text-right">
-                        <Badge variant={module.status === "completed" ? "default" : module.status === "in_progress" ? "secondary" : "outline"}>
-                          {module.status === "completed" ? "Hoàn thành" : module.status === "in_progress" ? "Đang học" : "Chưa bắt đầu"}
-                        </Badge>
+                        {(() => {
+                          let badgeVariant: "default" | "secondary" | "outline" = "outline";
+                          let statusText = "Chưa bắt đầu";
+                          
+                          if (module.status === "completed") {
+                            badgeVariant = "default";
+                            statusText = "Hoàn thành";
+                          } else if (module.status === "in_progress") {
+                            badgeVariant = "secondary";
+                            statusText = "Đang học";
+                          }
+                          
+                          return <Badge variant={badgeVariant}>{statusText}</Badge>;
+                        })()}
                         
                         <div className="mt-2">
                           <Button size="sm" className="bg-orange-600 hover:bg-orange-700">
@@ -677,17 +682,15 @@ export default function LearningPathDetailPage() {
           <div className="lg:col-span-4 space-y-4">
             {/* Mini Roadmap Map */}
             <div className="space-y-2">
-              <h3 className="text-sm font-medium text-gray-900 flex items-center space-x-1">
-                <BookOpen className="h-4 w-4" />
-                <span>Lộ trình tổng quan</span>
-              </h3>
-              <RoadmapView
+              <JapanRoadmapView
                 stages={roadmapStages}
+                title="Lộ trình tổng quan"
                 onStageClick={setCurrentStage}
-                compact={true}
-                showHeader={false}
-                showNavigation={false}
+                theme="blue"
+                showHeader={true}
+                showNavigation={true}
                 showStageCards={false}
+                showActionButtons={false}
               />
             </div>
 
