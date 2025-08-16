@@ -19,12 +19,20 @@ interface ExamQuestionOption {
 // Export for use in other components
 export type { ExamQuestionOption }
 
-// ---- Progress Bar (used inside the right navigator)
-function ProgressBar({ value }: { value: number }) {
+// ---- Progress Bar với màu thay đổi theo thời gian và hiệu ứng animated
+function ProgressBar({ value, timePercentage }: { value: number; timePercentage: number }) {
+  // Tính màu dựa trên phần trăm thời gian đã trôi qua
+  const getBarColor = () => {
+    if (timePercentage >= 95) return 'bg-red-500';
+    if (timePercentage >= 75) return 'bg-orange-500';
+    if (timePercentage >= 50) return 'bg-yellow-400';
+    return 'bg-blue-600';
+  };
+
   return (
     <div className="w-full h-2.5 rounded-full bg-gray-200 overflow-hidden">
       <div
-        className="h-full bg-blue-600 transition-[width] duration-300 ease-out"
+        className={`h-full transition-all duration-300 ease-out animate-pulse ${getBarColor()}`}
         style={{ width: `${value}%` }}
       />
     </div>
@@ -65,11 +73,11 @@ function QuestionCard({
 }) {
   return (
     <div className="relative bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
-      {/* Flag icon top-left */}
+      {/* Flag icon top-right */}
       <button
         onClick={onToggleFlag}
         className={[
-          "absolute -top-3 -left-3 size-9 rounded-xl border shadow-sm flex items-center justify-center",
+          "absolute -top-3 -right-3 size-9 rounded-xl border shadow-sm flex items-center justify-center",
           flagged ? "border-rose-600 bg-rose-600 text-white" : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50",
         ].join(" ")}
         aria-label={flagged ? "Unflag" : "Flag for review"}
@@ -79,13 +87,11 @@ function QuestionCard({
       </button>
 
       <div className="flex items-start gap-3">
-        <div className="shrink-0 mt-0.5">
-          <span className="inline-flex size-9 items-center justify-center rounded-xl bg-blue-50 text-blue-700 font-semibold">
-            {q.questionId}
-          </span>
-        </div>
         <div className="flex-1">
-          <h2 className="text-base sm:text-lg font-medium leading-snug">{q.questionContent}</h2>
+          <h2 
+            className="text-base sm:text-lg font-medium leading-snug [&_u]:underline [&_u]:decoration-2 [&_u]:underline-offset-4 [&_u]:decoration-black-600"
+            dangerouslySetInnerHTML={{ __html: q.questionContent }}
+          />
         </div>
       </div>
 
@@ -124,7 +130,7 @@ function QuestionCard({
   );
 }
 
-// ---- Navigator (right side) now hosts progress, time, and Prev/Next
+// ---- Navigator (right side) với cải tiến màu sắc và cuộn
 function QuestionNavigator({
   total,
   currentIndex,
@@ -134,6 +140,8 @@ function QuestionNavigator({
   onPrev,
   onNext,
   timeLeft,
+  timePercentage,
+  questions,
 }: {
   total: number;
   currentIndex: number;
@@ -143,6 +151,8 @@ function QuestionNavigator({
   onPrev: () => void;
   onNext: () => void;
   timeLeft: string;
+  timePercentage: number;
+  questions: ExamQuestion[];
 }) {
   const pct = total === 0 ? 0 : Math.round((answeredSet.size / total) * 100);
   
@@ -156,7 +166,7 @@ function QuestionNavigator({
         </div>
         <div className="text-sm text-gray-600">{answeredSet.size}/{total}</div>
       </div>
-      <ProgressBar value={pct} />
+      <ProgressBar value={pct} timePercentage={timePercentage} />
       <div className="mt-1 text-xs text-gray-500">{pct}% completed</div>
 
       {/* Legend */}
@@ -166,33 +176,48 @@ function QuestionNavigator({
         <span className="inline-flex items-center gap-2"><span className="size-3 rounded-sm bg-emerald-600 inline-block" /> Current</span>
       </div>
 
-      {/* Grid of square question buttons */}
-      <div className="mt-4 grid grid-cols-5 sm:grid-cols-6 gap-2">
-        {Array.from({ length: total }, (_, i) => {
-          const idx = i; // 0-based
-          const n = i + 1;
-          const isCurrent = idx === currentIndex;
-          const questionId = `${n}`; // Convert to string for Set lookup
-          const isAnswered = answeredSet.has(questionId);
-          const isFlagged = flaggedSet.has(questionId);
-          return (
-            <button
-              key={n}
-              onClick={() => onJump(idx)}
-              className={[
-                "relative aspect-square rounded-xl border text-sm font-semibold transition flex items-center justify-center",
-                isCurrent ? "border-emerald-700 ring-2 ring-emerald-700/20" : "border-gray-300 hover:border-gray-400",
-                isAnswered ? "bg-blue-600 text-white" : "bg-white text-gray-800",
-              ].join(" ")}
-              title={`Go to question ${n}`}
-            >
-              {n}
-              {isFlagged && (
-                <span className="absolute -top-1 -right-1 size-3 rounded-full bg-rose-600" />
-              )}
-            </button>
-          );
-        })}
+      {/* Grid of square question buttons - 6 rows (36 questions) with scroll */}
+      <div className="mt-4 max-h-72 overflow-y-auto scrollbar-thin">
+        <div className="grid grid-cols-6 gap-2">
+          {Array.from({ length: total }, (_, i) => {
+            const idx = i; // 0-based
+            const n = i + 1;
+            const isCurrent = idx === currentIndex;
+            // Sử dụng questionId thực từ questions array thay vì số thứ tự
+            const actualQuestionId = questions[idx]?.questionId || `${n}`;
+            const isAnswered = answeredSet.has(actualQuestionId);
+            const isFlagged = flaggedSet.has(actualQuestionId);
+            
+            // Ưu tiên màu: Current > Flagged > Answered > Default
+            let bgColor = 'bg-white text-gray-800 border-gray-300';
+            let hoverEffect = 'hover:bg-gray-50';
+            
+            if (isCurrent) {
+              // Câu hiện tại - xanh lá
+              bgColor = 'bg-emerald-500 text-white border-emerald-500';
+              hoverEffect = 'hover:bg-emerald-600';
+            } else if (isFlagged) {
+              // Câu được flag - đỏ
+              bgColor = 'bg-red-500 text-white border-red-500';
+              hoverEffect = 'hover:bg-red-600';
+            } else if (isAnswered) {
+              // Câu đã trả lời - xanh dương
+              bgColor = 'bg-blue-500 text-white border-blue-500';
+              hoverEffect = 'hover:bg-blue-600';
+            }
+            
+            return (
+              <button
+                key={n}
+                onClick={() => onJump(idx)}
+                className={`relative aspect-square rounded-xl border text-sm font-semibold transition-all duration-200 flex items-center justify-center hover:scale-105 ${bgColor} ${hoverEffect}`}
+                title={`Go to question ${n}${isFlagged ? ' (Flagged)' : ''}${isAnswered ? ' (Answered)' : ''}`}
+              >
+                {n}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Prev / Next controls inside navigator */}
@@ -236,6 +261,10 @@ export const ExamDoing: React.FC<ExamDoingProps> = ({ examData, questionOptions,
   const questions = examData.questionResults
   const total = questions.length
   const currentQ = questions[currentQuestion]
+  
+  // Calculate time percentage (how much time has passed)
+  const timePercentage = examData.totalTime > 0 ? 
+    Math.round(((examData.totalTime - timeLeft) / examData.totalTime) * 100) : 0
 
   // Calculate answered questions set
   const answeredSet = useMemo(() => {
@@ -413,6 +442,8 @@ export const ExamDoing: React.FC<ExamDoingProps> = ({ examData, questionOptions,
             onPrev={goPrev}
             onNext={goNext}
             timeLeft={formatTime(timeLeft)}
+            timePercentage={timePercentage}
+            questions={questions}
           />
           <div className="mt-4 bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
             <button 
@@ -427,24 +458,29 @@ export const ExamDoing: React.FC<ExamDoingProps> = ({ examData, questionOptions,
         </aside>
       </main>
 
-      {/* Confirm Submit Modal */}
+      {/* Confirm Submit Modal với nền mờ và hiển thị thời gian còn lại */}
       {showConfirmSubmit && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <h3 className="text-lg font-semibold mb-4">Submit Exam</h3>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 mb-4">
               Are you sure you want to submit your exam? You have answered {answeredSet.size} out of {total} questions.
             </p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6">
+              <p className="text-blue-700 text-sm font-medium">
+                Time remaining: {formatTime(timeLeft)}
+              </p>
+            </div>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowConfirmSubmit(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50"
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmSubmit}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
               >
                 Submit
               </button>

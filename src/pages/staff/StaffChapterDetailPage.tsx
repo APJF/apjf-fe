@@ -684,7 +684,7 @@ export const StaffChapterDetailPage: React.FC = () => {
                               <div className="text-xs text-purple-500 ml-11">
                                 <div>Mã bài kiểm tra: {exam.id}</div>
                                 <div>Thời gian: {exam.duration} phút</div>
-                                <div>Số câu hỏi: {exam.questionCount || 0}</div>
+                                <div>Số câu hỏi: {exam.totalQuestions || 0}</div>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">

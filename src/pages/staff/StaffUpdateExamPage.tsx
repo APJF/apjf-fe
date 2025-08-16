@@ -16,6 +16,7 @@ import { UnitSelector } from '../../components/ui/UnitSelector'
 import { FileText, BookOpen, Settings, CheckCircle, Plus, Search, ArrowLeft, Edit, Trash2, AlertTriangle, Upload, Minus } from "lucide-react"
 import { useToast } from '../../hooks/useToast'
 import axios from 'axios'
+import type { Question } from '../../types/exam'
 
 interface ExamQuestion {
   id: string
@@ -447,8 +448,23 @@ export const StaffUpdateExamPage: React.FC = () => {
     handleInputChange('questions', updatedQuestions)
   }
 
-  const handleSaveQuestion = (question: ExamQuestion) => {
-    handleSaveNewQuestion(question)
+  const handleSaveQuestion = (question: Question) => {
+    // Convert Question to ExamQuestion
+    const examQuestion: ExamQuestion = {
+      id: question.id,
+      type: question.type,
+      question: question.question,
+      content: question.question, // Use question field for content
+      scope: "VOCAB" as const, // Default value since Question doesn't have scope
+      options: question.options || [],
+      explanation: question.explanation,
+      points: question.points,
+      difficulty: question.difficulty as "Dễ" | "Trung bình" | "Khó",
+      skill: question.skill as "Ngữ pháp" | "Từ vựng" | "Kanji" | "Đọc hiểu" | "Nghe",
+      unitIds: [] // Default empty array since Question doesn't have unitIds
+    }
+    
+    handleSaveNewQuestion(examQuestion)
   }
 
   const handleEditQuestionClick = (question: ExamQuestion) => {
@@ -1889,7 +1905,7 @@ function SelectQuestionDialog({
                 </div>
               ) : (
                 <div className="p-4 space-y-2">
-                  {availableQuestions.map((question, index) => {
+                  {availableQuestions.map((question) => {
                     const isSelected = selectedQuestions.some(q => q.id === question.id)
                     const isAlreadyInExam = existingQuestions.some((q: ExamQuestion) => q.id === question.id)
                     

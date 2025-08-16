@@ -202,8 +202,26 @@ const StaffCreateUnitPage: React.FC = () => {
         }
       })
 
+      console.log('📤 Upload response:', response.data)
+
       if (response.data.success && response.data.data) {
-        return response.data.data // Trả về filename: "phan phuong_doc_9a38d5bc-28f4-495b-951f-28751bc34a4c.pdf"
+        // Đảm bảo fileUrl là chuỗi, không phải mảng
+        let fileUrl = response.data.data
+        
+        // Nếu data là mảng, lấy phần tử đầu tiên
+        if (Array.isArray(fileUrl)) {
+          fileUrl = fileUrl[0]
+          console.log('📝 Converted array to string:', fileUrl)
+        }
+        
+        // Đảm bảo fileUrl là string
+        if (typeof fileUrl !== 'string') {
+          console.error('❌ Invalid fileUrl format:', fileUrl, 'Type:', typeof fileUrl)
+          throw new Error('Server trả về định dạng fileUrl không hợp lệ')
+        }
+        
+        console.log('✅ Final fileUrl:', fileUrl)
+        return fileUrl // Trả về filename: "phan phuong_doc_9a38d5bc-28f4-495b-951f-28751bc34a4c.pdf"
       } else {
         throw new Error(response.data.message || 'Upload file thất bại')
       }
@@ -525,11 +543,19 @@ const StaffCreateUnitPage: React.FC = () => {
 
         console.log(`📝 Creating material with data:`, {
           ...materialData,
+          fileUrlType: typeof finalFileUrl,
+          fileUrlIsArray: Array.isArray(finalFileUrl),
           fileUrlLength: finalFileUrl.length,
           materialIdLength: material.materialId.trim().length,
           unitIdReceived: unitId,
           unitIdAfterTrim: unitId.trim()
         })
+        
+        // Double check fileUrl is string
+        if (typeof finalFileUrl !== 'string') {
+          console.error('❌ fileUrl is not string before creating material:', finalFileUrl, 'Type:', typeof finalFileUrl)
+          throw new Error(`fileUrl must be string but got ${typeof finalFileUrl}`)
+        }
         
         const materialResult = await MaterialService.createMaterial(materialData)
         console.log(`✅ Material created successfully:`, materialResult)
