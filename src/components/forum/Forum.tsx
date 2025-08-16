@@ -39,7 +39,8 @@ const convertForumPostToPost = (forumPost: ForumPost): Post => {
     likes: 0, // Backend doesn't provide likes yet
     isLiked: false,
     comments: forumPost.comments.map(convertForumCommentToComment),
-    showComments: false
+    showComments: false,
+    commentsCount: forumPost.comments.length
   }
 }
 
@@ -51,7 +52,8 @@ const convertForumCommentToComment = (forumComment: ForumComment): Comment => {
     content: forumComment.content,
     timestamp: formatTimeAgo(forumComment.createdAt),
     likes: 0, // Backend doesn't provide likes yet
-    isLiked: false
+    isLiked: false,
+    postId: forumComment.postId || ''
   }
 }
 
@@ -195,14 +197,6 @@ export default function SocialForum() {
     }
   }
 
-  const toggleCommentMenu = (postId: string, commentId: string) => {
-    const key = `${postId}-${commentId}`
-    setShowCommentMenus(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }))
-  }
-
   const handleDeleteComment = async (postId: string, commentId: string) => {
     if (confirm('Bạn có chắc chắn muốn xóa bình luận này?')) {
       try {
@@ -260,9 +254,8 @@ export default function SocialForum() {
               onToggleReportMenu={() => toggleReportMenu(post.id)}
               onReport={(reason) => handleReport(post.id, reason)}
               onDelete={() => handleDeletePost(post.id)}
-              onToggleCommentMenu={(commentId) => toggleCommentMenu(post.id, commentId)}
-              onDeleteComment={(commentId) => handleDeleteComment(post.id, commentId)}
-              onReportComment={(commentId, reason) => handleReportComment(post.id, commentId, reason)}
+              onDeleteComment={(commentId: string) => handleDeleteComment(post.id, commentId)}
+              onReportComment={(commentId: string, reason: string) => handleReportComment(post.id, commentId, reason)}
               currentUserEmail={user?.email}
               userAvatar={user?.avatar || undefined}
             />

@@ -3,7 +3,6 @@ import axios from '../api/axios'
 import type { Course, CourseApiResponse as CoursesResponse, CreateCourseRequest, UpdateCourseRequest } from '@/types/course'
 import type { ApiResponse } from '@/types/api'
 import type { Topic } from '@/types/topic'
-import type { Exam } from '@/types/exam'
 import type { Chapter } from '@/types/chapter'
 
 // Re-export types for easier import
@@ -180,8 +179,7 @@ export const StaffCourseService = {
         requirement: currentCourse.requirement ?? '',
         status: 'INACTIVE', // Chỉ thay đổi status
         prerequisiteCourseId: currentCourse.prerequisiteCourseId,
-        topicIds: currentCourse.topics?.map((topic: Topic) => topic.id.toString()) || [],
-        examIds: currentCourse.exams?.map((exam: Exam) => exam.id) || []
+        topicIds: currentCourse.topics?.map((topic: Topic) => topic.id.toString()) || []
       }
       
       console.log('🔧 Deactivating course with data:', {
@@ -227,8 +225,7 @@ export const StaffCourseService = {
         requirement: currentCourse.requirement ?? '',
         status: 'ACTIVE', // Chỉ thay đổi status
         prerequisiteCourseId: currentCourse.prerequisiteCourseId,
-        topicIds: currentCourse.topics?.map((topic: Topic) => topic.id.toString()) || [],
-        examIds: currentCourse.exams?.map((exam: Exam) => exam.id) || []
+        topicIds: currentCourse.topics?.map((topic: Topic) => topic.id.toString()) || []
       }
       
       console.log('🔧 Activating course with data:', {

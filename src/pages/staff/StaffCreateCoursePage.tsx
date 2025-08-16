@@ -13,13 +13,11 @@ import { StaffCourseService, type Course } from '../../services/staffCourseServi
 import { SearchableSelect } from '../../components/ui/SearchableSelect'
 import type { CreateCourseRequest } from '../../types/course'
 import { useAuth } from '../../hooks/useAuth'
-import { useToast } from '../../hooks/useToast'
 import api from '../../api/axios'
 
 const StaffCreateCoursePage: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { showToast } = useToast()
 
   const [formData, setFormData] = useState({
     id: '',

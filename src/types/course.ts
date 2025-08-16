@@ -134,7 +134,6 @@ export interface UpdateCourseRequest {
   status: 'INACTIVE' | 'ACTIVE';
   prerequisiteCourseId: string | null;
   topicIds: string[];
-  examIds: string[];
 }
 
 

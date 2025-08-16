@@ -3,12 +3,12 @@ import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Textarea } from '../ui/Textarea'
 import { Label } from '../ui/Label'
-import type { ExamQuestion, QuestionType, DifficultyLevel, SkillType } from '../../types/exam'
+import type { ExamQuestion, QuestionType, DifficultyLevel, SkillType, Question } from '../../types/exam'
 
 interface QuestionDialogProps {
   isOpen: boolean
   question: ExamQuestion | null
-  onSave: (question: ExamQuestion) => void
+  onSave: (question: Question) => void
   onClose: () => void
 }
 
@@ -132,7 +132,20 @@ const QuestionDialog: React.FC<QuestionDialogProps> = ({
 
   const handleSave = () => {
     if (validateForm()) {
-      onSave(formData)
+      // Convert ExamQuestion formData to Question format
+      const questionToSave: Question = {
+        id: formData.id,
+        type: formData.type,
+        question: formData.question,
+        options: formData.options,
+        correctAnswer: formData.correctAnswer,
+        explanation: formData.explanation,
+        points: formData.points,
+        difficulty: formData.difficulty,
+        skill: formData.skill,
+        fileUrl: formData.fileUrl
+      };
+      onSave(questionToSave);
     }
   }
 

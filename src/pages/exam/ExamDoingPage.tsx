@@ -47,6 +47,9 @@ export const ExamDoingPage: React.FC = () => {
         setLoading(true);
         setError(null);
 
+        // Get exam details first to get duration
+        const examDetails = await ExamService.getExamDetail(examId);
+        
         // Start exam and get basic info
         const examResponse = await ExamService.startExam(examId);
         
@@ -75,12 +78,13 @@ export const ExamDoingPage: React.FC = () => {
         });
         
         // Transform data to match ExamDoing component expectations
+        const examDuration = examDetails.duration || 60; // Default to 60 minutes if not available
         const transformedData = {
           examTitle: examResponse.examTitle,
           examId: examResponse.examId,
           questionResults: transformedQuestions,
-          remainingTime: 60 * 60, // 60 minutes in seconds
-          totalTime: 60 * 60
+          remainingTime: examDuration * 60, // Convert minutes to seconds
+          totalTime: examDuration * 60
         };
         
         setExamData(transformedData);

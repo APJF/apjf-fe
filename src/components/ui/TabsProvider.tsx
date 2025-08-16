@@ -3,6 +3,9 @@
 import React, { useState, useMemo } from "react"
 import { TabsContext } from './TabsHooks'
 
+// Re-export useTabsContext for convenience
+export { useTabsContext } from './TabsHooks'
+
 export function TabsProvider({ 
   defaultValue, 
   value: controlledValue, 
