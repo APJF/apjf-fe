@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Link } from 'react-router-dom';
 import { Menu, X, BookOpen, Bell, Globe, Package, MessageCircle, Settings } from "lucide-react"
 import { AuthSection } from "./AuthSection";
@@ -104,6 +104,7 @@ const formatTimeAgoWithI18n = (dateString: string, t: (key: string) => string) =
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [notificationOpen, setNotificationOpen] = useState(false)
+  const refreshRef = useRef<(() => void) | null>(null)
   
   // Use language hook
   const { currentLanguage, availableLanguages, changeLanguage, t } = useLanguage();
@@ -112,6 +113,9 @@ export function Header() {
   const notificationsData = useNotifications();
   const notifications = notificationsData?.notifications || [];
   const unreadCount = notificationsData?.unreadCount || 0;
+  
+  // Store refresh function in ref to avoid dependency issues
+  refreshRef.current = notificationsData?.refresh || null;
 
   const navItems = [
     { href: "/", label: t('header.home') },
