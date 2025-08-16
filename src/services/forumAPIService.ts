@@ -10,6 +10,10 @@ export interface PostResponse {
   username: string;
   avatar: string;
   commentsCount: number;
+  likeInfo: {
+    liked: boolean;
+    totalLikes: number;
+  };
 }
 
 export interface PostsAPIResponse {
@@ -49,6 +53,20 @@ export interface UpdatePostResponse {
   success: boolean;
   message: string;
   data: PostResponse;
+  timestamp: number;
+}
+
+export interface LikePostRequest {
+  postId: number;
+}
+
+export interface LikePostResponse {
+  success: boolean;
+  message: string;
+  data: {
+    liked: boolean;
+    totalLikes: number;
+  };
   timestamp: number;
 }
 
@@ -120,6 +138,39 @@ export class ForumAPIService {
       return response.data;
     } catch (error) {
       console.error('❌ Error updating post:', error);
+      if (error instanceof Error) {
+        console.error('📊 Error details:', {
+          message: error.message,
+          // Check if it's an axios error
+          ...(error && typeof error === 'object' && 'response' in error && {
+            response: (error as { response?: { data?: unknown; status?: number; statusText?: string } }).response?.data,
+            status: (error as { response?: { status?: number } }).response?.status,
+            statusText: (error as { response?: { statusText?: string } }).response?.statusText
+          })
+        });
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Like or unlike a post
+   */
+  async likePost(postId: number): Promise<LikePostResponse> {
+    try {
+      const requestBody: LikePostRequest = {
+        postId
+      };
+      
+      console.log('❤️ Making POST request to like post:', `/post-likes`);
+      console.log('📦 Request body:', requestBody);
+      
+      const response = await api.post<LikePostResponse>('/post-likes', requestBody);
+      
+      console.log('✅ Like response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error liking post:', error);
       if (error instanceof Error) {
         console.error('📊 Error details:', {
           message: error.message,
