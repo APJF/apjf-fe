@@ -21,39 +21,36 @@ interface ProcessedCourse {
   description: string
 }
 
-// Star rating selector with 0.5-step selection (hover and click)
+// Star rating selector with whole number selection only
 const StarRating: React.FC<{ rating: number; onRatingChange: (rating: number) => void }> = ({
   rating,
   onRatingChange,
 }) => {
   const [hover, setHover] = useState(0)
 
-  const handleClick = (e: React.MouseEvent<HTMLButtonElement>, i: number) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const isHalf = x < rect.width / 2
-    const value = i - (isHalf ? 0.5 : 0)
-    onRatingChange(value)
+  const handleClick = (starNumber: number) => {
+    onRatingChange(starNumber)
   }
 
-  const handleMove = (e: React.MouseEvent<HTMLButtonElement>, i: number) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const isHalf = x < rect.width / 2
-    setHover(i - (isHalf ? 0.5 : 0))
+  const handleMouseEnter = (starNumber: number) => {
+    setHover(starNumber)
   }
 
-  const colorFor = (i: number) => {
+  const handleMouseLeave = () => {
+    setHover(0)
+  }
+
+  const getStarColor = (starNumber: number) => {
     const current = hover || rating
-    if (current >= i) return "fill-yellow-400 text-yellow-400"
-    if (current >= i - 0.5) return "fill-yellow-300 text-yellow-300"
-    return "fill-gray-200 text-gray-300"
+    return current >= starNumber 
+      ? "fill-yellow-400 text-yellow-400" 
+      : "fill-gray-200 text-gray-300"
   }
 
   return (
     <fieldset 
       className="flex items-center gap-2" 
-      onMouseLeave={() => setHover(0)}
+      onMouseLeave={handleMouseLeave}
     >
       <legend className="sr-only">Rating filter</legend>
       <div className="flex items-center gap-1">
@@ -61,12 +58,12 @@ const StarRating: React.FC<{ rating: number; onRatingChange: (rating: number) =>
           <button
             key={i}
             type="button"
-            onMouseMove={(e) => handleMove(e, i)}
-            onClick={(e) => handleClick(e, i)}
+            onMouseEnter={() => handleMouseEnter(i)}
+            onClick={() => handleClick(i)}
             className="w-4 h-4 hover:scale-[1.08] transition-transform"
             aria-label={`Set minimum rating to ${i}`}
           >
-            <Star className={`w-full h-full ${colorFor(i)}`} />
+            <Star className={`w-full h-full ${getStarColor(i)}`} />
           </button>
         ))}
       </div>
@@ -130,10 +127,11 @@ const Pagination: React.FC<{ currentPage: number; totalPages: number; onPageChan
   t,
 }) => {
   if (totalPages <= 1) return null
-  const left = currentPage - 1 >= 1 ? currentPage - 1 : null
-  const center = currentPage
-  const right = currentPage + 1 <= totalPages ? currentPage + 1 : null
-
+  
+  // Logic mới: hiển thị trang đầu tiên, trang hiện tại, trang cuối cùng
+  const firstPage = 1
+  const lastPage = totalPages
+  
   return (
     <div className="flex items-center justify-center gap-3 mt-10">
       <button
@@ -155,9 +153,24 @@ const Pagination: React.FC<{ currentPage: number; totalPages: number; onPageChan
       </button>
 
       <div className="grid grid-cols-3 gap-2">
-        <PaginationButton page={left} onClick={onPageChange} />
-        <PaginationButton page={center} isActive onClick={onPageChange} />
-        <PaginationButton page={right} onClick={onPageChange} />
+        {/* Trang đầu tiên */}
+        <PaginationButton 
+          page={currentPage === firstPage ? null : firstPage} 
+          onClick={onPageChange} 
+        />
+        
+        {/* Trang hiện tại */}
+        <PaginationButton 
+          page={currentPage} 
+          isActive 
+          onClick={onPageChange} 
+        />
+        
+        {/* Trang cuối cùng */}
+        <PaginationButton 
+          page={currentPage === lastPage ? null : lastPage} 
+          onClick={onPageChange} 
+        />
       </div>
 
       <button
@@ -188,7 +201,7 @@ export default function CoursesPage() {
   const [error, setError] = useState<string | null>(null)
   
   const [searchTerm, setSearchTerm] = useState("")
-  const [sortBy, setSortBy] = useState<"rating" | "duration" | "title">("rating")
+  const [sortBy, setSortBy] = useState<"rating" | "level">("rating")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [filterTopic, setFilterTopic] = useState<string>("all")
   const [filterLevel, setFilterLevel] = useState<string>("all")
@@ -218,6 +231,7 @@ export default function CoursesPage() {
     const filtered = processedCourses.filter((c) => {
       const matchesSearch =
         c.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        c.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.description.toLowerCase().includes(searchTerm.toLowerCase())
       const matchesTopic = filterTopic === "all" || c.topic === filterTopic
       const matchesLevel = filterLevel === "all" || c.level === filterLevel
@@ -226,19 +240,18 @@ export default function CoursesPage() {
     })
 
     filtered.sort((a, b) => {
-      let aVal: string | number, bVal: string | number
-      if (sortBy === "title") {
-        aVal = a.title.toLowerCase()
-        bVal = b.title.toLowerCase()
-      } else {
-        aVal = a[sortBy]
-        bVal = b[sortBy]
+      if (sortBy === "rating") {
+        const aVal = a.rating
+        const bVal = b.rating
+        return sortOrder === "desc" ? bVal - aVal : aVal - bVal
+      } else if (sortBy === "level") {
+        // Level order: N5 (lowest) -> N4 -> N3 -> N2 -> N1 (highest)
+        const levelOrder: { [key: string]: number } = { N5: 1, N4: 2, N3: 3, N2: 4, N1: 5 }
+        const aVal = levelOrder[a.level] || 0
+        const bVal = levelOrder[b.level] || 0
+        return sortOrder === "desc" ? bVal - aVal : aVal - bVal
       }
-      if (sortOrder === "asc") {
-        return aVal > bVal ? 1 : -1
-      } else {
-        return aVal < bVal ? 1 : -1
-      }
+      return 0
     })
 
     return filtered
@@ -325,17 +338,15 @@ export default function CoursesPage() {
                 value={`${sortBy}-${sortOrder}`}
                 onChange={(e) => {
                   const [f, o] = e.target.value.split("-")
-                  setSortBy(f as "rating" | "duration" | "title")
+                  setSortBy(f as "rating" | "level")
                   setSortOrder(o as "asc" | "desc")
                 }}
                 className="h-9 w-full px-3 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-rose-700 focus:border-transparent"
               >
-                <option value="rating-desc">{t('courses.rating')}: {t('courses.newest')}</option>
-                <option value="rating-asc">{t('courses.rating')}: {t('courses.oldest')}</option>
-                <option value="duration-asc">{t('courses.hours')}: {t('courses.oldest')}</option>
-                <option value="duration-desc">{t('courses.hours')}: {t('courses.newest')}</option>
-                <option value="title-asc">A-Z</option>
-                <option value="title-desc">Z-A</option>
+                <option value="rating-desc">{t('courses.rating')}: {t('courses.highest')}</option>
+                <option value="rating-asc">{t('courses.rating')}: {t('courses.lowest')}</option>
+                <option value="level-desc">{t('courses.level')}: {t('courses.highest')} (N1)</option>
+                <option value="level-asc">{t('courses.level')}: {t('courses.lowest')} (N5)</option>
               </select>
             </div>
           </div>

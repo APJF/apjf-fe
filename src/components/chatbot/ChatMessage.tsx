@@ -65,10 +65,26 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
         <p className="text-sm whitespace-pre-wrap">{message.content}</p>
         <div className="flex items-center justify-between mt-2">
           <p className="text-xs opacity-70">
-            {message.timestamp.toLocaleTimeString("vi-VN", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+            {(() => {
+              const messageDate = new Date(message.timestamp);
+              const today = new Date();
+              const isToday = messageDate.toDateString() === today.toDateString();
+              
+              if (isToday) {
+                return messageDate.toLocaleTimeString("vi-VN", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
+              } else {
+                return messageDate.toLocaleString("vi-VN", {
+                  year: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
+              }
+            })()}
           </p>
           {message.type === "human" && isLastHumanMessage && (
             <Button

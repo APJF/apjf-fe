@@ -38,8 +38,8 @@ const convertAPIPostToUIPost = (apiPost: PostResponse): Post => {
     avatar: apiPost.avatar,
     content: apiPost.content,
     timestamp: formatTimeAgo(displayTime), // Show most recent activity time
-    likes: 0, // Not provided by current API
-    isLiked: false,
+    likes: apiPost.likeInfo.totalLikes, // Use totalLikes from API
+    isLiked: apiPost.likeInfo.liked, // Use liked status from API
     comments: [], // Create new empty array for each post
     showComments: false,
     commentsCount: apiPost.commentsCount
@@ -117,19 +117,33 @@ export function ForumPage() {
   // Handle like post
   const handleLikePost = async (postId: string) => {
     try {
-      // TODO: Implement like post API call
-      console.log('Liking post:', postId);
+      console.log('❤️ Liking post:', postId);
       
-      // For now, just update UI optimistically
-      setPosts(prevPosts => 
-        prevPosts.map(post => 
-          post.id === postId 
-            ? { ...post, isLiked: !post.isLiked, likes: post.isLiked ? post.likes - 1 : post.likes + 1 }
-            : post
-        )
-      );
+      // Call API to like/unlike post
+      const response = await forumAPIService.likePost(parseInt(postId));
+      
+      if (response.success) {
+        console.log('✅ Like response:', response.data);
+        
+        // Update UI with API response data
+        setPosts(prevPosts => 
+          prevPosts.map(post => 
+            post.id === postId 
+              ? { 
+                  ...post, 
+                  isLiked: response.data.liked, 
+                  likes: response.data.totalLikes 
+                }
+              : post
+          )
+        );
+      } else {
+        console.error('❌ Like failed:', response.message);
+        setError('Không thể thực hiện hành động like. Vui lòng thử lại.');
+      }
     } catch (err) {
-      console.error('Error liking post:', err);
+      console.error('❌ Error liking post:', err);
+      setError('Không thể thực hiện hành động like. Vui lòng thử lại.');
     }
   };
 
@@ -224,20 +238,25 @@ export function ForumPage() {
 
   // Handle like comment
   const handleLikeComment = (commentId: string) => {
-    // TODO: Implement like comment API call
     console.log('Liking comment:', commentId);
     
-    // Update UI optimistically
-    setPosts(prevPosts => 
-      prevPosts.map(post => ({
-        ...post,
-        comments: post.comments.map(comment => 
-          comment.id === commentId 
-            ? { ...comment, isLiked: !comment.isLiked, likes: comment.isLiked ? comment.likes - 1 : comment.likes + 1 }
-            : comment
-        )
-      }))
-    );
+    // Update UI optimistically - will implement API later
+    const updatedPosts = posts.map(post => {
+      const updatedComments = post.comments.map(comment => {
+        if (comment.id === commentId) {
+          return {
+            ...comment, 
+            isLiked: !comment.isLiked, 
+            likes: comment.isLiked ? comment.likes - 1 : comment.likes + 1
+          };
+        }
+        return comment;
+      });
+      
+      return { ...post, comments: updatedComments };
+    });
+    
+    setPosts(updatedPosts);
   };
 
   // Handle delete comment
@@ -247,16 +266,16 @@ export function ForumPage() {
       
       if (response.success) {
         // Remove comment from UI and update count
-        setPosts(prevPosts => 
-          prevPosts.map(post => {
-            const updatedComments = post.comments.filter(comment => comment.id !== commentId);
-            return {
-              ...post,
-              comments: updatedComments,
-              commentsCount: updatedComments.length
-            };
-          })
-        );
+        const updatedPosts = posts.map(post => {
+          const updatedComments = post.comments.filter(comment => comment.id !== commentId);
+          return {
+            ...post,
+            comments: updatedComments,
+            commentsCount: updatedComments.length
+          };
+        });
+        
+        setPosts(updatedPosts);
       }
     } catch (err) {
       console.error('Error deleting comment:', err);
@@ -266,17 +285,16 @@ export function ForumPage() {
 
   // Handle report comment
   const handleReportComment = (commentId: string, reason: string) => {
-    // TODO: Implement report comment API call
-    console.log('Reporting comment:', commentId, reason);
-    // Show success message or handle response
+    console.log('Reporting comment:', commentId, 'Reason:', reason);
+    // Report functionality will be implemented in future updates
   };
 
   // Handle report post
   const handleReportPost = (postId: string, reason: string) => {
     try {
-      // TODO: Implement report API call
-      console.log('Reporting post:', postId, reason);
+      console.log('Reporting post:', postId, 'Reason:', reason);
       setShowReportMenu(false);
+      // Report functionality will be implemented in future updates
     } catch (err) {
       console.error('Error reporting post:', err);
     }
@@ -285,8 +303,8 @@ export function ForumPage() {
   // Handle delete post
   const handleDeletePost = async (postId: string) => {
     try {
-      // TODO: Implement delete API call
       console.log('Deleting post:', postId);
+      // Delete functionality will be implemented in future updates
       
       // Remove from UI optimistically
       setPosts(prevPosts => prevPosts.filter(post => post.id !== postId));
