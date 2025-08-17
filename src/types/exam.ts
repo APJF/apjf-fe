@@ -178,3 +178,9 @@ export interface ExamResultAnswer {
   options?: Option[];
   correctAnswer?: string;
 }
+
+// Additional exports for compatibility
+export type ExamQuestion = Question;
+export type QuestionType = 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'WRITING';
+export type DifficultyLevel = 'EASY' | 'MEDIUM' | 'HARD';
+export type SkillType = 'KANJI' | 'VOCAB' | 'GRAMMAR' | 'LISTENING' | 'READING' | 'WRITING';

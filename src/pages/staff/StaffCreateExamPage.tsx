@@ -15,6 +15,7 @@ import { StaffNavigation } from '../../components/layout/StaffNavigation'
 import QuestionDialog from '../../components/exam/QuestionDialog'
 import { useToast } from '../../hooks/useToast'
 import { FileText, BookOpen, Settings, CheckCircle, Plus, Search, Minus, Upload } from "lucide-react"
+import type { Question } from '../../types/exam'
 interface ExamQuestion {
   id: string
   type: "MULTIPLE_CHOICE" | "TRUE_FALSE" | "WRITING"
@@ -319,15 +320,30 @@ const StaffCreateExamPage: React.FC = () => {
     setEditingQuestion(null)
   }
 
-  const handleSaveQuestion = (question: ExamQuestion) => {
-    const existingIndex = examState.examData.questions.findIndex(q => q.id === question.id)
+  const handleSaveQuestion = (question: Question) => {
+    // Convert Question to ExamQuestion
+    const examQuestion: ExamQuestion = {
+      id: question.id,
+      type: question.type,
+      question: question.question,
+      content: question.question, // Use question field for content
+      scope: "VOCAB" as const, // Default value since Question doesn't have scope
+      options: question.options || [],
+      explanation: question.explanation,
+      points: question.points,
+      difficulty: question.difficulty as "Dễ" | "Trung bình" | "Khó",
+      skill: question.skill as "Ngữ pháp" | "Từ vựng" | "Kanji" | "Đọc hiểu" | "Nghe",
+      unitIds: [] // Default empty array since Question doesn't have unitIds
+    }
+
+    const existingIndex = examState.examData.questions.findIndex(q => q.id === examQuestion.id)
     
     if (existingIndex >= 0) {
       const updatedQuestions = [...examState.examData.questions]
-      updatedQuestions[existingIndex] = question
+      updatedQuestions[existingIndex] = examQuestion
       handleInputChange('questions', updatedQuestions)
     } else {
-      handleInputChange('questions', [...examState.examData.questions, question])
+      handleInputChange('questions', [...examState.examData.questions, examQuestion])
     }
     
     setShowQuestionDialog(false)

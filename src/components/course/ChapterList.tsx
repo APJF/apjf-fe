@@ -110,7 +110,7 @@ export const ChapterList: React.FC<ChapterListProps> = ({
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1 text-sm text-gray-500">
                       <Clock className="w-4 h-4" />
-                      {formatDuration(exam.durationInMinutes)}
+                      {formatDuration(exam.duration)}
                     </div>
                     <button
                       onClick={() => onExamClick(exam.id)}

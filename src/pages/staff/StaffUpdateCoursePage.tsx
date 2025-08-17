@@ -161,7 +161,7 @@ const StaffUpdateCoursePage: React.FC = () => {
       if (value !== trimmedValue || value.includes(' ')) {
         fieldError = 'Mã khóa học không được chứa dấu cách. Vui lòng sử dụng dấu gạch ngang (-) hoặc underscore (_) thay thế.'
       } else if (value && !/^[A-Za-z0-9_-]+$/.test(value)) {
-        fieldError = 'Mã khóa học chỉ được chứa chữ, số, dấu gạch ngang (-) hoặc underscore (_).'
+        fieldError = 'Mã khóa học chỉ được chứa chữ, số, dấy gạch ngang (-) hoặc underscore (_).'
       }
     }
     
@@ -394,21 +394,19 @@ const StaffUpdateCoursePage: React.FC = () => {
       // Extract object name from image URL for database storage
       const imageObjectName = extractImageObjectName(imageUrl)
 
-      const topicIds = course?.topics.map(topic => topic.id) || [];
-      const examIds = course?.exams.map(exam => exam.id) || [];
+      const topicIds = course?.topics.map(topic => topic.id.toString()) || [];
 
       const updateData: UpdateCourseRequest = {
         id: course?.id || formData.id.trim(),
         title: formData.title.trim(),
         description: formData.description.trim(),
-        duration: parseFloat(formData.duration),
+        duration: parseInt(formData.duration),
         level: formData.level,
-        image: imageObjectName,
+        image: imageObjectName || '',
         requirement: formData.requirement.trim() || '',
         status: course?.status === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE',
         prerequisiteCourseId: formData.prerequisiteCourseId.trim() || null,
-        topicIds: topicIds.map(id => id.toString()),
-        examIds: examIds
+        topicIds: topicIds
       }
 
       console.log('📤 Update course payload:', updateData)
@@ -669,7 +667,6 @@ const StaffUpdateCoursePage: React.FC = () => {
                         <p className="text-amber-800 text-sm font-medium mb-1">Lưu ý khi chỉnh sửa</p>
                         <ul className="text-amber-700 text-xs leading-relaxed list-disc ml-4 space-y-1">
                           <li>Mã khóa học (ID) không thể thay đổi sau khi tạo</li>
-                          <li>Không thể thay đổi khóa học tiên quyết để đảm bảo tính nhất quán</li>
                           <li>Thay đổi sẽ được lưu với trạng thái INACTIVE</li>
                           <li>Khóa học cần được phê duyệt lại sau khi chỉnh sửa</li>
                         </ul>
@@ -821,9 +818,7 @@ const StaffUpdateCoursePage: React.FC = () => {
                       </Label>
                       <Input
                         id="duration"
-                        type="number"
-                        min="1"
-                        step="1"
+                        type="text"
                         value={formData.duration}
                         onChange={(e) => handleInputChange("duration", e.target.value)}
                         placeholder="Ví dụ: 40"
