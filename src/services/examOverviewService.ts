@@ -1,4 +1,4 @@
-import axios from "axios";
+import aiApi from "../api/aiApi";
 
 // Types for AI Overview API
 export type ExamSection = "GRAMMAR" | "KANJI" | "VOCAB" | "READING" | "LISTENING";
@@ -25,21 +25,11 @@ export interface AIOverviewResponse {
   };
 }
 
-// AI Backend service (port 8000)
-const AI_BASE_URL = "http://localhost:8000";
-
-const aiApi = axios.create({
-  baseURL: AI_BASE_URL,
-  timeout: 30000, // 30 seconds for AI processing
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
 // API service functions
 export const examOverviewService = {
   /**
    * Get AI overview for exam result
+   * POST /api/exam/overview (port 8000)
    * @param examResultId - The exam result ID
    * @returns Promise<AIOverviewResponse>
    */

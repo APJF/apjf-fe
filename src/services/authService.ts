@@ -496,12 +496,9 @@ class AuthService {
    * Google OAuth2 Login - redirect to Google OAuth
    */
   initiateGoogleLogin(): void {
-    // Use a consistent approach for the API base URL
-    const baseUrl = 'http://localhost:8080';
-    
-    // Remove /api suffix for OAuth endpoint if needed
-    const oauthBaseUrl = baseUrl.replace('/api', '');
-    window.location.href = `${oauthBaseUrl}/oauth2/authorization/google`;
+    // Use environment variable for API base URL
+    const baseUrl = import.meta.env.VITE_API_BASE_URL.replace('/api', '');
+    window.location.href = `${baseUrl}/oauth2/authorization/google`;
   }
 
   /**
