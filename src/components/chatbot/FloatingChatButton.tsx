@@ -87,7 +87,7 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
       const messages = await chatbotService.getMessages(sessionId.toString());
       console.log('✅ Got messages from API:', messages);
       
-      const floatingMessages: FloatingMessage[] = messages.map(msg => ({
+      const floatingMessages: FloatingMessage[] = messages.map((msg) => ({
         id: msg.id,
         content: msg.content,
         role: msg.role,
@@ -210,7 +210,7 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
           console.log('✅ chatbotService.deleteSession completed successfully');
           // No need to reload sessions - optimistic update is enough
         })
-        .catch(error => {
+        .catch((error: unknown) => {
           console.error('❌ Background delete failed, reverting optimistic update:', error);
           // Revert optimistic update if API failed
           setSessions(originalSessions);
@@ -245,7 +245,7 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
           console.log('✅ chatbotService.updateSessionName completed successfully');
           // No need to reload sessions - optimistic update is enough
         })
-        .catch(error => {
+        .catch((error: unknown) => {
           console.error('❌ Background rename failed, reverting optimistic update:', error);
           // Revert optimistic update if API failed
           setSessions(originalSessions);
