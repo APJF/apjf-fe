@@ -325,10 +325,11 @@ export class ExamService {
   }
 
   /**
-   * Nộp bài thi - API endpoint chuẩn
+   * Nộp bài thi - API endpoint chuẩn (Updated API)
    * POST /api/student/exams/submit
+   * Returns only examResultId in response data
    */
-  static async submitExam(examId: string, startedAt: string, submittedAt: string, answers: SubmitAnswer[]): Promise<ExamSubmitResponse> {
+  static async submitExam(examId: string, startedAt: string, submittedAt: string, answers: SubmitAnswer[]): Promise<{ examResultId: number }> {
     try {
       console.log('🔍 Submitting exam:', examId);
       console.log('📝 Answers:', answers);
@@ -353,10 +354,8 @@ export class ExamService {
       const response = await api.post('/student/exams/submit', requestBody);
       console.log('✅ Submit exam response raw:', response);
       console.log('✅ Submit exam response.data:', response.data);
-      console.log('✅ Submit exam response.status:', response.status);
-      console.log('✅ Submit exam response.headers:', response.headers);
       
-      // Handle API wrapper response format {success: true, data: {...}, message: string, timestamp: number}
+      // Handle API wrapper response format {success: true, data: {examResultId: number}, message: string, timestamp: number}
       if (response.data?.success && response.data?.data) {
         console.log('📦 Found data in response.data.data:', response.data.data);
         return response.data.data;
