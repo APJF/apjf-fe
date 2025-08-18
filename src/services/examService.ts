@@ -53,24 +53,41 @@ interface SubmitAnswer {
 export class ExamService {
   /**
    * Lấy thông tin tổng quan về bài thi (preparation page)
-   * GET /api/exams/{examId}
+   * GET /api/student/exams/{examId}/overview
    */
   static async getExamOverview(examId: string): Promise<ExamOverview> {
     try {
       console.log('🔍 Fetching exam overview for ID:', examId);
       
-      // Sử dụng getExamDetail thay vì endpoint cũ
-      const examDetail = await this.getExamDetail(examId);
-      console.log('✅ Exam detail response:', examDetail);
+      // Gọi trực tiếp endpoint overview của student
+      const response = await api.get(`/student/exams/${examId}/overview`);
+      console.log('✅ Exam overview response:', response.data);
       
-      // Convert từ format mới sang format cũ cho compatibility
+      // Check if response has the expected structure {success: true, data: {...}}
+      if (response.data?.success && response.data?.data) {
+        const examData = response.data.data;
+        
+        // Convert response to ExamOverview format
+        const overview: ExamOverview = {
+          examId: examData.id || examId,
+          title: examData.title,
+          description: examData.description,
+          duration: examData.duration,
+          totalQuestions: examData.totalQuestions,
+          type: examData.type as 'MULTIPLE_CHOICE' | 'ESSAY' | 'MIXED'
+        };
+        
+        return overview;
+      }
+      
+      // Fallback to direct data if not wrapped
       const overview: ExamOverview = {
-        examId: examDetail.id,
-        title: examDetail.title,
-        description: examDetail.description,
-        duration: examDetail.duration,
-        totalQuestions: examDetail.totalQuestions,
-        type: examDetail.type as 'MULTIPLE_CHOICE' | 'ESSAY' | 'MIXED'
+        examId: response.data.id || examId,
+        title: response.data.title,
+        description: response.data.description,
+        duration: response.data.duration,
+        totalQuestions: response.data.totalQuestions,
+        type: response.data.type as 'MULTIPLE_CHOICE' | 'ESSAY' | 'MIXED'
       };
       
       return overview;
@@ -192,59 +209,27 @@ export class ExamService {
   }
 
   /**
-   * Bắt đầu làm bài thi - API endpoint chuẩn
+   * Bắt đầu làm bài thi - API endpoint đã được cập nhật
    * POST /api/student/exams/{examId}/start
-   * Sau đó gọi GET /api/exams/{examId}/questions để lấy questions
+   * Trả về tất cả thông tin cần thiết trong 1 lần gọi API
    */
   static async startExam(examId: string): Promise<ExamStartResponse> {
     try {
       console.log('🔍 Starting exam with ID:', examId);
       
-      // 1. Gọi API start exam để tạo exam session
+      // Gọi API start exam để lấy TẤT CẢ thông tin cần thiết
       const startResponse = await api.post(`/student/exams/${examId}/start`);
       console.log('✅ Start exam response:', startResponse.data);
       
-      let examStartData;
       // Check if response has the expected structure {success: true, data: {...}}
       if (startResponse.data?.success && startResponse.data?.data) {
         console.log('📦 Found data in response.data.data');
-        examStartData = startResponse.data.data;
+        return startResponse.data.data;
       } else {
         // Fallback to direct data if not wrapped
-        examStartData = startResponse.data;
+        console.log('� Using direct response data');
+        return startResponse.data;
       }
-
-      // 2. Gọi API lấy questions riêng biệt
-      console.log('🔍 Fetching questions for exam:', examId);
-      const questions = await this.getExamQuestions(examId);
-      console.log('✅ Fetched questions:', questions.length, 'questions');
-
-      // 3. Combine data: tạo questionResults từ questions
-      const questionResults = questions.map(question => ({
-        questionId: question.id,
-        questionContent: question.content,
-        explanation: question.explanation,
-        selectedOptionId: null,
-        userAnswer: null,
-        isCorrect: false,
-        type: question.type,
-        scope: question.scope,
-        options: question.options?.map(opt => ({
-          optionId: opt.id,
-          content: opt.content,
-          isCorrect: opt.isCorrect
-        }))
-      }));
-
-      // 4. Trả về combined data theo format cũ
-      const finalResponse: ExamStartResponse = {
-        ...examStartData,
-        questionResults: questionResults
-      };
-
-      console.log('✅ Final combined exam start response:', finalResponse);
-      return finalResponse;
-      
     } catch (error) {
       console.error('❌ Error starting exam:', error);
       throw error;

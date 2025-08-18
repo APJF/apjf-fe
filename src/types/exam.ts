@@ -55,13 +55,36 @@ export interface QuestionResult {
 
 // Start Exam Response - POST /api/student/exams/{examId}/start  
 export interface ExamStartResponse {
-  examResultId: number;
-  examId: string;
-  examTitle: string;
-  score: number | null;
-  submittedAt: string | null;
-  status: 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'PASSED';
-  questionResults: QuestionResult[];
+  id: string;
+  title: string;
+  description: string;
+  duration: number; // minutes
+  type: string;
+  examScopeType: string;
+  gradingMethod: string;
+  courseId: string;
+  chapterId: string | null;
+  unitId: string | null;
+  createdAt: string;
+  questions: ExamStartQuestion[];
+}
+
+// Question in Start Exam Response
+export interface ExamStartQuestion {
+  id: string;
+  content: string;
+  scope: string;
+  type: 'MULTIPLE_CHOICE' | 'WRITING' | 'ESSAY';
+  fileUrl: string | null;
+  createdAt: string;
+  options: ExamStartOption[];
+  unitIds: string[];
+}
+
+// Option in Start Exam Response  
+export interface ExamStartOption {
+  id: string;
+  content: string;
 }
 
 // Submit Exam Request - POST /api/student/exams/submit

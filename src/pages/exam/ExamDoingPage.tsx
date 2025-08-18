@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ExamDoing } from '../../components/exam/ExamDoing';
 import { ExamService } from '../../services/examService';
 import { examOverviewService } from '../../services/examOverviewService';
-import type { QuestionDetail } from '../../types/exam';
+import type { ExamStartResponse, ExamStartQuestion } from '../../types/exam';
 
 // Define interface for question options to match ExamDoing component
 interface ExamQuestionOption {
@@ -47,19 +47,22 @@ export const ExamDoingPage: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        // Get exam details first to get duration
-        const examDetails = await ExamService.getExamDetail(examId);
+        // Chỉ cần gọi API start exam để lấy TẤT CẢ thông tin cần thiết
+        console.log('🚀 Starting exam and loading data from single API call...');
+        const startResponse: ExamStartResponse = await ExamService.startExam(examId);
+        console.log('📋 Start exam response:', startResponse);
         
-        // Start exam and get basic info
-        const examResponse = await ExamService.startExam(examId);
-        
-        // Get exam questions to get options and question details
-        const questionsResponse = await ExamService.getExamQuestions(examId);
+        // Kiểm tra response structure
+        if (!startResponse.questions || !Array.isArray(startResponse.questions)) {
+          throw new Error('Invalid exam data: questions not found');
+        }
+
+        // Transform questions và options từ response
         const optionsMap: Record<string, ExamQuestionOption[]> = {};
         const transformedQuestions: ExamQuestion[] = [];
         
-        questionsResponse.forEach((question: QuestionDetail) => {
-          // Transform question to match ExamDoing component expectations
+        startResponse.questions.forEach((question: ExamStartQuestion) => {
+          // Transform question để match ExamDoing component
           transformedQuestions.push({
             questionId: question.id,
             questionContent: question.content,
@@ -67,31 +70,34 @@ export const ExamDoingPage: React.FC = () => {
             scope: question.scope
           });
 
-          if (question.options) {
-            // Transform options to match ExamDoing component expectations
+          // Transform options (không có isCorrect nhưng không ảnh hưởng submit)
+          if (question.options && Array.isArray(question.options)) {
             optionsMap[question.id] = question.options.map(opt => ({
               optionId: opt.id,
               content: opt.content,
-              isCorrect: opt.isCorrect
+              // isCorrect không có trong response mới nhưng không cần thiết cho ExamDoing
             }));
           }
         });
         
-        // Transform data to match ExamDoing component expectations
-        const examDuration = examDetails.duration || 60; // Default to 60 minutes if not available
+        // Transform data để match ExamDoing component expectations
+        const examDuration = startResponse.duration || 60; // fallback to 60 minutes
         const transformedData = {
-          examTitle: examResponse.examTitle,
-          examId: examResponse.examId,
+          examTitle: startResponse.title,
+          examId: startResponse.id,
           questionResults: transformedQuestions,
           remainingTime: examDuration * 60, // Convert minutes to seconds
           totalTime: examDuration * 60
         };
         
+        console.log('✅ Transformed exam data:', transformedData);
+        console.log('✅ Options map keys:', Object.keys(optionsMap));
+        
         setExamData(transformedData);
         setQuestionOptions(optionsMap);
 
       } catch (err) {
-        console.error('Error loading exam:', err);
+        console.error('❌ Error loading exam:', err);
         setError('Failed to load exam. Please try again.');
       } finally {
         setLoading(false);

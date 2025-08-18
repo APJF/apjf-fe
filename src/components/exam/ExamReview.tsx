@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { CheckCircle2, XCircle, MinusCircle, ChevronLeft, ChevronRight, Info, ArrowLeft } from "lucide-react";
+import api from "../../api/axios";
 import type { ExamResult } from "../../types/exam";
 
 // ===================== Types (100% Design Inheritance) =====================
@@ -199,22 +200,18 @@ export function ExamReview({ examResult, onBack }: Readonly<ExamReviewProps>) {
       setLoadingQuestionDetails(prev => new Set([...prev, question.questionId]));
       
       try {
-        const response = await fetch(`http://localhost:8080/api/questions/${question.questionId}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
-          }
-        });
+        const response = await api.get(`/questions/${question.questionId}`);
         
-        if (!response.ok) {
-          throw new Error('Failed to fetch question details');
-        }
-        
-        const data = await response.json();
-        if (data.success && data.data) {
+        if (response.data.success && response.data.data) {
           setQuestionDetails(prev => ({
             ...prev,
-            [question.questionId]: data.data
+            [question.questionId]: response.data.data
+          }));
+        } else if (response.data) {
+          // Fallback if response is not wrapped
+          setQuestionDetails(prev => ({
+            ...prev,
+            [question.questionId]: response.data
           }));
         }
       } catch (error) {

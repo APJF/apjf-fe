@@ -12,6 +12,7 @@ import { StaffNavigation } from '../../components/layout/StaffNavigation'
 import { StaffChapterService, type UpdateChapterRequest, type Chapter } from '../../services/staffChapterService'
 import { CourseService } from '../../services/courseService'
 import { SearchableSelect } from '../../components/ui/SearchableSelect'
+import { useToast } from '../../hooks/useToast'
 import type { ChapterDetail, StaffCourseDetail } from '../../types/staffCourse'
 
 interface LocationState {
@@ -27,17 +28,33 @@ interface UpdateChapterFormData {
   courseId: string
 }
 
+interface FieldErrors {
+  id: string
+  title: string
+  description: string
+  prerequisiteChapterId: string
+  courseId: string
+}
+
 const StaffUpdateChapterPage: React.FC = () => {
   const navigate = useNavigate()
   const { chapterId } = useParams<{ chapterId: string }>()
   const location = useLocation()
   const locationState = location.state as LocationState || {}
+  const { showToast } = useToast()
 
   const [chapter, setChapter] = useState<ChapterDetail | null>(locationState.chapter || null)
   const [course] = useState<StaffCourseDetail | null>(locationState.course || null)
   const [availableChapters, setAvailableChapters] = useState<Chapter[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({
+    id: '',
+    title: '',
+    description: '',
+    prerequisiteChapterId: '',
+    courseId: ''
+  })
 
   const [formData, setFormData] = useState<UpdateChapterFormData>({
     id: '',
@@ -120,7 +137,45 @@ const StaffUpdateChapterPage: React.FC = () => {
   }
 
   const handleInputChange = (field: string, value: string) => {
+    // Luôn cập nhật giá trị trước
     setFormData(prev => ({ ...prev, [field]: value }))
+    
+    // Clear main error khi user đang typing
+    setError(null)
+    
+    // Validation cho từng trường và set field error
+    let fieldError = ''
+    
+    if (field === 'id') {
+      // Validation cho trường ID - không cho phép dấu cách
+      const trimmedValue = value.trim()
+      if (value !== trimmedValue || value.includes(' ')) {
+        fieldError = 'Mã chương không được chứa dấu cách. Vui lòng sử dụng dấu gạch ngang (-) hoặc underscore (_) thay thế.'
+      } else if (value && !/^[A-Za-z0-9_-]+$/.test(value)) {
+        fieldError = 'Mã chương chỉ được chứa chữ, số, dấu gạch ngang (-) hoặc underscore (_).'
+      }
+    }
+    
+    if (field === 'title' && !value.trim()) {
+      fieldError = 'Vui lòng nhập tên chương.'
+    }
+    
+    if (field === 'description' && !value.trim()) {
+      fieldError = 'Vui lòng nhập mô tả chương.'
+    }
+    
+    if (field === 'courseId') {
+      // Validation cho trường courseId - không cho phép dấu cách
+      const trimmedValue = value.trim()
+      if (value !== trimmedValue || value.includes(' ')) {
+        fieldError = 'Mã khóa học không được chứa dấu cách. Vui lòng sử dụng dấu gạch ngang (-) hoặc underscore (_) thay thế.'
+      } else if (value && !/^[A-Za-z0-9_-]+$/.test(value)) {
+        fieldError = 'Mã khóa học chỉ được chứa chữ, số, dấu gạch ngang (-) hoặc underscore (_).'
+      }
+    }
+    
+    // Cập nhật field error
+    setFieldErrors(prev => ({ ...prev, [field]: fieldError }))
   }
 
   const handleBack = () => {
@@ -144,13 +199,60 @@ const StaffUpdateChapterPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!isFormValid) {
-      setError('Vui lòng điền đầy đủ thông tin bắt buộc')
+    // Clear field errors trước khi validate
+    setFieldErrors({
+      id: '',
+      title: '',
+      description: '',
+      prerequisiteChapterId: '',
+      courseId: ''
+    })
+    
+    // Validate tất cả các trường và thu thập lỗi
+    const errors: FieldErrors = {
+      id: '',
+      title: '',
+      description: '',
+      prerequisiteChapterId: '',
+      courseId: ''
+    }
+    
+    if (!formData.id.trim()) {
+      errors.id = 'Vui lòng nhập mã chương.'
+    } else if (!/^[A-Za-z0-9_-]+$/.test(formData.id.trim())) {
+      errors.id = 'Mã chương chỉ được chứa chữ, số, dấu gạch ngang (-) hoặc underscore (_), không được chứa dấu cách hoặc ký tự đặc biệt.'
+    }
+    
+    if (!formData.title.trim()) {
+      errors.title = 'Vui lòng nhập tên chương.'
+    }
+    
+    if (!formData.description.trim()) {
+      errors.description = 'Vui lòng nhập mô tả chương.'
+    }
+    
+    if (!formData.courseId.trim()) {
+      errors.courseId = 'Mã khóa học không được để trống.'
+    } else if (!/^[A-Za-z0-9_-]+$/.test(formData.courseId.trim())) {
+      errors.courseId = 'Mã khóa học chỉ được chứa chữ, số, dấu gạch ngang (-) hoặc underscore (_), không được chứa dấu cách hoặc ký tự đặc biệt.'
+    }
+    
+    // Nếu có lỗi validation, hiển thị tất cả lỗi field và không submit
+    const hasErrors = Object.values(errors).some(error => error !== '')
+    if (hasErrors) {
+      setFieldErrors(errors)
+      const formErrorMessage = 'Vui lòng kiểm tra và sửa các lỗi trong form.'
+      setError(formErrorMessage)
+      showToast('error', formErrorMessage)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
 
     if (!chapterId) {
-      setError("ID chương không hợp lệ")
+      const errorMessage = "ID chương không hợp lệ"
+      setError(errorMessage)
+      showToast('error', errorMessage)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
 
@@ -171,6 +273,9 @@ const StaffUpdateChapterPage: React.FC = () => {
       const response = await StaffChapterService.updateChapter(chapterId, updateData)
       
       if (response.success && response.data) {
+        // Show success toast
+        showToast('success', 'Cập nhật chương thành công!')
+        
         // Navigate back to chapter detail with updated data and success message
         navigate(`/staff/courses/${chapter?.courseId}/chapters/${chapterId}`, {
           replace: true,
@@ -183,18 +288,88 @@ const StaffUpdateChapterPage: React.FC = () => {
           }
         })
       } else {
-        setError(response.message || 'Cập nhật chương thất bại')
+        const errorMessage = response.message || 'Cập nhật chương thất bại'
+        setError(errorMessage)
+        showToast('error', errorMessage)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
       }
     } catch (error) {
-      console.error('Error updating chapter:', error)
-      setError('Có lỗi xảy ra khi cập nhật chương. Vui lòng thử lại.')
+      console.error('❌ Error updating chapter:', error)
+      
+      // Xử lý error chi tiết từ server
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status: number, data?: any } }
+        
+        if (axiosError.response?.status === 400 && axiosError.response?.data) {
+          // Hiển thị chi tiết lỗi từ backend nếu có
+          if (axiosError.response.data.errors) {
+            // Nếu backend trả về mảng lỗi
+            const errorMessages = axiosError.response.data.errors.map((err: any) => err.message).join(' | ')
+            const fullErrorMessage = `Lỗi dữ liệu: ${errorMessages}`
+            setError(fullErrorMessage)
+            showToast('error', fullErrorMessage)
+          } else if (axiosError.response.data.message) {
+            const errorMsg = axiosError.response.data.message
+            let userFriendlyError = errorMsg
+            
+            // Phân tích và tạo thông báo lỗi chi tiết
+            if (errorMsg.includes('duplicate') || errorMsg.includes('đã tồn tại') || errorMsg.includes('already exists')) {
+              userFriendlyError = `Mã chương "${formData.id}" đã tồn tại trong khóa học này. Vui lòng sử dụng mã khác.`
+            } else if (errorMsg.includes('invalid') || errorMsg.includes('không hợp lệ')) {
+              userFriendlyError = `Dữ liệu không hợp lệ: ${errorMsg}`
+            } else if (errorMsg.includes('format') || errorMsg.includes('định dạng')) {
+              userFriendlyError = `Lỗi định dạng: ${errorMsg}`
+            } else if (errorMsg.includes('id') || errorMsg.includes('ID')) {
+              userFriendlyError = `Lỗi mã chương: ${errorMsg}`
+            } else if (errorMsg.includes('prerequisite') || errorMsg.includes('tiên quyết')) {
+              userFriendlyError = `Lỗi chương tiên quyết: ${errorMsg}`
+            } else if (errorMsg.includes('title') || errorMsg.includes('tiêu đề')) {
+              userFriendlyError = `Lỗi tiêu đề chương: ${errorMsg}`
+            }
+            
+            setError(userFriendlyError)
+            showToast('error', userFriendlyError)
+          } else {
+            const errorMessage = 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin.'
+            setError(errorMessage)
+            showToast('error', errorMessage)
+          }
+        } else if (axiosError.response?.status === 403) {
+          const errorMessage = 'Bạn không có quyền cập nhật chương này. Vui lòng kiểm tra lại quyền tài khoản.'
+          setError(errorMessage)
+          showToast('error', errorMessage)
+        } else if (axiosError.response?.status === 401) {
+          const errorMessage = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+          setError(errorMessage)
+          showToast('error', errorMessage)
+        } else if (axiosError.response?.status === 404) {
+          const errorMessage = 'Không tìm thấy chương cần cập nhật. Chương có thể đã bị xóa.'
+          setError(errorMessage)
+          showToast('error', errorMessage)
+        } else if (axiosError.response?.status === 409) {
+          const errorMessage = `Mã chương "${formData.id}" đã tồn tại trong hệ thống. Vui lòng sử dụng mã chương khác.`
+          setError(errorMessage)
+          showToast('error', errorMessage)
+        } else {
+          const errorMessage = `Có lỗi xảy ra khi cập nhật chương (Mã lỗi: ${axiosError.response?.status}). Vui lòng thử lại.`
+          setError(errorMessage)
+          showToast('error', errorMessage)
+        }
+      } else {
+        const errorMessage = 'Có lỗi xảy ra khi cập nhật chương. Vui lòng thử lại.'
+        setError(errorMessage)
+        showToast('error', errorMessage)
+      }
+      
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } finally {
       setIsLoading(false)
     }
   }
 
   const isFormValid = formData.title.trim() && 
-                     formData.description.trim()
+                     formData.description.trim() &&
+                     Object.values(fieldErrors).every(error => error === '')
 
   if (isLoading && !chapter) {
     return (
@@ -274,7 +449,7 @@ const StaffUpdateChapterPage: React.FC = () => {
         <div className="max-w-7xl mx-auto p-6">
           {/* Error Alert */}
           {error && (
-            <Alert variant="destructive" className="mb-6">
+            <Alert variant="destructive" className="mb-6" id="error-alert">
               <AlertCircle className="h-4 w-4" />
               <div className="ml-2">{error}</div>
             </Alert>
@@ -383,7 +558,6 @@ const StaffUpdateChapterPage: React.FC = () => {
                           value={formData.id}
                           className="border-blue-300 bg-gray-100 text-gray-600 cursor-not-allowed text-base py-3"
                           readOnly
-                          pointer-events-none
                         />
                         <p className="text-amber-600 text-xs mt-1">
                           ⚠️ Mã chương không thể thay đổi sau khi tạo
@@ -403,7 +577,6 @@ const StaffUpdateChapterPage: React.FC = () => {
                           value={formData.courseId}
                           className="border-blue-300 bg-gray-100 text-gray-600 cursor-not-allowed text-base py-3"
                           readOnly
-                          pointer-events-none
                         />
                         <p className="text-amber-600 text-xs mt-1">
                           ⚠️ Không thể thay đổi khóa học
@@ -424,9 +597,22 @@ const StaffUpdateChapterPage: React.FC = () => {
                         value={formData.title}
                         onChange={(e) => handleInputChange("title", e.target.value)}
                         placeholder="Ví dụ: Hiragana cơ bản"
-                        className="border-blue-300 focus:border-blue-500 focus:ring-blue-500 text-base py-3 bg-white/80 backdrop-blur-sm"
+                        className={`text-base py-3 bg-white/80 backdrop-blur-sm ${
+                          fieldErrors.title 
+                            ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 
+                            : 'border-blue-300 focus:border-blue-500 focus:ring-blue-500'
+                        }`}
                         required
                       />
+                        {fieldErrors.title ? (
+                          <p className="text-red-600 text-xs mt-1">
+                            ⚠️ {fieldErrors.title}
+                          </p>
+                        ) : (
+                          <p className="text-blue-600 text-xs mt-1">
+                            💡 Nhập tên chương học dễ hiểu và rõ ràng
+                          </p>
+                        )}
                     </div>
 
                     {/* Chapter Description */}
@@ -443,9 +629,22 @@ const StaffUpdateChapterPage: React.FC = () => {
                         onChange={(e) => handleInputChange("description", e.target.value)}
                         placeholder="Mô tả chi tiết về nội dung và mục tiêu của chương học..."
                         rows={4}
-                        className="border-blue-300 focus:border-blue-500 focus:ring-blue-500 resize-none text-base bg-white/80 backdrop-blur-sm"
+                        className={`resize-none text-base bg-white/80 backdrop-blur-sm ${
+                          fieldErrors.description 
+                            ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 
+                            : 'border-blue-300 focus:border-blue-500 focus:ring-blue-500'
+                        }`}
                         required
                       />
+                      {fieldErrors.description ? (
+                        <p className="text-red-600 text-xs mt-1">
+                          ⚠️ {fieldErrors.description}
+                        </p>
+                      ) : (
+                        <p className="text-blue-600 text-xs mt-1">
+                          💡 Mô tả rõ ràng nội dung và mục tiêu học tập của chương
+                        </p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -476,9 +675,15 @@ const StaffUpdateChapterPage: React.FC = () => {
                         emptyText="Không có chương tiên quyết"
                         className="bg-white/80 backdrop-blur-sm"
                       />
-                      <p className="text-blue-600 text-xs mt-1">
-                        💡 Chọn chương mà học viên cần hoàn thành trước khi học chương này
-                      </p>
+                      {fieldErrors.prerequisiteChapterId ? (
+                        <p className="text-red-600 text-xs mt-1">
+                          ⚠️ {fieldErrors.prerequisiteChapterId}
+                        </p>
+                      ) : (
+                        <p className="text-blue-600 text-xs mt-1">
+                          💡 Chọn chương mà học viên cần hoàn thành trước khi học chương này
+                        </p>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

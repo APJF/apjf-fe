@@ -29,3 +29,8 @@ node_modules/.tmp/
 *.tsbuildinfo
 .eslintcache
 .sonarlint/
+
+# Ignore env files
+.env
+.env.*
+!.env.example
