@@ -8,6 +8,7 @@ import { Badge } from '../../components/ui/Badge'
 import { StaffNavigation } from '../../components/layout/StaffNavigation'
 import { StaffChapterService } from '../../services/staffChapterService'
 import { CourseService } from '../../services/courseService'
+import api from '../../api/axios'
 import type { Course, Chapter } from '../../types/course'
 import type { Unit } from '../../types/unit'
 
@@ -125,17 +126,11 @@ export const StaffChapterDetailPage: React.FC = () => {
         console.warn('CourseService failed, trying direct API...')
         // Fallback to direct API call
         try {
-          const response = await fetch(`http://localhost:8080/api/chapters/${chapterId}/units`, {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-              'Content-Type': 'application/json'
-            }
-          })
-          const result = await response.json()
-          console.log('🔍 Units response from direct API:', result)
+          const response = await api.get(`/chapters/${chapterId}/units`)
+          console.log('🔍 Units response from direct API:', response.data)
           
-          if (result.success && result.data) {
-            unitsData = result.data
+          if (response.data.success && response.data.data) {
+            unitsData = response.data.data
           }
         } catch (directError) {
           console.error('Both units API calls failed:', { unitsError, directError })

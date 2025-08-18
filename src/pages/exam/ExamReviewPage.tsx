@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react"
 import { useNavigate, useParams, useLocation } from "react-router-dom"
 import { ExamService } from "../../services/examService"
-import type { ExamResult, ExamSubmitResponse } from "../../types/exam"
+import type { ExamResult } from "../../types/exam"
 import { ExamReview } from "../../components/exam/ExamReview"
 
 /**
  * ExamReviewPage - Trang xem chi tiết đáp án của bài kiểm tra với thiết kế mới
- * Nhận dữ liệu từ navigation state hoặc gọi API với resultId
+ * Nhận examResultId từ params hoặc navigation state và gọi API lấy chi tiết
  */
 export function ExamReviewPage() {
   const navigate = useNavigate()
@@ -16,8 +16,8 @@ export function ExamReviewPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Lấy exam result từ navigation state (có thể là ExamSubmitResponse)
-  const examResultFromState = location.state?.examResult as ExamResult | ExamSubmitResponse
+  // Lấy examResultId từ navigation state (từ submit exam response)
+  const examResultIdFromState = location.state?.examResultId as number | undefined
 
   useEffect(() => {
     const fetchExamResult = async () => {
@@ -25,36 +25,26 @@ export function ExamReviewPage() {
         setIsLoading(true)
         setError(null)
         
-        let resultToUse: ExamResult
+        let targetResultId: string
         
-        // Nếu có dữ liệu từ navigation state, sử dụng nó
-        if (examResultFromState) {
-          console.log("ExamReviewPage - Using data from navigation state:", examResultFromState)
-          // Convert ExamSubmitResponse to ExamResult if needed
-          if ('examResultId' in examResultFromState) {
-            resultToUse = {
-              examResultId: examResultFromState.examResultId,
-              examId: examResultFromState.examId,
-              examTitle: examResultFromState.examTitle,
-              score: examResultFromState.score,
-              submittedAt: examResultFromState.submittedAt,
-              status: examResultFromState.status,
-              questionResults: examResultFromState.questionResults
-            }
-          } else {
-            resultToUse = examResultFromState as ExamResult
-          }
-        } else if (resultId) {
-          // Nếu không có state, gọi API để lấy dữ liệu chi tiết
-          console.log("ExamReviewPage - No state data, fetching result for ID:", resultId)
-          resultToUse = await ExamService.getExamResult(resultId)
-          console.log("ExamReviewPage - API response:", resultToUse)
+        // Priority order:
+        // 1. resultId from URL params
+        // 2. examResultId from navigation state (từ submit exam response)
+        if (resultId) {
+          targetResultId = resultId
+          console.log("ExamReviewPage - Using resultId from URL params:", targetResultId)
+        } else if (examResultIdFromState) {
+          targetResultId = examResultIdFromState.toString()
+          console.log("ExamReviewPage - Using examResultId from navigation state:", targetResultId)
         } else {
           throw new Error("Không có ID kết quả bài thi")
         }
         
-        console.log("ExamReviewPage - Final Result:", resultToUse)
-        setExamResult(resultToUse)
+        console.log("ExamReviewPage - Fetching exam result for ID:", targetResultId)
+        const result = await ExamService.getExamResult(targetResultId)
+        console.log("ExamReviewPage - API response:", result)
+        
+        setExamResult(result)
       } catch (err) {
         console.error("Error fetching exam result:", err)
         let errorMessage = "Không thể tải kết quả bài kiểm tra. Vui lòng thử lại."
@@ -70,7 +60,7 @@ export function ExamReviewPage() {
     }
 
     fetchExamResult()
-  }, [resultId, examResultFromState])
+  }, [resultId, examResultIdFromState])
 
   const handleBack = () => {
     navigate(-1) // Quay lại trang trước đó

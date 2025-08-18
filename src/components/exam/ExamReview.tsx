@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, XCircle, MinusCircle, ChevronLeft, ChevronRight, Info, ArrowLeft } from "lucide-react";
-import api from "../../api/axios";
 import type { ExamResult } from "../../types/exam";
 
 // ===================== Types (100% Design Inheritance) =====================
@@ -20,19 +19,6 @@ export interface ReviewQuestion {
   correctAnswer: ChoiceKey;
   explanation?: string;
   answers: AnswerOption[]; // 4 options A-D
-}
-
-interface QuestionDetail {
-  id: string;
-  content: string;
-  scope: string;
-  type: string;
-  explanation: string;
-  options: Array<{
-    id: string;
-    content: string;
-    isCorrect: boolean;
-  }>;
 }
 
 interface ExamReviewProps {
@@ -75,28 +61,38 @@ function resolveState(q: ReviewQuestion): QuestionState {
   return q.userAnswer === q.correctAnswer ? "correct" : "wrong";
 }
 
-// Convert ExamResult to ReviewQuestion format
-function convertToReviewQuestions(examResult: ExamResult, questionDetails: Record<string, QuestionDetail>): ReviewQuestion[] {
+// Highlight underlined text with safe HTML processing
+function highlightUnderlinedText(text: string): string {
+  if (!text) return '';
+  
+  // Replace <u> tags with simple underlined spans, keep other content as is
+  return text
+    .replace(/<u>/g, '<span class="underline decoration-2 underline-offset-2">')
+    .replace(/<\/u>/g, '</span>');
+}
+
+// Convert ExamResult to ReviewQuestion format - API đã trả về đầy đủ data
+function convertToReviewQuestions(examResult: ExamResult): ReviewQuestion[] {
   return examResult.questionResults.map((q, index) => {
-    const detail = questionDetails[q.questionId];
-    const correctOption = detail?.options?.find(opt => opt.isCorrect);
-    const userSelectedOption = detail?.options?.find(opt => opt.id === q.selectedOptionId);
+    // API đã trả về options trong questionResults
+    const correctOption = q.options?.find(opt => opt.isCorrect);
+    const userSelectedOption = q.options?.find(opt => opt.id === q.selectedOptionId);
     
     // Map options to A, B, C, D format
-    const answers: AnswerOption[] = detail?.options?.map((opt, idx) => ({
+    const answers: AnswerOption[] = q.options?.map((opt, idx) => ({
       key: String.fromCharCode(65 + idx) as ChoiceKey, // A, B, C, D
       text: opt.content
     })) || [];
 
-    const correctAnswer = correctOption ? String.fromCharCode(65 + detail.options.indexOf(correctOption)) as ChoiceKey : "A";
-    const userAnswer = userSelectedOption ? String.fromCharCode(65 + detail.options.indexOf(userSelectedOption)) as ChoiceKey : null;
+    const correctAnswer = correctOption ? String.fromCharCode(65 + q.options.indexOf(correctOption)) as ChoiceKey : "A";
+    const userAnswer = userSelectedOption ? String.fromCharCode(65 + q.options.indexOf(userSelectedOption)) as ChoiceKey : null;
 
     return {
       id: index + 1,
       content: q.questionContent,
       userAnswer: userAnswer,
       correctAnswer: correctAnswer,
-      explanation: detail?.explanation || q.explanation || "",
+      explanation: q.explanation || "",
       answers: answers
     };
   });
@@ -109,7 +105,14 @@ function Explanation({ text }: Readonly<{ text?: string }>) {
     <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-sm text-indigo-900">
       <div className="flex items-start gap-2">
         <Info className="size-4 mt-0.5 text-indigo-700" />
-        <p className="leading-relaxed"><span className="font-medium">Giải thích:</span> {text}</p>
+        <p className="leading-relaxed">
+          <span className="font-medium">Giải thích:</span>{' '}
+          <span
+            dangerouslySetInnerHTML={{
+              __html: highlightUnderlinedText(text)
+            }}
+          />
+        </p>
       </div>
     </div>
   );
@@ -151,22 +154,28 @@ function AnswerRow({
       <span className={`inline-flex size-6 items-center justify-center rounded-full border text-xs ${badge}`}>
         {option.key}
       </span>
-      <div className="leading-relaxed text-gray-800">{option.text || <span className="text-gray-400 italic">(không có nội dung)</span>}</div>
+      <div className="leading-relaxed text-gray-800">
+        {option.text ? (
+          <span
+            dangerouslySetInnerHTML={{
+              __html: highlightUnderlinedText(option.text)
+            }}
+          />
+        ) : (
+          <span className="text-gray-400 italic">(không có nội dung)</span>
+        )}
+      </div>
     </div>
   );
 }
 
 // ===================== Main Component =====================
 export function ExamReview({ examResult, onBack }: Readonly<ExamReviewProps>) {
-  const [questionDetails, setQuestionDetails] = useState<Record<string, QuestionDetail>>({});
-  const [loadingQuestionDetails, setLoadingQuestionDetails] = useState<Set<string>>(new Set());
-  const [isLoadingDetails, setIsLoadingDetails] = useState(true);
-
-  // Convert examResult to ReviewQuestion format after question details are loaded
+  // Convert examResult to ReviewQuestion format - API đã trả về đầy đủ data
   const data = useMemo<ReviewQuestion[]>(() => {
-    if (!examResult.questionResults?.length || Object.keys(questionDetails).length === 0) return [];
-    return convertToReviewQuestions(examResult, questionDetails);
-  }, [examResult, questionDetails]);
+    if (!examResult.questionResults?.length) return [];
+    return convertToReviewQuestions(examResult);
+  }, [examResult]);
 
   const total = data.length;
   const correctCount = useMemo(() => data.filter((q) => resolveState(q) === "correct").length, [data]);
@@ -175,63 +184,6 @@ export function ExamReview({ examResult, onBack }: Readonly<ExamReviewProps>) {
 
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [active, setActive] = useState(1);
-
-  // Load question details for all questions
-  const loadAllQuestionDetails = useCallback(async () => {
-    setIsLoadingDetails(true);
-    
-    // Check if questionResults exists and is an array
-    if (!examResult.questionResults || !Array.isArray(examResult.questionResults)) {
-      console.error('examResult.questionResults is not available or not an array:', examResult.questionResults);
-      setIsLoadingDetails(false);
-      return;
-    }
-    
-    const questionsToLoad = examResult.questionResults.filter(
-      question => !questionDetails[question.questionId] && !loadingQuestionDetails.has(question.questionId)
-    );
-
-    if (questionsToLoad.length === 0) {
-      setIsLoadingDetails(false);
-      return;
-    }
-    
-    const loadingPromises = questionsToLoad.map(async (question) => {
-      setLoadingQuestionDetails(prev => new Set([...prev, question.questionId]));
-      
-      try {
-        const response = await api.get(`/questions/${question.questionId}`);
-        
-        if (response.data.success && response.data.data) {
-          setQuestionDetails(prev => ({
-            ...prev,
-            [question.questionId]: response.data.data
-          }));
-        } else if (response.data) {
-          // Fallback if response is not wrapped
-          setQuestionDetails(prev => ({
-            ...prev,
-            [question.questionId]: response.data
-          }));
-        }
-      } catch (error) {
-        console.error('Error loading question details:', error);
-      } finally {
-        setLoadingQuestionDetails(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(question.questionId);
-          return newSet;
-        });
-      }
-    });
-
-    await Promise.all(loadingPromises);
-    setIsLoadingDetails(false);
-  }, [examResult.questionResults, questionDetails, loadingQuestionDetails]);
-
-  useEffect(() => {
-    loadAllQuestionDetails();
-  }, [loadAllQuestionDetails]);
 
   // Intersection Observer for active question
   useEffect(() => {
@@ -259,17 +211,6 @@ export function ExamReview({ examResult, onBack }: Readonly<ExamReviewProps>) {
     cardRefs.current[clamped]?.scrollIntoView({ behavior: "smooth", block: "start" });
     setActive(clamped + 1);
   };
-
-  if (isLoadingDetails) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="text-gray-600">Đang tải chi tiết câu hỏi...</p>
-        </div>
-      </div>
-    );
-  }
 
   if (!examResult.questionResults?.length) {
     return (
@@ -343,7 +284,13 @@ export function ExamReview({ examResult, onBack }: Readonly<ExamReviewProps>) {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3">
                       <span className={UI.numBadge}>{q.id}</span>
-                      <h2 className="text-base sm:text-lg font-medium leading-snug text-gray-900">{q.content}</h2>
+                      <h2 className="text-base sm:text-lg font-medium leading-snug text-gray-900">
+                        <span
+                          dangerouslySetInnerHTML={{
+                            __html: highlightUnderlinedText(q.content)
+                          }}
+                        />
+                      </h2>
                     </div>
                     {stateChip}
                   </div>
