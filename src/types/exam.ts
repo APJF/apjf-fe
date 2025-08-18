@@ -40,7 +40,7 @@ export interface QuestionDetail {
   unitIds: string[];
 }
 
-// Question Result from Start Exam API
+// Question Result from Exam Result API
 export interface QuestionResult {
   questionId: string;
   questionContent: string;
@@ -48,9 +48,11 @@ export interface QuestionResult {
   selectedOptionId: string | null;
   userAnswer: string | null;
   isCorrect: boolean;
-  type?: 'MULTIPLE_CHOICE' | 'WRITING' | 'ESSAY'; // Question type
-  scope?: 'KANJI' | 'VOCAB' | 'GRAMMAR' | 'LISTENING' | 'READING' | 'WRITING'; // Question scope
-  options?: QuestionOption[]; // Available options for multiple choice
+  options: Array<{
+    id: string;
+    content: string;
+    isCorrect: boolean;
+  }>;
 }
 
 // Start Exam Response - POST /api/student/exams/{examId}/start  
@@ -99,15 +101,9 @@ export interface ExamSubmitRequest {
   }[];
 }
 
-// Submit Exam Response - POST /api/student/exams/submit
+// Submit Exam Response - POST /api/student/exams/submit (Updated API)
 export interface ExamSubmitResponse {
   examResultId: number;
-  examId: string;
-  examTitle: string;
-  score: number;
-  submittedAt: string;
-  status: 'COMPLETED' | 'FAILED' | 'PASSED';
-  questionResults: QuestionResult[];
 }
 
 // API Wrapper Response for Submit Exam

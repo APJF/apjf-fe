@@ -32,34 +32,32 @@ export function ExamResult({ examResult, onRestart, onShowAnswers }: Readonly<Ex
   const incorrectAnswers = totalQuestions - correctAnswers
   const percentage = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0
   
-  // Phân loại theo scope của câu hỏi
+  // Phân loại theo scope của câu hỏi - sử dụng localStorage cache
   const questionScopes = examResult.questionResults?.reduce((acc, question) => {
-    // Try to get scope from question first, then from localStorage as fallback
-    let scope: string = question.scope || '';
-    if (!scope || scope === 'UNKNOWN') {
-      const savedScopes = localStorage.getItem('examQuestionScopes');
-      if (savedScopes) {
-        try {
-          const scopesMap = JSON.parse(savedScopes);
-          scope = scopesMap[question.questionId] || 'UNKNOWN';
-        } catch (error) {
-          console.warn('Error parsing saved question scopes:', error);
-          scope = 'UNKNOWN';
-        }
-      } else {
+    // Get scope from localStorage cache since API response doesn't include it
+    let scope: string = 'UNKNOWN';
+    const savedScopes = localStorage.getItem('examQuestionScopes');
+    if (savedScopes) {
+      try {
+        const scopesMap = JSON.parse(savedScopes);
+        scope = scopesMap[question.questionId] || 'UNKNOWN';
+      } catch (error) {
+        console.warn('Error parsing saved question scopes:', error);
         scope = 'UNKNOWN';
       }
+    } else {
+      scope = 'UNKNOWN';
     }
     
     if (!acc[scope]) {
-      acc[scope] = { total: 0, correct: 0 }
+      acc[scope] = { total: 0, correct: 0 };
     }
-    acc[scope].total++
+    acc[scope].total++;
     if (question.isCorrect) {
-      acc[scope].correct++
+      acc[scope].correct++;
     }
-    return acc
-  }, {} as Record<string, { total: number; correct: number }>) || {}
+    return acc;
+  }, {} as Record<string, { total: number; correct: number }>) || {};
 
   // Đánh giá kết quả
   const getEvaluation = (percent: number) => {
