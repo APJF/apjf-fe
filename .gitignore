@@ -30,4 +30,7 @@ node_modules/.tmp/
 .eslintcache
 .sonarlint/
 
+# Ignore env files
 .env
+.env.*    # sẽ ignore cả .env.production, .env.development, .env.local
+!.env.example
