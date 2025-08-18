@@ -24,7 +24,7 @@ const extractImageFilename = (imageUrl: string | null): string => {
   if (!imageUrl) return ''
   
   try {
-    // Extract filename từ URL như: http://localhost:9000/course-image/course_image_6ddd7d93-785a-4307-949e-81d1c184c0ca?...
+    // Extract filename từ URL như: https://domain.com/course-image/course_image_6ddd7d93-785a-4307-949e-81d1c184c0ca?...
     const urlParts = imageUrl.split('/')
     const lastPart = urlParts[urlParts.length - 1]
     const filename = lastPart.split('?')[0] // Remove query parameters

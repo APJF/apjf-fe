@@ -15,7 +15,7 @@ import QuestionDialog from '../../components/exam/QuestionDialog'
 import { UnitSelector } from '../../components/ui/UnitSelector'
 import { FileText, BookOpen, Settings, CheckCircle, Plus, Search, ArrowLeft, Edit, Trash2, AlertTriangle, Upload, Minus } from "lucide-react"
 import { useToast } from '../../hooks/useToast'
-import axios from 'axios'
+import api from '../../api/axios'
 import type { Question } from '../../types/exam'
 
 interface ExamQuestion {
@@ -287,14 +287,8 @@ export const StaffUpdateExamPage: React.FC = () => {
       setExamState(prev => ({ ...prev, isLoading: true, error: null }))
       
       // Get auth headers
-      const token = localStorage.getItem('access_token')
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-      
       // API call to get exam details
-      const examResponse = await axios.get(`http://localhost:8080/api/exams/${examId}`, { headers })
+      const examResponse = await api.get(`/exams/${examId}`)
       
       if (!examResponse.data.success) {
         throw new Error(examResponse.data.message || 'Không thể tải thông tin bài thi')
@@ -303,7 +297,7 @@ export const StaffUpdateExamPage: React.FC = () => {
       const examData = examResponse.data.data
 
       // API call to get exam questions
-      const questionsResponse = await axios.get(`http://localhost:8080/api/exams/${examId}/questions`, { headers })
+      const questionsResponse = await api.get(`/exams/${examId}/questions`)
       
       if (!questionsResponse.data.success) {
         throw new Error(questionsResponse.data.message || 'Không thể tải câu hỏi bài thi')
@@ -597,13 +591,7 @@ export const StaffUpdateExamPage: React.FC = () => {
       }
 
       // Get auth headers
-      const token = localStorage.getItem('access_token')
-      const headers = {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-
-      const updateResponse = await axios.put(`http://localhost:8080/api/exams/${examId}`, updateExamPayload, { headers })
+      const updateResponse = await api.put(`/exams/${examId}`, updateExamPayload)
       
       if (!updateResponse.data.success) {
         throw new Error(updateResponse.data.message || 'Không thể cập nhật thông tin bài thi')
@@ -613,8 +601,8 @@ export const StaffUpdateExamPage: React.FC = () => {
       if (examState.examData.questions.length > 0) {
         const questionIds = examState.examData.questions.map(q => q.id)
 
-        const addQuestionsResponse = await axios.post(
-          `http://localhost:8080/api/exams/${examId}/questions`, 
+        const addQuestionsResponse = await api.post(
+          `/exams/${examId}/questions`, 
           questionIds // Gửi array đơn giản theo format API
         )
         

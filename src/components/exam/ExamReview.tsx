@@ -61,6 +61,16 @@ function resolveState(q: ReviewQuestion): QuestionState {
   return q.userAnswer === q.correctAnswer ? "correct" : "wrong";
 }
 
+// Highlight underlined text with safe HTML processing
+function highlightUnderlinedText(text: string): string {
+  if (!text) return '';
+  
+  // Replace <u> tags with simple underlined spans, keep other content as is
+  return text
+    .replace(/<u>/g, '<span class="underline decoration-2 underline-offset-2">')
+    .replace(/<\/u>/g, '</span>');
+}
+
 // Convert ExamResult to ReviewQuestion format - API đã trả về đầy đủ data
 function convertToReviewQuestions(examResult: ExamResult): ReviewQuestion[] {
   return examResult.questionResults.map((q, index) => {
@@ -95,7 +105,14 @@ function Explanation({ text }: Readonly<{ text?: string }>) {
     <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-sm text-indigo-900">
       <div className="flex items-start gap-2">
         <Info className="size-4 mt-0.5 text-indigo-700" />
-        <p className="leading-relaxed"><span className="font-medium">Giải thích:</span> {text}</p>
+        <p className="leading-relaxed">
+          <span className="font-medium">Giải thích:</span>{' '}
+          <span
+            dangerouslySetInnerHTML={{
+              __html: highlightUnderlinedText(text)
+            }}
+          />
+        </p>
       </div>
     </div>
   );
@@ -137,7 +154,17 @@ function AnswerRow({
       <span className={`inline-flex size-6 items-center justify-center rounded-full border text-xs ${badge}`}>
         {option.key}
       </span>
-      <div className="leading-relaxed text-gray-800">{option.text || <span className="text-gray-400 italic">(không có nội dung)</span>}</div>
+      <div className="leading-relaxed text-gray-800">
+        {option.text ? (
+          <span
+            dangerouslySetInnerHTML={{
+              __html: highlightUnderlinedText(option.text)
+            }}
+          />
+        ) : (
+          <span className="text-gray-400 italic">(không có nội dung)</span>
+        )}
+      </div>
     </div>
   );
 }
@@ -257,7 +284,13 @@ export function ExamReview({ examResult, onBack }: Readonly<ExamReviewProps>) {
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3">
                       <span className={UI.numBadge}>{q.id}</span>
-                      <h2 className="text-base sm:text-lg font-medium leading-snug text-gray-900">{q.content}</h2>
+                      <h2 className="text-base sm:text-lg font-medium leading-snug text-gray-900">
+                        <span
+                          dangerouslySetInnerHTML={{
+                            __html: highlightUnderlinedText(q.content)
+                          }}
+                        />
+                      </h2>
                     </div>
                     {stateChip}
                   </div>
