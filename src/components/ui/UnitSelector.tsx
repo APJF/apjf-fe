@@ -24,8 +24,8 @@ export const UnitSelector: React.FC<UnitSelectorProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const filteredUnits = units.filter(unit =>
-    unit.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    unit.id.toLowerCase().includes(searchTerm.toLowerCase())
+    (unit.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (unit.id || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const selectedUnits = units.filter(unit => selectedUnitIds.includes(unit.id));
