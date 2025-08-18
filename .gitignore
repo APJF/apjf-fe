@@ -32,5 +32,5 @@ node_modules/.tmp/
 
 # Ignore env files
 .env
-.env.*    # sẽ ignore cả .env.production, .env.development, .env.local
+.env.*
 !.env.example
