@@ -13,7 +13,7 @@ export interface Question {
   fileUrl: string | null;
   createdAt: string;
   options: QuestionOption[];
-  unitIds: string[];
+  unitIds?: string[]; // Make optional to handle undefined from backend
 }
 
 export interface CreateQuestionRequest {

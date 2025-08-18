@@ -43,12 +43,13 @@ interface Chapter {
   prerequisiteChapterId: string | null
 }
 
-interface Unit {
+export interface Unit {
   id: string
   title: string
   description: string
   status: string
   chapterId: string
+  courseId: string
   prerequisiteUnitId: string | null
 }
 

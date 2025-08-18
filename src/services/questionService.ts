@@ -31,13 +31,22 @@ export class QuestionService {
     };
   }
 
-  static async getAllQuestions(page: number = 0, size: number = 10): Promise<PagedQuestions> {
+  static async getAllQuestions(
+    page: number = 0, 
+    size: number = 10,
+    questionId?: string,
+    unitId?: string
+  ): Promise<PagedQuestions> {
     try {
+      const params: Record<string, any> = { page, size };
+      if (questionId) params.questionId = questionId;
+      if (unitId) params.unitId = unitId;
+
       const response = await api.get<QuestionsResponse>(
         '/questions',
         { 
           headers: this.getAuthHeaders(),
-          params: { page, size }
+          params
         }
       );
       
@@ -64,6 +73,29 @@ export class QuestionService {
     } catch (error) {
       console.error('Error fetching simple questions list:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Get a single question by ID with full details
+   * GET /api/questions/{id}
+   */
+  static async getQuestionById(id: string): Promise<Question> {
+    try {
+      const response = await api.get<{ success: boolean; data: Question; message: string }>(
+        `/questions/${id}`,
+        { headers: this.getAuthHeaders() }
+      );
+      
+      if (response.data.success) {
+        return response.data.data;
+      } else {
+        throw new Error(response.data.message);
+      }
+    } catch (error: unknown) {
+      console.error('Error fetching question by ID:', error);
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      throw new Error(axiosError.response?.data?.message || 'Không thể tải chi tiết câu hỏi');
     }
   }
 
@@ -165,6 +197,27 @@ export class QuestionService {
       console.error('Error updating question option:', error);
       const axiosError = error as { response?: { data?: { message?: string } } };
       throw new Error(axiosError.response?.data?.message || 'Không thể cập nhật lựa chọn câu hỏi');
+    }
+  }
+
+  /**
+   * Delete an option
+   * DELETE /api/options/{optionId}
+   */
+  static async deleteQuestionOption(optionId: string): Promise<void> {
+    try {
+      const response = await api.delete<{ success: boolean; message: string }>(
+        `/options/${optionId}`,
+        { headers: this.getAuthHeaders() }
+      );
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message);
+      }
+    } catch (error: unknown) {
+      console.error('Error deleting question option:', error);
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      throw new Error(axiosError.response?.data?.message || 'Không thể xóa lựa chọn câu hỏi');
     }
   }
 }

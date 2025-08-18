@@ -460,7 +460,7 @@ export const ExamDoing: React.FC<ExamDoingProps> = ({ examData, questionOptions,
 
       {/* Confirm Submit Modal với nền mờ và hiển thị thời gian còn lại */}
       {showConfirmSubmit && (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <h3 className="text-lg font-semibold mb-4">Submit Exam</h3>
             <p className="text-gray-600 mb-4">

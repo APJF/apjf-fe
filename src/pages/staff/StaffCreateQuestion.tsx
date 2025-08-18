@@ -15,8 +15,7 @@ import {
   CheckCircle,
   XCircle,
   Search,
-  Minus,
-  Upload
+  Minus
 } from 'lucide-react';
 import type { Question, CreateQuestionRequest, QuestionOption } from '../../types/question';
 import { QuestionService } from '../../services/questionService';
@@ -28,8 +27,6 @@ interface FormData {
   scope: 'KANJI' | 'VOCAB' | 'GRAMMAR' | 'LISTENING' | 'READING' | 'WRITING';
   type: 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'WRITING';
   explanation: string;
-  fileUrl: string;
-  uploadedFile: File | null;
   options: QuestionOption[];
   unitIds: string[];
 }
@@ -38,9 +35,12 @@ export function StaffCreateQuestion() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingQuestion, setLoadingQuestion] = useState(false);
   const [showQuestionDialog, setShowQuestionDialog] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [nextOptionId, setNextOptionId] = useState(1); // Counter for option IDs
   const { showToast } = useToast();
 
   // Pagination state
@@ -49,11 +49,62 @@ export function StaffCreateQuestion() {
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
 
-  // Filters
-  const [searchTerm, setSearchTerm] = useState("");
+  // Filters - chỉ giữ questionId search và unitId filter
+  const [searchQuestionId, setSearchQuestionId] = useState("");
   const [unitFilter, setUnitFilter] = useState<string>("all");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [scopeFilter, setScopeFilter] = useState<string>("all");
+
+  // Validation functions
+  const validateQuestionId = (value: string): string => {
+    if (!value.trim()) {
+      return 'ID câu hỏi là bắt buộc';
+    }
+    if (value.includes(' ')) {
+      return 'ID câu hỏi không được chứa khoảng trắng';
+    }
+    if (!/^[A-Za-z0-9_-]+$/.test(value)) {
+      return 'ID câu hỏi chỉ được chứa chữ cái, số, dấu gạch dưới và gạch ngang';
+    }
+    return '';
+  };
+
+  const handleQuestionIdChange = (value: string) => {
+    // Update form data
+    setFormData(prev => {
+      // Update question ID and regenerate option IDs if creating new question
+      const updatedOptions = !editingQuestion && prev.options.length > 0 && value
+        ? prev.options.map((option) => {
+            // Extract the number part from the option ID and combine with new question ID
+            const optionNumber = option.id.split('-').pop() || option.id;
+            return {
+              ...option,
+              id: `${value}-${optionNumber}`
+            };
+          })
+        : prev.options;
+
+      return {
+        ...prev,
+        id: value,
+        options: updatedOptions
+      };
+    });
+
+    // Clear error when user starts typing
+    if (errors.questionId) {
+      setErrors(prev => ({ ...prev, questionId: '' }));
+    }
+
+    // Real-time validation
+    const trimmedValue = value.trim();
+    if (value !== trimmedValue || value.includes(' ')) {
+      setErrors(prev => ({ ...prev, questionId: 'ID câu hỏi không được chứa khoảng trắng' }));
+    } else {
+      const error = validateQuestionId(value);
+      if (error) {
+        setErrors(prev => ({ ...prev, questionId: error }));
+      }
+    }
+  };
 
   // Form data
   const [formData, setFormData] = useState<FormData>({
@@ -62,8 +113,6 @@ export function StaffCreateQuestion() {
     scope: 'KANJI',
     type: 'MULTIPLE_CHOICE',
     explanation: '',
-    fileUrl: '',
-    uploadedFile: null,
     options: [
       { id: '1', content: '', isCorrect: true },
       { id: '2', content: '', isCorrect: false }
@@ -72,22 +121,46 @@ export function StaffCreateQuestion() {
   });
 
   useEffect(() => {
-    fetchQuestions(currentPage, pageSize);
-    fetchUnits();
-  }, [currentPage, pageSize]);
+    fetchUnits(); // Load units initially
+  }, []);
 
-  const fetchQuestions = async (page: number = 0, size: number = 10) => {
+  useEffect(() => {
+    const delayedFetch = setTimeout(() => {
+      fetchQuestions(currentPage, pageSize, searchQuestionId, unitFilter);
+    }, 300); // Debounce search
+    
+    return () => clearTimeout(delayedFetch);
+  }, [currentPage, pageSize, searchQuestionId, unitFilter]);
+
+  const fetchQuestions = async (
+    page: number = 0, 
+    size: number = 10,
+    questionId?: string,
+    unitId?: string
+  ) => {
     try {
       setLoading(true);
-      const pagedData = await QuestionService.getAllQuestions(page, size);
+      
+      // Prepare filters
+      const questionIdParam = questionId?.trim() || undefined;
+      const unitIdParam = unitId === "all" ? undefined : unitId;
+      
+      const pagedData = await QuestionService.getAllQuestions(
+        page, 
+        size, 
+        questionIdParam, 
+        unitIdParam
+      );
       console.log('Paged questions data received:', pagedData);
       
       // pagedData is now PagedQuestions type with all pagination info
       const safeQuestionsData = Array.isArray(pagedData.content) ? pagedData.content : [];
       setQuestions(safeQuestionsData);
       
-      // Set pagination info from PagedQuestions
-      setCurrentPage(pagedData.number);
+      // Set pagination info from PagedQuestions - chỉ cập nhật currentPage nếu khác với request
+      if (pagedData.number !== page) {
+        setCurrentPage(pagedData.number || 0);
+      }
       setTotalPages(pagedData.totalPages);
       setTotalElements(pagedData.totalElements);
     } catch (error: any) {
@@ -155,12 +228,9 @@ export function StaffCreateQuestion() {
 
       // Step 2: Create each option separately
       if (questionData.type === 'MULTIPLE_CHOICE' && questionData.options.length > 0) {
-        for (let i = 0; i < questionData.options.length; i++) {
-          const option = questionData.options[i];
-          const optionId = `${questionData.id}-${i + 1}`; // Generate option ID: questionId-1, questionId-2, etc.
-          
+        for (const option of questionData.options) {
           const optionData = {
-            id: optionId,
+            id: option.id, // Use the ID that was generated in the form
             content: option.content,
             isCorrect: option.isCorrect
           };
@@ -172,8 +242,8 @@ export function StaffCreateQuestion() {
       showToast('success', 'Tạo câu hỏi và các lựa chọn thành công!');
       setShowQuestionDialog(false);
       resetForm();
-      // Refresh current page
-      fetchQuestions(currentPage, pageSize);
+      // Refresh current page with current filters
+      fetchQuestions(currentPage, pageSize, searchQuestionId, unitFilter);
     } catch (error: any) {
       showToast('error', error.message);
     }
@@ -195,20 +265,57 @@ export function StaffCreateQuestion() {
 
       await QuestionService.updateQuestion(id, updateData);
 
-      // Step 2: Update each option separately
-      if (questionData.type === 'MULTIPLE_CHOICE' && questionData.options.length > 0) {
-        for (let i = 0; i < questionData.options.length; i++) {
-          const option = questionData.options[i];
-          // Use the existing option ID if it exists, otherwise generate new one
-          const optionId = option.id || `${questionData.id}-${i + 1}`;
-          
+      // Step 2: Smart option management - compare with original question
+      if (questionData.type === 'MULTIPLE_CHOICE' && editingQuestion) {
+        const originalOptions = editingQuestion.options || [];
+        const currentOptions = questionData.options;
+        
+        // Find options to delete (in original but not in current)
+        const optionsToDelete = originalOptions.filter(original => 
+          !currentOptions.some(current => current.id === original.id)
+        );
+        
+        // Find options to create (truly new ones - not in original options)
+        const optionsToCreate = currentOptions.filter(current => 
+          !originalOptions.some(original => original.id === current.id)
+        );
+        
+        // Find options to update (existing ones with changes)
+        const optionsToUpdate = currentOptions.filter(current => {
+          const original = originalOptions.find(orig => orig.id === current.id);
+          return original && (
+            original.content !== current.content || 
+            original.isCorrect !== current.isCorrect
+          );
+        });
+
+        console.log('Options to delete:', optionsToDelete);
+        console.log('Options to create:', optionsToCreate);
+        console.log('Options to update:', optionsToUpdate);
+
+        // Execute deletions first
+        for (const option of optionsToDelete) {
+          await QuestionService.deleteQuestionOption(option.id);
+        }
+
+        // Execute creations for truly new options
+        for (const option of optionsToCreate) {
           const optionData = {
-            id: optionId,
+            id: option.id, // Use the ID that was generated when adding the option
             content: option.content,
             isCorrect: option.isCorrect
           };
+          await QuestionService.createQuestionOption(questionData.id, optionData);
+        }
 
-          await QuestionService.updateQuestionOption(optionId, optionData);
+        // Execute updates for existing options
+        for (const option of optionsToUpdate) {
+          const optionData = {
+            id: option.id, // Keep the original ID
+            content: option.content,
+            isCorrect: option.isCorrect
+          };
+          await QuestionService.updateQuestionOption(option.id, optionData);
         }
       }
 
@@ -216,8 +323,8 @@ export function StaffCreateQuestion() {
       setShowQuestionDialog(false);
       setEditingQuestion(null);
       resetForm();
-      // Refresh current page
-      fetchQuestions(currentPage, pageSize);
+      // Refresh current page with current filters
+      fetchQuestions(currentPage, pageSize, searchQuestionId, unitFilter);
     } catch (error: any) {
       showToast('error', error.message);
     }
@@ -228,8 +335,8 @@ export function StaffCreateQuestion() {
       await QuestionService.deleteQuestion(id);
       showToast('success', 'Xóa câu hỏi thành công!');
       setShowDeleteDialog(null);
-      // Refresh current page
-      fetchQuestions(currentPage, pageSize);
+      // Refresh current page with current filters
+      fetchQuestions(currentPage, pageSize, searchQuestionId, unitFilter);
     } catch (error: any) {
       showToast('error', error.message);
     }
@@ -242,37 +349,99 @@ export function StaffCreateQuestion() {
       scope: 'KANJI',
       type: 'MULTIPLE_CHOICE',
       explanation: '',
-      fileUrl: '',
-      uploadedFile: null,
       options: [
         { id: '1', content: '', isCorrect: true },
         { id: '2', content: '', isCorrect: false }
       ],
       unitIds: []
     });
+    setErrors({}); // Clear all errors
+    setNextOptionId(3); // Reset counter to 3 since we have options 1 and 2
   };
 
-  const openEditDialog = (question: Question) => {
-    // Ensure options have proper IDs for editing
-    const optionsWithIds = question.options.map((option, index) => ({
-      ...option,
-      // Use existing ID if available, otherwise generate one
-      id: option.id || `${question.id}-${index + 1}`
-    }));
+  const openEditDialog = async (question: Question) => {
+    try {
+      setLoadingQuestion(true);
+      
+      // Kết hợp dữ liệu từ 2 nguồn:
+      // 1. question từ list (có thông tin đáp án đúng)
+      // 2. fullQuestion từ detail API (có đầy đủ thông tin khác như units)
+      console.log('Question from list (có correct answers):', question);
+      
+      // Fetch full question details to get complete data including units
+      console.log('Fetching question details for ID:', question.id);
+      const fullQuestion = await QuestionService.getQuestionById(question.id);
+      console.log('Full question from detail API:', fullQuestion);
+      
+      // Combine options: use options from list (với isCorrect) nhưng ensure có đầy đủ fields
+      const combinedOptions = question.options?.map((listOption, index) => ({
+        id: listOption.id || `${question.id}-${index + 1}`,
+        content: listOption.content,
+        isCorrect: listOption.isCorrect // Lấy isCorrect từ list data
+      })) || [];
+      
+      // Nếu fullQuestion có options mà list không có, merge chúng
+      if (fullQuestion.options && fullQuestion.options.length > 0) {
+        fullQuestion.options.forEach((detailOption) => {
+          const existingOption = combinedOptions.find(opt => opt.id === detailOption.id);
+          if (!existingOption) {
+            // Option mới từ detail API, add vào (nhưng cần xác định isCorrect từ list)
+            const listMatch = question.options?.find(opt => opt.content === detailOption.content);
+            combinedOptions.push({
+              id: detailOption.id || `${question.id}-${combinedOptions.length + 1}`,
+              content: detailOption.content,
+              isCorrect: listMatch?.isCorrect || false
+            });
+          } else {
+            // Update content từ detail API nhưng giữ nguyên isCorrect từ list
+            existingOption.content = detailOption.content;
+          }
+        });
+      }
 
-    setFormData({
-      id: question.id,
-      content: question.content,
-      scope: question.scope,
-      type: question.type,
-      explanation: question.explanation,
-      fileUrl: question.fileUrl || '',
-      uploadedFile: null,
-      options: optionsWithIds,
-      unitIds: question.unitIds
-    });
-    setEditingQuestion(question);
-    setShowQuestionDialog(true);
+      // Ensure unitIds is always an array (lấy từ detail API)
+      const safeUnitIds = Array.isArray(fullQuestion.unitIds) ? fullQuestion.unitIds : [];
+      
+      console.log('Combined options with correct answers:', combinedOptions);
+      console.log('Safe unitIds from detail API:', safeUnitIds);
+
+      setFormData({
+        id: fullQuestion.id || question.id,
+        content: fullQuestion.content || question.content,
+        scope: fullQuestion.scope || question.scope,
+        type: fullQuestion.type || question.type,
+        explanation: fullQuestion.explanation || question.explanation,
+        options: combinedOptions,
+        unitIds: safeUnitIds
+      });
+      
+      // Set nextOptionId to be higher than the highest existing option ID
+      const maxOptionId = combinedOptions.reduce((max, option) => {
+        const optionIdNumber = parseInt(option.id.split('-').pop() || '0');
+        return Math.max(max, optionIdNumber);
+      }, 0);
+      setNextOptionId(maxOptionId + 1);
+      
+      // Use combined data for editingQuestion
+      const combinedQuestion = {
+        ...fullQuestion,
+        options: combinedOptions,
+        // Fallback values from list data
+        id: fullQuestion.id || question.id,
+        content: fullQuestion.content || question.content,
+        scope: fullQuestion.scope || question.scope,
+        type: fullQuestion.type || question.type,
+        explanation: fullQuestion.explanation || question.explanation
+      };
+      
+      setEditingQuestion(combinedQuestion);
+      setShowQuestionDialog(true);
+    } catch (error: any) {
+      console.error('Error fetching question details:', error);
+      showToast('error', error.message || 'Không thể tải chi tiết câu hỏi');
+    } finally {
+      setLoadingQuestion(false);
+    }
   };
 
   const openCreateDialog = () => {
@@ -283,11 +452,10 @@ export function StaffCreateQuestion() {
 
   const addOption = () => {
     if (formData.options.length < 6) {
+      const optionId = formData.id ? `${formData.id}-${nextOptionId}` : nextOptionId.toString();
+      
+      // Only update local state - API calls will happen on save
       setFormData(prev => {
-        const optionIndex = prev.options.length + 1;
-        // Generate proper option ID in format: questionId-index
-        const optionId = formData.id ? `${formData.id}-${optionIndex}` : optionIndex.toString();
-        
         const newOptions = [...prev.options, { 
           id: optionId, 
           content: '', 
@@ -304,19 +472,34 @@ export function StaffCreateQuestion() {
           options: newOptions
         };
       });
+      
+      // Increment counter for next option
+      setNextOptionId(prev => prev + 1);
     }
   };
 
   const removeOption = (optionId: string) => {
     if (formData.options.length > 2) {
-      setFormData(prev => ({
-        ...prev,
-        options: prev.options.filter(opt => opt.id !== optionId)
-      }));
+      // Only update local state - API calls will happen on save
+      setFormData(prev => {
+        const remainingOptions = prev.options.filter(opt => opt.id !== optionId);
+        
+        // If the removed option was correct, set the first remaining option as correct
+        const removedOption = prev.options.find(opt => opt.id === optionId);
+        if (removedOption?.isCorrect && remainingOptions.length > 0) {
+          remainingOptions[0].isCorrect = true;
+        }
+        
+        return {
+          ...prev,
+          options: remainingOptions
+        };
+      });
     }
   };
 
   const updateOption = (optionId: string, content: string) => {
+    // Only update local state - API calls will happen on save
     setFormData(prev => ({
       ...prev,
       options: prev.options.map(opt => opt.id === optionId ? { ...opt, content } : opt)
@@ -324,6 +507,7 @@ export function StaffCreateQuestion() {
   };
 
   const setCorrectOption = (optionId: string) => {
+    // Only update local state - API calls will happen on save
     setFormData(prev => ({
       ...prev,
       options: prev.options.map(opt => ({ ...opt, isCorrect: opt.id === optionId }))
@@ -331,14 +515,31 @@ export function StaffCreateQuestion() {
   };
 
   const handleSave = () => {
-    // Validation
+    // Enhanced validation following course creation patterns
     if (!formData.id.trim()) {
-      showToast('error', 'Vui lòng nhập ID câu hỏi');
+      showToast('error', 'ID câu hỏi là bắt buộc');
+      return;
+    }
+
+    // Validate questionId format (no spaces, alphanumeric with underscore and dash)
+    if (formData.id.includes(' ')) {
+      showToast('error', 'ID câu hỏi không được chứa khoảng trắng');
+      return;
+    }
+
+    if (!/^[A-Za-z0-9_-]+$/.test(formData.id)) {
+      showToast('error', 'ID câu hỏi chỉ được chứa chữ cái, số, dấu gạch dưới và gạch ngang');
       return;
     }
 
     if (!formData.content.trim()) {
-      showToast('error', 'Vui lòng nhập nội dung câu hỏi');
+      showToast('error', 'Nội dung câu hỏi là bắt buộc');
+      return;
+    }
+
+    // Validate units selection
+    if (!formData.unitIds || formData.unitIds.length === 0) {
+      showToast('error', 'Vui lòng chọn ít nhất một đơn vị học');
       return;
     }
 
@@ -352,7 +553,7 @@ export function StaffCreateQuestion() {
       }
 
       if (hasEmptyOption) {
-        showToast('error', 'Vui lòng điền đầy đủ các lựa chọn');
+        showToast('error', 'Vui lòng điền đầy đủ nội dung các lựa chọn');
         return;
       }
     }
@@ -486,9 +687,9 @@ export function StaffCreateQuestion() {
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input
-                      placeholder="Tìm kiếm câu hỏi..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Tìm kiếm theo Question ID..."
+                      value={searchQuestionId}
+                      onChange={(e) => setSearchQuestionId(e.target.value)}
                       className="pl-10 bg-white/50"
                     />
                   </div>
@@ -504,29 +705,6 @@ export function StaffCreateQuestion() {
                       required={false}
                     />
                   </div>
-                  <select
-                    value={typeFilter}
-                    onChange={(e) => setTypeFilter(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg bg-white/50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="all">Tất cả loại</option>
-                    <option value="MULTIPLE_CHOICE">Trắc nghiệm</option>
-                    <option value="TRUE_FALSE">Đúng/Sai</option>
-                    <option value="WRITING">Tự luận</option>
-                  </select>
-                  <select
-                    value={scopeFilter}
-                    onChange={(e) => setScopeFilter(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg bg-white/50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="all">Tất cả phạm vi</option>
-                    <option value="KANJI">Kanji</option>
-                    <option value="VOCAB">Từ vựng</option>
-                    <option value="GRAMMAR">Ngữ pháp</option>
-                    <option value="LISTENING">Nghe</option>
-                    <option value="READING">Đọc</option>
-                    <option value="WRITING">Viết</option>
-                  </select>
                 </div>
               </div>
             </div>
@@ -538,106 +716,129 @@ export function StaffCreateQuestion() {
               <h3 className="text-lg font-semibold">Danh sách câu hỏi ({safeQuestions.length})</h3>
             </div>
             <div className="p-6">
-              {loading ? (
-                <div className="text-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                  <p className="text-gray-600 mt-2">Đang tải...</p>
-                </div>
-              ) : safeQuestions.length === 0 ? (
-                <div className="text-center py-12">
-                  <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Chưa có câu hỏi nào</h3>
-                  <p className="text-gray-600 mb-4">Bắt đầu tạo câu hỏi đầu tiên</p>
-                  <Button
-                    onClick={openCreateDialog}
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Thêm câu hỏi đầu tiên
-                  </Button>
-                </div>
-              ) : (
+              {(() => {
+                if (loading) {
+                  return (
+                    <div className="text-center py-12">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                      <p className="text-gray-600 mt-2">Đang tải...</p>
+                    </div>
+                  );
+                }
+                
+                if (safeQuestions.length === 0) {
+                  return (
+                    <div className="text-center py-12">
+                      <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">Chưa có câu hỏi nào</h3>
+                      <p className="text-gray-600 mb-4">Bắt đầu tạo câu hỏi đầu tiên</p>
+                      <Button
+                        onClick={openCreateDialog}
+                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Thêm câu hỏi đầu tiên
+                      </Button>
+                    </div>
+                  );
+                }
+                
+                return (
                 <div className="space-y-4">
-                  {safeQuestions.map((question: Question, index: number) => (
-                    <div key={question.id} className="border border-blue-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-white/50">
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full flex items-center justify-center">
-                            <span className="text-sm font-medium">{index + 1}</span>
+                  {safeQuestions.map((question: Question, index: number) => {
+                    // Ensure unitIds is always an array for safety
+                    const safeQuestion = {
+                      ...question,
+                      unitIds: Array.isArray(question.unitIds) ? question.unitIds : []
+                    };
+                    
+                    return (
+                      <div key={safeQuestion.id} className="border border-blue-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-white/50">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full flex items-center justify-center">
+                              <span className="text-sm font-medium">{index + 1}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              {getQuestionTypeIcon(safeQuestion.type)}
+                              <Badge className="bg-blue-100 text-blue-800">
+                                {getQuestionTypeName(safeQuestion.type)}
+                              </Badge>
+                              <Badge className="bg-green-100 text-green-800">
+                                {getScopeName(safeQuestion.scope)}
+                              </Badge>
+                            </div>
                           </div>
                           <div className="flex items-center space-x-2">
-                            {getQuestionTypeIcon(question.type)}
-                            <Badge className="bg-blue-100 text-blue-800">
-                              {getQuestionTypeName(question.type)}
-                            </Badge>
-                            <Badge className="bg-green-100 text-green-800">
-                              {getScopeName(question.scope)}
-                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openEditDialog(safeQuestion)}
+                              disabled={loadingQuestion}
+                              className="text-blue-600 hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {loadingQuestion ? (
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                              ) : (
+                                <Edit className="h-4 w-4" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setShowDeleteDialog(safeQuestion.id)}
+                              className="text-red-600 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => openEditDialog(question)}
-                            className="text-blue-600 hover:bg-blue-50"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setShowDeleteDialog(question.id)}
-                            className="text-red-600 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+
+                        <h4 
+                          className="font-medium text-gray-900 mb-2"
+                          dangerouslySetInnerHTML={{
+                            __html: safeQuestion.content
+                              .replace(/<u>/g, '<span style="text-decoration: underline;">')
+                              .replace(/<\/u>/g, '</span>')
+                              .replace(/<strong>/g, '<span style="font-weight: bold;">')
+                              .replace(/<\/strong>/g, '</span>')
+                              .replace(/<em>/g, '<span style="font-style: italic;">')
+                              .replace(/<\/em>/g, '</span>')
+                          }}
+                        />
+
+                        {safeQuestion.type === "MULTIPLE_CHOICE" && safeQuestion.options && (
+                          <div className="space-y-1 mb-2">
+                            {safeQuestion.options.map((option, optionIndex) => (
+                              <div
+                                key={option.id}
+                                className={`text-sm p-2 rounded ${
+                                  option.isCorrect ? "bg-green-50 text-green-800 border border-green-200" : "text-gray-600"
+                                }`}
+                              >
+                                <span className="font-medium mr-2">{String.fromCharCode(65 + optionIndex)}.</span>
+                                {option.content}
+                                {option.isCorrect && <CheckCircle className="h-3 w-3 inline ml-2 text-green-600" />}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {safeQuestion.explanation && (
+                          <div className="mt-2 p-2 bg-blue-50 rounded text-sm text-blue-800">
+                            <strong>Giải thích:</strong> {safeQuestion.explanation}
+                          </div>
+                        )}
+
+                        <div className="mt-2 text-xs text-gray-500">
+                          Tạo: {new Date(safeQuestion.createdAt).toLocaleString("vi-VN")}
                         </div>
                       </div>
-
-                      <h4 
-                        className="font-medium text-gray-900 mb-2"
-                        dangerouslySetInnerHTML={{
-                          __html: question.content
-                            .replace(/<u>/g, '<span style="text-decoration: underline;">')
-                            .replace(/<\/u>/g, '</span>')
-                            .replace(/<strong>/g, '<span style="font-weight: bold;">')
-                            .replace(/<\/strong>/g, '</span>')
-                            .replace(/<em>/g, '<span style="font-style: italic;">')
-                            .replace(/<\/em>/g, '</span>')
-                        }}
-                      />
-
-                      {question.type === "MULTIPLE_CHOICE" && question.options && (
-                        <div className="space-y-1 mb-2">
-                          {question.options.map((option, optionIndex) => (
-                            <div
-                              key={option.id}
-                              className={`text-sm p-2 rounded ${
-                                option.isCorrect ? "bg-green-50 text-green-800 border border-green-200" : "text-gray-600"
-                              }`}
-                            >
-                              <span className="font-medium mr-2">{String.fromCharCode(65 + optionIndex)}.</span>
-                              {option.content}
-                              {option.isCorrect && <CheckCircle className="h-3 w-3 inline ml-2 text-green-600" />}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {question.explanation && (
-                        <div className="mt-2 p-2 bg-blue-50 rounded text-sm text-blue-800">
-                          <strong>Giải thích:</strong> {question.explanation}
-                        </div>
-                      )}
-
-                      <div className="mt-2 text-xs text-gray-500">
-                        Tạo: {new Date(question.createdAt).toLocaleString("vi-VN")}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
-              )}
+                );
+              })()}
             </div>
           </Card>
 
@@ -745,59 +946,20 @@ export function StaffCreateQuestion() {
 
               <div className="p-6 space-y-6">
                 {/* Basic Info */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="questionId" className="block text-sm font-medium text-gray-700 mb-1">
-                      ID câu hỏi <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      id="questionId"
-                      value={formData.id}
-                      onChange={(e) => {
-                        const newQuestionId = e.target.value;
-                        setFormData(prev => {
-                          // Update question ID and regenerate option IDs if creating new question
-                          const updatedOptions = !editingQuestion && prev.options.length > 0 && newQuestionId
-                            ? prev.options.map((option, index) => ({
-                                ...option,
-                                id: `${newQuestionId}-${index + 1}`
-                              }))
-                            : prev.options;
-
-                          return {
-                            ...prev,
-                            id: newQuestionId,
-                            options: updatedOptions
-                          };
-                        });
-                      }}
-                      placeholder="Nhập ID câu hỏi"
-                      className="bg-white/70"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="fileUpload" className="block text-sm font-medium text-gray-700 mb-1">
-                      File đính kèm
-                    </label>
-                    <div className="relative">
-                      <input
-                        id="fileUpload"
-                        type="file"
-                        accept="image/*,audio/*,video/*,.pdf,.doc,.docx"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] || null;
-                          setFormData(prev => ({ ...prev, uploadedFile: file }));
-                        }}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      />
-                      <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white/70 flex items-center justify-between cursor-pointer hover:bg-gray-50">
-                        <span className="text-gray-500 text-sm">
-                          {formData.uploadedFile?.name ?? 'Chọn file...'}
-                        </span>
-                        <Upload className="h-4 w-4 text-gray-400" />
-                      </div>
-                    </div>
-                  </div>
+                <div>
+                  <label htmlFor="questionId" className="block text-sm font-medium text-gray-700 mb-1">
+                    ID câu hỏi <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    id="questionId"
+                    value={formData.id}
+                    onChange={(e) => handleQuestionIdChange(e.target.value)}
+                    placeholder="Nhập ID câu hỏi"
+                    className={`bg-white/70 ${errors.questionId ? 'border-red-500' : ''}`}
+                  />
+                  {errors.questionId && (
+                    <p className="mt-1 text-sm text-red-600">{errors.questionId}</p>
+                  )}
                 </div>
 
                 {/* Type and Scope */}
@@ -903,7 +1065,7 @@ export function StaffCreateQuestion() {
                     selectedUnitIds={formData.unitIds}
                     onChange={(unitIds) => setFormData(prev => ({ ...prev, unitIds }))}
                     placeholder="Tìm kiếm và chọn units (tùy chọn)..."
-                    multiple={true}
+                    multiple={false}
                     required={false}
                   />
                 </div>
