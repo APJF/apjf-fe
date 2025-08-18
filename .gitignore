@@ -29,3 +29,5 @@ node_modules/.tmp/
 *.tsbuildinfo
 .eslintcache
 .sonarlint/
+
+.env
