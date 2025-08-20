@@ -3,8 +3,8 @@ import AppRouter from './router/AppRouter';
 import { ToastProvider } from './components/ui/ToastProvider';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { ChatProvider } from './contexts/ChatContext';
-import { GlobalFloatingChat } from './components/chatbot/GlobalFloatingChat';
 import { setToastFunction } from './api/axios';
+import { autoCleanupIfCorrupted } from './utils/tokenCleanup';
 import { useToast } from './hooks/useToast';
 
 /**
@@ -20,13 +20,13 @@ const AppContent: React.FC = () => {
       const toastType = type === 'info' ? 'warning' : type;
       showToast(toastType, message);
     });
+
+    // Auto cleanup corrupted tokens on app start
+    autoCleanupIfCorrupted();
   }, [showToast]);
 
   return (
-    <>
-      <AppRouter />
-      <GlobalFloatingChat />
-    </>
+    <AppRouter />
   );
 };
 

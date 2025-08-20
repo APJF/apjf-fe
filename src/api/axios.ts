@@ -15,43 +15,73 @@ const getApiBaseUrl = (): string => {
   return import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 };
 
+// Define public endpoints that don't require authentication
+const publicEndpoints = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/refresh-token',
+  '/auth/send-otp',
+  '/auth/verify',
+  '/auth/reset-password',
+  '/oauth2/',
+  '/courses', // Allow public access to courses and course details
+  '/topics', // Allow public access to topics
+  '/roadmap', // Allow public access to roadmap
+  '/courses/*', // Allow access to course details and related endpoints
+];
+
 // Create a new Axios instance
 const api: AxiosInstance = axios.create({
   baseURL: getApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 15000, // 15 second timeout
 });
+
+// Variables for token refresh logic
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (value?: unknown) => void;
+  reject: (reason?: any) => void;
+}> = [];
+
+const processQueue = (error: Error | null, token: string | null = null) => {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (error) {
+      reject(error);
+    } else {
+      resolve(token);
+    }
+  });
+  
+  failedQueue = [];
+};
 
 // Request interceptor to add the auth token to headers
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token');
-    const publicEndpoints = [
-      '/auth/login',
-      '/auth/register',
-      '/auth/refresh-token',
-      '/auth/send-otp',
-      '/auth/verify',
-      '/auth/reset-password',
-      '/oauth2/',
-      '/courses', // Allow public access to courses
-      '/roadmap', // Allow public access to roadmap
-      '/forum', // Allow public access to forum
-    ];
-
-    const isPublicEndpoint = publicEndpoints.some(endpoint => config.url?.includes(endpoint));
-
-    // Only add token if user is authenticated AND endpoint is not explicitly public
-    if (token && !isPublicEndpoint) {
-      config.headers['Authorization'] = `Bearer ${token}`;
-    }
     
+    const isPublicEndpoint = publicEndpoints.some((endpoint: string) => {
+      if (endpoint.endsWith('/*')) {
+        const basePattern = endpoint.slice(0, -2);
+        return config.url?.startsWith(basePattern);
+      }
+      return config.url === endpoint;
+    });
+
+    // Log request details
     console.log('Request Interceptor:', {
       url: config.url,
-      hasAuth: !!config.headers['Authorization'],
-      isPublic: isPublicEndpoint,
+      hasAuth: !!token,
+      isPublic: isPublicEndpoint
     });
+
+    // Add token to headers if available and not a public endpoint
+    if (token && config.headers) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
 
     return config;
   },
@@ -60,40 +90,53 @@ api.interceptors.request.use(
   }
 );
 
-// Variable to prevent infinite refresh loops
-let isRefreshing = false;
-let failedQueue: { resolve: (value: unknown) => void; reject: (reason?: Error) => void; }[] = [];
-
-const processQueue = (error: Error | null, token: string | null = null) => {
-  failedQueue.forEach(prom => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-  failedQueue = [];
-};
-
-// Response interceptor for handling token refresh and error messages
+// Response interceptor to handle token refresh
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
+  (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
 
-    // Handle 403 Forbidden - No permission
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
+
+    // Handle different error status codes
+    if (error.response?.status === 400) {
+      console.error('Bad Request (400):', error.response.data);
+      if (showToast) {
+        const errorMessage = (error.response.data as any)?.message || 'Yêu cầu không hợp lệ';
+        showToast(errorMessage, 'error');
+      }
+    }
+
     if (error.response?.status === 403) {
-      console.error('403 Forbidden - Insufficient permissions');
+      console.error('Forbidden (403):', error.response.data);
       if (showToast) {
         showToast('Bạn không có quyền truy cập chức năng này', 'error');
       }
-      return Promise.reject(error);
     }
 
     // Handle 401 Unauthorized
     if (error.response?.status === 401 && !originalRequest._retry) {
+      const url = originalRequest.url || '';
+      
+      // Check if this is a public endpoint
+      const isPublicEndpoint = publicEndpoints.some((endpoint: string) => {
+        if (endpoint.endsWith('/*')) {
+          const basePattern = endpoint.slice(0, -2);
+          return url.startsWith(basePattern);
+        }
+        return url === endpoint;
+      });
+
+      if (isPublicEndpoint) {
+        console.error(`401 Unauthorized on public endpoint: ${url}`);
+        if (showToast) {
+          showToast('Không thể truy cập tài nguyên này', 'error');
+        }
+        return Promise.reject(error);
+      }
+
       // Check if user has no token at all (not logged in)
       const hasToken = !!localStorage.getItem('access_token');
       if (!hasToken) {
@@ -134,7 +177,7 @@ api.interceptors.response.use(
       }
 
       try {
-        console.log(`DEBUG: Attempting to refresh token with value: "${refreshToken}"`);
+        console.log(`DEBUG: Attempting to refresh token`);
         const { data } = await axios.post(
           `${getApiBaseUrl()}/auth/refresh-token`,
           { refresh_token: refreshToken },
@@ -144,51 +187,92 @@ api.interceptors.response.use(
           }
         );
 
-        if (!data.success || !data.data || !data.data.access_token) {
-          throw new Error('Invalid refresh response structure');
+        if (!data?.success || !data?.data?.access_token) {
+          throw new Error(`Invalid refresh response: ${JSON.stringify(data)}`);
         }
 
         const newAccessToken = data.data.access_token;
         localStorage.setItem('access_token', newAccessToken);
         
         if (data.data.refresh_token) {
-            localStorage.setItem('refresh_token', data.data.refresh_token);
+          localStorage.setItem('refresh_token', data.data.refresh_token);
         }
 
-        console.log('Token refreshed successfully.');
-        
-        if (originalRequest.headers) {
-            originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
-        }
-        
-        processQueue(null, newAccessToken);
-        return api(originalRequest);
-
-      } catch (refreshError) {
-        const err = refreshError as AxiosError;
-        console.error('DEBUG: Token refresh API call failed.', {
-            status: err.response?.status,
-            data: err.response?.data,
-            message: err.message,
-        });
-        
-        // If refresh token is also invalid/expired, clear everything
-        if (err.response?.status === 401 || err.response?.status === 403) {
-          console.error('DEBUG: Refresh token expired or invalid. Logging out.');
-        }
-        
-        processQueue(err, null);
-        localStorage.clear();
-        window.location.href = '/login';
-        return Promise.reject(refreshError);
-
-      } finally {
         isRefreshing = false;
+        processQueue(null, newAccessToken);
+
+        if (originalRequest.headers) {
+          originalRequest.headers['Authorization'] = 'Bearer ' + newAccessToken;
+        }
+
+        console.log('DEBUG: Token refreshed successfully, retrying original request');
+        return api(originalRequest);
+      } catch (refreshError: any) {
+        console.error('DEBUG: Token refresh failed:', refreshError);
+        isRefreshing = false;
+        processQueue(refreshError, null);
+        
+        // If refresh token is also invalid, clear storage and redirect
+        if (refreshError.response?.status === 400 || refreshError.response?.status === 401) {
+          console.log('DEBUG: Refresh token invalid, clearing storage and redirecting to login');
+          localStorage.clear();
+          if (showToast) {
+            showToast('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'error');
+          }
+          // Small delay before redirect to ensure toast is shown
+          setTimeout(() => {
+            window.location.href = '/login';
+          }, 1000);
+        } else if (showToast) {
+          showToast('Lỗi kết nối. Vui lòng thử lại sau.', 'error');
+        }
+        
+        return Promise.reject(refreshError);
+      }
+    }
+
+    // Handle network errors
+    if (!error.response) {
+      console.error('Network error:', error.message);
+      if (showToast) {
+        showToast('Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet.', 'error');
       }
     }
 
     return Promise.reject(error);
   }
 );
+
+// Utility function to clear corrupted tokens
+export const clearCorruptedTokens = () => {
+  try {
+    const accessToken = localStorage.getItem('access_token');
+    const refreshToken = localStorage.getItem('refresh_token');
+    
+    if (accessToken && !isValidJWT(accessToken)) {
+      console.warn('Removing corrupted access token');
+      localStorage.removeItem('access_token');
+    }
+    
+    if (refreshToken && !isValidJWT(refreshToken)) {
+      console.warn('Removing corrupted refresh token');
+      localStorage.removeItem('refresh_token');
+    }
+  } catch (error) {
+    console.error('Error checking tokens:', error);
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+  }
+};
+
+// Simple JWT validation
+const isValidJWT = (token: string): boolean => {
+  try {
+    const parts = token.split('.');
+    return parts.length === 3 && parts.every(part => part.length > 0);
+  } catch {
+    return false;
+  }
+};
 
 export default api;
