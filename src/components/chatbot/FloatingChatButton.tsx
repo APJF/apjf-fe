@@ -39,6 +39,7 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
   const [isLoadingSessions, setIsLoadingSessions] = useState(false); // Separate loading state for sessions
   const [isCreatingNewSession, setIsCreatingNewSession] = useState(false);
   const hasLoadedSessionsRef = useRef(false); // Track if sessions have been loaded
+  const currentUserIdRef = useRef(getCurrentUserId()); // Track current user ID
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
   const currentUserId = getCurrentUserId();
@@ -117,8 +118,8 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
     console.log('🔄 loadSessions called');
     try {
       setIsLoadingSessions(true); // Use separate loading state for sessions
-      console.log('📞 Calling getSessions API with user ID:', getCurrentUserId());
-      const apiSessions = await chatbotService.getSessions(getCurrentUserId());
+      console.log('📞 Calling getSessions API with user ID:', currentUserId);
+      const apiSessions = await chatbotService.getSessions(currentUserId);
       console.log('✅ Got sessions from API:', apiSessions);
       
       const floatingSessions = apiSessions.map(convertToFloatingSession);
@@ -137,7 +138,7 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
     } finally {
       setIsLoadingSessions(false); // Use separate loading state for sessions
     }
-  }, [activeSessionId, isCreatingNewSession, loadSessionMessages]);
+  }, [currentUserId, activeSessionId, isCreatingNewSession, loadSessionMessages]);
 
   // Load sessions when component mounts ONLY
   useEffect(() => {
@@ -153,6 +154,26 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
       hasLoadedSessionsRef.current = false;
     }
   }, [isOpen]);
+
+  // Check for user ID change and reset sessions if needed
+  useEffect(() => {
+    const newUserId = getCurrentUserId();
+    if (currentUserIdRef.current !== newUserId) {
+      console.log('👤 User ID changed from', currentUserIdRef.current, 'to', newUserId);
+      console.log('🔄 Resetting sessions and reloading for new user');
+      
+      // Reset everything for new user
+      currentUserIdRef.current = newUserId;
+      hasLoadedSessionsRef.current = false;
+      setSessions([]);
+      setActiveSessionId(null);
+      
+      // Reload sessions if chat is open
+      if (isOpen) {
+        loadSessions();
+      }
+    }
+  }, [isOpen, loadSessions]); // Check on every render when chat is open
 
   const toggleSessionsPanel = () => {
     setIsSessionsPanelCollapsed(!isSessionsPanelCollapsed);

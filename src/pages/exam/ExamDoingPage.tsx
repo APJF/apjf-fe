@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ExamDoing } from '../../components/exam/ExamDoing';
 import { ExamService } from '../../services/examService';
 import { examOverviewService } from '../../services/examOverviewService';
+import { authService } from '../../services/authService';
 import type { ExamStartResponse, ExamStartQuestion } from '../../types/exam';
 
 // Define interface for question options to match ExamDoing component
@@ -122,6 +123,15 @@ export const ExamDoingPage: React.FC = () => {
     }
 
     try {
+      // Ensure token is valid before critical operation
+      console.log('🔒 Ensuring valid token before exam submission...');
+      const tokenValid = await authService.ensureValidTokenForCriticalOperation();
+      if (!tokenValid) {
+        console.error('❌ Failed to ensure valid token for exam submission');
+        setError('Phiên đăng nhập sắp hết hạn. Vui lòng thử lại.');
+        return;
+      }
+
       // Transform answers to match submitExam method signature
       const submitAnswers = answers.map(answer => ({
         questionId: answer.questionId,

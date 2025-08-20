@@ -18,6 +18,72 @@ import type {
 } from "../types/auth"
 
 class AuthService {
+  private refreshTimer: NodeJS.Timeout | null = null;
+  private tokenExpirationTime: number | null = null;
+
+  /**
+   * Schedule proactive token refresh before expiration
+   */
+  private scheduleTokenRefresh(expiresInSeconds?: number): void {
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+    }
+
+    // Default to 15 minutes if not provided, refresh 3 minutes before expiration
+    const expireTime = expiresInSeconds || 15 * 60; // 15 minutes default
+    const refreshTime = Math.max(expireTime - 3 * 60, 60); // Refresh 3 min early, but at least 1 min
+    
+    this.tokenExpirationTime = Date.now() + (expireTime * 1000);
+    
+    console.log(`🔄 Token refresh scheduled in ${refreshTime} seconds`);
+    
+    this.refreshTimer = setTimeout(async () => {
+      try {
+        console.log('🔄 Proactive token refresh triggered');
+        const result = await this.refreshToken();
+        
+        if (result.success) {
+          console.log('✅ Proactive token refresh successful');
+          // Schedule next refresh
+          this.scheduleTokenRefresh();
+        } else {
+          console.error('❌ Proactive token refresh failed, will fallback to 401 handling');
+        }
+      } catch (error) {
+        console.error('❌ Proactive token refresh error:', error);
+        // Don't logout here, let 401 interceptor handle it
+      }
+    }, refreshTime * 1000);
+  }
+
+  /**
+   * Check if token expires in the next N minutes
+   */
+  private tokenExpiresInMinutes(minutes: number): boolean {
+    if (!this.tokenExpirationTime) return false;
+    const now = Date.now();
+    const timeUntilExpiry = this.tokenExpirationTime - now;
+    return timeUntilExpiry < (minutes * 60 * 1000);
+  }
+
+  /**
+   * Proactively refresh token if needed (for critical operations)
+   */
+  async ensureValidTokenForCriticalOperation(): Promise<boolean> {
+    try {
+      // If token expires in next 5 minutes, refresh it now
+      if (this.tokenExpiresInMinutes(5)) {
+        console.log('🔄 Refreshing token for critical operation');
+        const result = await this.refreshToken();
+        return result.success;
+      }
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to ensure valid token:', error);
+      return false;
+    }
+  }
+
   /**
    * Đăng nhập người dùng
    */
@@ -74,6 +140,9 @@ class AuthService {
             }));
             
             console.log('✅ Login successful with user profile:', userInfo.username);
+            
+            // Schedule proactive token refresh
+            this.scheduleTokenRefresh();
             
             // Return success response với user data
             return {
@@ -291,6 +360,9 @@ class AuthService {
         if (newRefreshToken) {
           localStorage.setItem("refresh_token", newRefreshToken)
         }
+        
+        // Reschedule next proactive refresh
+        this.scheduleTokenRefresh();
       }
       return response.data;
     } catch (error) {
@@ -574,6 +646,13 @@ class AuthService {
    * Đăng xuất
    */
   logout(): void {
+    // Cancel any scheduled token refresh
+    if (this.refreshTimer) {
+      clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+    this.tokenExpirationTime = null;
+    
     localStorage.removeItem('userInfo')
     
     // Standard keys
