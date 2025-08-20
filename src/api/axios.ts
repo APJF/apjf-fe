@@ -1,6 +1,14 @@
 import axios from 'axios';
 import type { AxiosError, AxiosRequestConfig, AxiosInstance } from 'axios';
 
+// Import toast for error notifications
+let showToast: ((message: string, type: 'error' | 'success' | 'info') => void) | null = null;
+
+// Function to set toast function (will be called from main app)
+export const setToastFunction = (toastFn: (message: string, type: 'error' | 'success' | 'info') => void) => {
+  showToast = toastFn;
+};
+
 // Function to get the API base URL
 const getApiBaseUrl = (): string => {
   // Using Vite's import.meta.env for environment variables
@@ -27,10 +35,14 @@ api.interceptors.request.use(
       '/auth/verify',
       '/auth/reset-password',
       '/oauth2/',
+      '/courses', // Allow public access to courses
+      '/roadmap', // Allow public access to roadmap
+      '/forum', // Allow public access to forum
     ];
 
     const isPublicEndpoint = publicEndpoints.some(endpoint => config.url?.includes(endpoint));
 
+    // Only add token if user is authenticated AND endpoint is not explicitly public
     if (token && !isPublicEndpoint) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
@@ -38,6 +50,7 @@ api.interceptors.request.use(
     console.log('Request Interceptor:', {
       url: config.url,
       hasAuth: !!config.headers['Authorization'],
+      isPublic: isPublicEndpoint,
     });
 
     return config;
@@ -62,7 +75,7 @@ const processQueue = (error: Error | null, token: string | null = null) => {
   failedQueue = [];
 };
 
-// Response interceptor for handling token refresh
+// Response interceptor for handling token refresh and error messages
 api.interceptors.response.use(
   (response) => {
     return response;
@@ -70,7 +83,28 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
 
+    // Handle 403 Forbidden - No permission
+    if (error.response?.status === 403) {
+      console.error('403 Forbidden - Insufficient permissions');
+      if (showToast) {
+        showToast('Bạn không có quyền truy cập chức năng này', 'error');
+      }
+      return Promise.reject(error);
+    }
+
+    // Handle 401 Unauthorized
     if (error.response?.status === 401 && !originalRequest._retry) {
+      // Check if user has no token at all (not logged in)
+      const hasToken = !!localStorage.getItem('access_token');
+      if (!hasToken) {
+        console.error('401 Unauthorized - Not logged in');
+        if (showToast) {
+          showToast('Bạn cần đăng nhập để sử dụng chức năng này', 'error');
+        }
+        return Promise.reject(error);
+      }
+
+      // Token exists but expired, try to refresh
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -92,9 +126,10 @@ api.interceptors.response.use(
       const refreshToken = localStorage.getItem('refresh_token');
       if (!refreshToken) {
         console.error('DEBUG: No refresh token found in localStorage. Logging out.');
+        isRefreshing = false;
+        processQueue(new Error('No refresh token'), null);
         localStorage.clear();
         window.location.href = '/login';
-        isRefreshing = false;
         return Promise.reject(error);
       }
 
@@ -103,8 +138,15 @@ api.interceptors.response.use(
         const { data } = await axios.post(
           `${getApiBaseUrl()}/auth/refresh-token`,
           { refresh_token: refreshToken },
-          { headers: { 'Content-Type': 'application/json' } }
+          { 
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 10000 // 10 second timeout for refresh requests
+          }
         );
+
+        if (!data.success || !data.data || !data.data.access_token) {
+          throw new Error('Invalid refresh response structure');
+        }
 
         const newAccessToken = data.data.access_token;
         localStorage.setItem('access_token', newAccessToken);
@@ -129,6 +171,12 @@ api.interceptors.response.use(
             data: err.response?.data,
             message: err.message,
         });
+        
+        // If refresh token is also invalid/expired, clear everything
+        if (err.response?.status === 401 || err.response?.status === 403) {
+          console.error('DEBUG: Refresh token expired or invalid. Logging out.');
+        }
+        
         processQueue(err, null);
         localStorage.clear();
         window.location.href = '/login';
