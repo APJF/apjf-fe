@@ -7,6 +7,7 @@ import type {
   CourseExamsApiResponse,
   CreateCourseRequest,
   CreateCourseApiResponse,
+  EnrollCourseApiResponse,
   CreateChapterRequest,
   CreateChapterApiResponse,
   ChapterDetailApiResponse,
@@ -26,6 +27,12 @@ export class CourseService {
   // Get chapters by course ID  
   static async getChaptersByCourseId(courseId: string): Promise<ChaptersApiResponse> {
     const response = await api.get(`/courses/${courseId}/chapters`);
+    return response.data;
+  }
+
+  // Enroll in a course
+  static async enrollCourse(courseId: string): Promise<EnrollCourseApiResponse> {
+    const response = await api.post(`/courses/${courseId}/enroll`);
     return response.data;
   }
 

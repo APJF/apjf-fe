@@ -116,9 +116,16 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
 
   const loadSessions = useCallback(async () => {
     console.log('🔄 loadSessions called');
+    
+    if (!currentUserId) {
+      console.log('❌ No user ID, skipping loadSessions');
+      return;
+    }
+    
     try {
       setIsLoadingSessions(true); // Use separate loading state for sessions
       console.log('📞 Calling getSessions API with user ID:', currentUserId);
+      
       const apiSessions = await chatbotService.getSessions(currentUserId);
       console.log('✅ Got sessions from API:', apiSessions);
       
@@ -391,6 +398,11 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
         console.log('Context to send:', context);
         console.log('User ID:', currentUserId);
 
+        if (!currentUserId) {
+          console.error('❌ No user ID available for creating session');
+          return;
+        }
+
         const createSessionRequest = {
           user_id: currentUserId,
           session_type: currentSessionType,
@@ -579,6 +591,11 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
     return sessionType?.name || 'Trợ lý';
   };
 
+  // Don't render if no user ID (not authenticated)
+  if (!currentUserId) {
+    return null;
+  }
+  
   return (
     <>
       {/* Chat Popup - Xuất hiện từ icon với animation */}

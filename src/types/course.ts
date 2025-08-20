@@ -21,6 +21,7 @@ export interface Course {
   topics: Topic[];
   averageRating?: number;
   rating?: number; // thêm field này để tương thích
+  isEnrolled?: boolean; // field mới từ API course detail
   exams: Exam[];
   chapters?: Chapter[];
   enrollmentCount?: number; // thêm field này để tương thích
@@ -142,6 +143,19 @@ export interface CreateCourseApiResponse {
   success: boolean;
   message: string;
   data: Course;
+  timestamp: number;
+}
+
+// Enroll Course API Response
+export interface EnrollCourseApiResponse {
+  success: boolean;
+  message: string;
+  data: {
+    courseId: string;
+    courseTitle: string;
+    completed: boolean;
+    completedAt: string;
+  };
   timestamp: number;
 }
 

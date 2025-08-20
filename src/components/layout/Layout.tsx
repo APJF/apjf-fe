@@ -1,6 +1,7 @@
 import React from 'react';
 import { Header } from './Header';
 import Footer from './Footer';
+import { GlobalFloatingChat } from '../chatbot/GlobalFloatingChat';
 
 /**
  * Layout Component - Wrapper component cho toàn bộ trang
@@ -24,6 +25,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       {/* Footer */}
       <Footer />
+      
+      {/* Floating Chat - Only in Layout pages */}
+      <GlobalFloatingChat />
     </div>
   );
 };

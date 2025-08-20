@@ -1,24 +1,47 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Check, Loader2 } from "lucide-react"
+import { CourseService } from "../../services/courseService"
+import { useToast } from "../../hooks/useToast"
 
 export default function EnrollButton({
+  courseId,
   courseTitle,
+  isEnrolled = false,
 }: Readonly<{
   courseId: string
   courseTitle: string
+  isEnrolled?: boolean
 }>) {
   const [loading, setLoading] = useState(false)
-  const [enrolled, setEnrolled] = useState(false)
+  const [enrolled, setEnrolled] = useState(isEnrolled)
+  const { showToast } = useToast()
+
+  // Update enrolled state when isEnrolled prop changes
+  useEffect(() => {
+    setEnrolled(isEnrolled)
+  }, [isEnrolled])
 
   async function handleEnroll() {
     if (enrolled || loading) return
+    
     setLoading(true)
-    // Simulate API call for enrollment
-    await new Promise((r) => setTimeout(r, 900))
-    setEnrolled(true)
-    setLoading(false)
+    try {
+      const response = await CourseService.enrollCourse(courseId)
+      
+      if (response.success) {
+        setEnrolled(true)
+        showToast('success', response.message || `Đã đăng ký khóa học ${courseTitle} thành công!`)
+      } else {
+        showToast('error', response.message || 'Đăng ký khóa học thất bại')
+      }
+    } catch (error) {
+      console.error('Error enrolling in course:', error)
+      showToast('error', 'Có lỗi xảy ra khi đăng ký khóa học. Vui lòng thử lại.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (

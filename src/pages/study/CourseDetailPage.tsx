@@ -222,7 +222,11 @@ export default function CourseDetailPage() {
               <div className="mt-4 flex items-center gap-4">
                 <div className="text-2xl sm:text-3xl font-bold text-gray-900 tabular-nums">{t('courseDetail.free')}</div>
                 <div className="ml-auto">
-                  <EnrollButton courseId={course.id} courseTitle={course.title} />
+                  <EnrollButton 
+                    courseId={course.id} 
+                    courseTitle={course.title} 
+                    isEnrolled={course.isEnrolled} 
+                  />
                 </div>
               </div>
             </div>

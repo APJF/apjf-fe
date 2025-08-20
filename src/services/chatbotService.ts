@@ -65,17 +65,27 @@ export interface ChatMessage {
 /**
  * Utility function để lấy user ID từ localStorage
  */
-export function getCurrentUserId(): string {
+export function getCurrentUserId(): string | null {
   try {
+    // Try userInfo first (main auth storage)
+    const userInfoJson = localStorage.getItem('userInfo');
+    if (userInfoJson) {
+      const userInfo = JSON.parse(userInfoJson);
+      return userInfo.id?.toString() || null; // Return null if no ID
+    }
+    
+    // Fallback to legacy 'user' key
     const userJson = localStorage.getItem('user');
     if (userJson) {
       const user = JSON.parse(userJson);
-      return user.id || user.userId || '1'; // fallback to '1' if not found
+      return user.id?.toString() || user.userId?.toString() || null; // Return null if no ID
     }
-    return '1'; // default fallback
+    
+    console.warn('No user ID found in localStorage');
+    return null; // Return null instead of '1' when no user
   } catch (error) {
     console.error('Error getting user ID:', error);
-    return '1'; // default fallback
+    return null; // Return null instead of '1' when error
   }
 }
 

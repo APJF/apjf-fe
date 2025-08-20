@@ -14,7 +14,6 @@ import RegisterPage from "../pages/auth-user_profile/RegisterPage";
 import ForgotPasswordPage from "../pages/auth-user_profile/ForgotPasswordPage";
 import ResetPasswordPage from "../pages/auth-user_profile/ResetPasswordPage";
 import { VerifyOtpPage } from "../pages/auth-user_profile/VerifyOtpPage";
-// import ChatbotPage from "../pages/ChatbotPage";
 import UserProfilePage from "../pages/auth-user_profile/UserProfilePage";
 import ManagerDashboardPage from "../pages/manager/ManagerDashboardPage";
 import StaffDashboardPage from "../pages/staff/StaffDashboardPage";
@@ -367,23 +366,6 @@ const router = createBrowserRouter([
       </Layout>
     ),
   },
-  // Insert additional routes here
-  /*
-  {
-    path: '/course/:id',
-    element: <Layout><CourseDetailPage /></Layout>,
-  },
-  {
-    path: '/profile',
-    element: <Layout><ProfilePage /></Layout>,
-    loader: requireAuth, // Route protection
-  },
-  {
-    path: '/dashboard',
-    element: <Layout><DashboardPage /></Layout>,
-    loader: requireAuth,
-  },
-  */
 ]);
 
 /**

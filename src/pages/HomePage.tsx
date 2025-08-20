@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Hero } from '../components/layout/Hero';
-import { PopularCourses } from '../components/layout/PopularCourses';
+import { TopRatedCourses } from '../components/layout/TopRatedCourses';
 import { useLanguage } from '../contexts/LanguageContext';
 
 /**
@@ -18,7 +18,7 @@ const HomePage: React.FC = () => {
       <Hero />
 
       {/* Popular Courses Section */}
-      <PopularCourses />
+      <TopRatedCourses />
 
       {/* CTA Section */}
       <section className="bg-red-600 text-white py-16">

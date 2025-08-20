@@ -27,7 +27,6 @@ export interface JapanRoadmapViewProps {
   // Layout options - removed variant, now using standard size only
   showHeader?: boolean;
   showNavigation?: boolean;
-  showStageCards?: boolean;
   showActionButtons?: boolean;
   
   // Event handlers
@@ -70,7 +69,6 @@ export function JapanRoadmapView({
   className = "",
   showHeader = true,
   showNavigation = true,
-  showStageCards = true,
   showActionButtons = false,
   onStageClick,
   onPrimaryAction,
@@ -217,7 +215,8 @@ export function JapanRoadmapView({
     <Card className={`bg-gradient-to-br from-${themeColors.primary}-50 to-${themeColors.primary}-100 border-2 border-${themeColors.primary}-200 ${className}`}>
       {showHeader && (
         <CardHeader className={sizeClasses.card}>
-          <div className="flex justify-between items-start">
+          {/* Top section with title and action button */}
+          <div className="flex justify-between items-start mb-4">
             <div className="flex-1">
               <CardTitle className={`${sizeClasses.title} font-bold text-gray-900`}>
                 {title}
@@ -225,63 +224,78 @@ export function JapanRoadmapView({
               {subtitle && (
                 <p className={`${sizeClasses.text} text-gray-600 mt-1`}>{subtitle}</p>
               )}
-              
-              {/* Header info badges */}
-              {headerInfo && (
-                <div className="flex flex-wrap items-center gap-2 mt-2">
-                  {headerInfo.targetLevel && (
-                    <Badge className={`${themeColors.badge} text-xs`}>
-                      {headerInfo.targetLevel}
-                    </Badge>
-                  )}
-                  {headerInfo.status && (
-                    <Badge className={`${themeColors.badge} text-xs`}>
-                      {headerInfo.status}
-                    </Badge>
-                  )}
-                  {headerInfo.duration && (
-                    <span className={`${sizeClasses.text} text-gray-600`}>
-                      {headerInfo.duration} ngày
-                    </span>
-                  )}
-                  {headerInfo.completedStages !== undefined && headerInfo.totalStages && (
-                    <span className={`${sizeClasses.text} text-gray-600`}>
-                      {headerInfo.completedStages}/{headerInfo.totalStages} chặng
-                    </span>
-                  )}
-                </div>
-              )}
             </div>
-
-            {/* Progress display */}
-            {headerInfo && (
-              <div className="text-right">
-                {headerInfo.coursesCount !== undefined && (
-                  <>
-                    <div className={`text-xl font-bold text-${themeColors.primary}-600`}>
-                      {headerInfo.coursesCount}
-                    </div>
-                    <p className={`${sizeClasses.text} text-gray-600`}>Khóa học</p>
-                  </>
-                )}
-                {!headerInfo.coursesCount && (
-                  <>
-                    <div className={`text-xl font-bold text-${themeColors.primary}-600`}>
-                      {calculateOverallProgress()}%
-                    </div>
-                    <p className={`${sizeClasses.text} text-gray-600`}>Hoàn thành</p>
-                  </>
-                )}
-              </div>
+            
+            {/* Action button in top-right */}
+            {showActionButtons && onSecondaryAction && (
+              <Button 
+                variant="outline" 
+                className={`bg-white ${sizeClasses.button} flex items-center space-x-1 ml-4`}
+                onClick={onSecondaryAction}
+              >
+                {secondaryActionIcon}
+                <span>{secondaryActionLabel}</span>
+              </Button>
             )}
           </div>
+
+          {/* Bottom section with info and progress */}
+          {headerInfo && (
+            <div className="flex justify-between items-center">
+              <div className="flex flex-wrap items-center gap-3">
+                {headerInfo.targetLevel && (
+                  <Badge className={`${themeColors.badge} text-xs font-medium`}>
+                    {headerInfo.targetLevel}
+                  </Badge>
+                )}
+                {headerInfo.status && (
+                  <Badge className={`${themeColors.badge} text-xs font-medium`}>
+                    {headerInfo.status}
+                  </Badge>
+                )}
+                {headerInfo.duration && (
+                  <div className="flex items-center text-gray-600">
+                    <span className={`${sizeClasses.text} font-medium`}>
+                      {headerInfo.duration} ngày
+                    </span>
+                  </div>
+                )}
+                {headerInfo.completedStages !== undefined && headerInfo.totalStages && (
+                  <div className="flex items-center text-gray-600">
+                    <span className={`${sizeClasses.text} font-medium`}>
+                      {headerInfo.completedStages}/{headerInfo.totalStages} chặng
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Progress display */}
+              <div className="text-right">
+                {headerInfo.coursesCount !== undefined ? (
+                  <div className="space-y-1">
+                    <div className={`text-2xl font-bold text-${themeColors.primary}-600`}>
+                      {headerInfo.coursesCount}
+                    </div>
+                    <p className={`${sizeClasses.text} text-gray-600 font-medium`}>Khóa học</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <div className={`text-2xl font-bold text-${themeColors.primary}-600`}>
+                      {calculateOverallProgress()}%
+                    </div>
+                    <p className={`${sizeClasses.text} text-gray-600 font-medium`}>Hoàn thành</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </CardHeader>
       )}
 
       <CardContent className={sizeClasses.card}>
         {/* Japan Map with Stage Markers */}
-        <div className="relative">
-          <div className="relative rounded-lg overflow-hidden bg-gray-50">
+        <div className="relative mb-4">
+          <div className="relative rounded-xl overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 shadow-inner border border-gray-200">
             {/* Background Japan map image - maintain aspect ratio, show 100% */}
             <img 
               src="/img/Roadmap.webp" 
@@ -322,27 +336,27 @@ export function JapanRoadmapView({
                     {getStageIcon(stage.status)}
                     
                     {/* Hover tooltip */}
-                    <div className={`absolute left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-xl p-3 min-w-48 opacity-0 group-hover:opacity-100 transition-opacity z-30 border border-gray-200 pointer-events-none ${
+                    <div className={`absolute left-1/2 transform -translate-x-1/2 bg-white rounded-xl shadow-2xl p-4 min-w-52 opacity-0 group-hover:opacity-100 transition-all duration-200 z-30 border border-gray-100 pointer-events-none ${
                       stage.position!.y < 50 ? 'top-12' : 'bottom-12'
                     }`}>
                       <div className="text-left">
-                        <h4 className="font-semibold text-sm mb-1 text-gray-900">
+                        <h4 className="font-bold text-sm mb-2 text-gray-900">
                           {stage.title}
                         </h4>
-                        <p className="text-xs text-gray-600 mb-2">{stage.description}</p>
+                        <p className="text-xs text-gray-600 mb-3 leading-relaxed">{stage.description}</p>
                         
                         {/* Progress bar for in-progress stages */}
                         {stage.status === "in_progress" && stage.progress > 0 && (
-                          <div className="space-y-1 mb-2">
+                          <div className="space-y-2 mb-3">
                             <div className="flex justify-between text-xs">
-                              <span>Tiến độ</span>
-                              <span className={`font-semibold text-${themeColors.primary}-600`}>
+                              <span className="font-medium text-gray-700">Tiến độ</span>
+                              <span className={`font-bold text-${themeColors.primary}-600`}>
                                 {stage.progress}%
                               </span>
                             </div>
-                            <div className="w-full bg-gray-200 rounded-full h-1.5">
+                            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                               <div 
-                                className={`${themeColors.progressBar} h-1.5 rounded-full`} 
+                                className={`${themeColors.progressBar} h-2 rounded-full transition-all duration-300`} 
                                 style={{ width: `${stage.progress}%` }} 
                               />
                             </div>
@@ -350,7 +364,7 @@ export function JapanRoadmapView({
                         )}
                         
                         {/* Status badge */}
-                        <div className={`inline-block text-xs font-medium px-2 py-1 rounded-full ${getStageColor(stage.status)}`}>
+                        <div className={`inline-block text-xs font-semibold px-3 py-1.5 rounded-full ${getStageColor(stage.status)} shadow-sm`}>
                           {getStatusText(stage.status)}
                         </div>
                       </div>
@@ -364,7 +378,7 @@ export function JapanRoadmapView({
 
         {/* Navigation controls */}
         {showNavigation && totalPages > 1 && (
-          <div className="flex justify-center items-center space-x-3 mt-4">
+          <div className="flex justify-between items-center mt-4">
             <Button
               variant="outline"
               size="sm"
@@ -403,58 +417,16 @@ export function JapanRoadmapView({
           </div>
         )}
 
-        {/* Current stage cards - always show for standard variant */}
-        {showStageCards && (
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            {stagesWithPositions.map((stage) => (
-              <div key={stage.id} className={`p-2 rounded-lg border ${getStageColor(stage.status)}`}>
-                <div className="flex items-center space-x-2 mb-1">
-                  <div className="scale-75">
-                    {getStageIcon(stage.status)}
-                  </div>
-                  <span className="font-semibold text-xs">{stage.title}</span>
-                </div>
-                <h4 className="font-medium text-xs mb-1 leading-tight">{stage.title}</h4>
-                
-                {/* Progress bar for in-progress/completed stages */}
-                {stage.progress > 0 && (
-                  <div className="mt-2">
-                    <div className="w-full bg-white bg-opacity-50 rounded-full h-1">
-                      <div 
-                        className={`${themeColors.progressBar} h-1 rounded-full`} 
-                        style={{ width: `${stage.progress}%` }} 
-                      />
-                    </div>
-                    <span className="text-xs font-medium mt-1 block">{stage.progress}%</span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Action buttons */}
-        {showActionButtons && (onPrimaryAction || onSecondaryAction) && (
-          <div className="flex justify-center space-x-3 mt-4">
-            {onPrimaryAction && (
-              <Button 
-                className={`bg-${themeColors.primary}-600 hover:bg-${themeColors.primary}-700 text-white ${sizeClasses.button} flex items-center space-x-1`}
-                onClick={onPrimaryAction}
-              >
-                {primaryActionIcon}
-                <span>{primaryActionLabel}</span>
-              </Button>
-            )}
-            {onSecondaryAction && (
-              <Button 
-                variant="outline" 
-                className={`bg-white ${sizeClasses.button} flex items-center space-x-1`}
-                onClick={onSecondaryAction}
-              >
-                {secondaryActionIcon}
-                <span>{secondaryActionLabel}</span>
-              </Button>
-            )}
+        {/* Primary Action button */}
+        {showActionButtons && onPrimaryAction && (
+          <div className="flex justify-center mt-4">
+            <Button 
+              className={`bg-${themeColors.primary}-600 hover:bg-${themeColors.primary}-700 text-white ${sizeClasses.button} flex items-center space-x-2 px-6 py-3 font-medium`}
+              onClick={onPrimaryAction}
+            >
+              {primaryActionIcon}
+              <span>{primaryActionLabel}</span>
+            </Button>
           </div>
         )}
       </CardContent>

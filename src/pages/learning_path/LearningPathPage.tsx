@@ -12,10 +12,7 @@ import { Breadcrumb, type BreadcrumbItem } from '../../components/ui/Breadcrumb'
 import { JapanRoadmapView, type RoadmapStage } from '../../components/roadmap/JapanRoadmapView';
 import {
   BookOpen,
-  RefreshCw,
   Clock,
-  Award,
-  ArrowLeft,
   AlertCircle,
   Flag
 } from "lucide-react";
@@ -288,10 +285,6 @@ export function LearningPathPage() {
     }
   };
 
-  const handleRefresh = async () => {
-    await loadRoadmapData();
-  };
-
   const getStatusText = (status: string) => {
     switch (status) {
       case 'STUDYING': return 'Đang học';
@@ -326,80 +319,75 @@ export function LearningPathPage() {
 
   // Function to render a single learning module
   const renderSingleModule = (module: LearningModule) => (
-    <div key={module.id} className="bg-white border border-gray-200 rounded-xl shadow-sm p-3 flex flex-col gap-3">
-      {/* Main Info */}
-      <div>
-        <div className="flex items-center gap-2 mb-2 flex-wrap">
-          <span className="font-semibold text-sm text-gray-900">{module.title}</span>
-          <Badge className={`px-2 py-0.5 text-xs font-medium ${getLevelColor(module.level)}`}>
-            {module.level}
-          </Badge>
-          <Badge className={`px-2 py-0.5 text-xs font-medium ${getStatusColor(module.status)}`}>
-            {getStatusText(module.status)}
-          </Badge>
+    <div key={module.id} className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 p-6">
+      {/* Header with badges */}
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex-1">
+          <h3 className="font-semibold text-lg text-gray-900 mb-2">{module.title}</h3>
+          <p className="text-gray-600 text-sm mb-3">{module.description}</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge className={`px-3 py-1 text-xs font-medium rounded-full ${getLevelColor(module.level)}`}>
+              {module.level}
+            </Badge>
+            <Badge className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(module.status)}`}>
+              {getStatusText(module.status)}
+            </Badge>
+          </div>
         </div>
-        <div className="text-gray-600 text-xs mb-2">{module.description}</div>
       </div>
 
-      {/* Progress Bar - Chỉ hiển thị nếu có đủ dữ liệu */}
-      <div className="mb-2">
+      {/* Progress Section */}
+      <div className="mb-6">
         {module.completedLessons !== undefined && module.totalLessons !== undefined ? (
           <>
-            <div className="flex justify-between text-xs text-gray-500 mb-1">
-              <span>Tiến độ: {module.completedLessons}/{module.totalLessons}</span>
-              <span className="font-semibold text-blue-600">
+            <div className="flex justify-between text-sm text-gray-600 mb-2">
+              <span>Tiến độ học tập</span>
+              <span className="font-semibold text-red-600">
                 {Math.round((module.completedLessons/module.totalLessons)*100)}%
               </span>
             </div>
-            <div className="w-full h-1.5 bg-gray-200 rounded-full">
+            <div className="w-full h-2 bg-gray-200 rounded-full mb-2">
               <div 
-                className="h-1.5 rounded-full bg-blue-600" 
+                className="h-2 rounded-full bg-gradient-to-r from-red-500 to-red-600 transition-all duration-300" 
                 style={{ 
                   width: `${(module.completedLessons/module.totalLessons)*100}%`
                 }}
               ></div>
             </div>
+            <div className="text-xs text-gray-500">
+              {module.completedLessons}/{module.totalLessons} bài học hoàn thành
+            </div>
           </>
         ) : (
-          <div className="text-xs text-gray-500">
-            Thời gian dự kiến: {module.estimatedTime || 'Chưa xác định'}
+          <div className="text-sm text-gray-600">
+            <div className="flex items-center gap-2 mb-2">
+              <Clock className="h-4 w-4 text-red-500" />
+              <span>Thời gian dự kiến: {module.estimatedTime || 'Chưa xác định'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-red-500" />
+              <span>{module.totalLessons} bài học</span>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Stats và Action Buttons trên cùng 1 hàng */}
-      <div className="flex items-center justify-between gap-3">
-        {/* Stats Row */}
-        <div className="flex gap-3 text-xs text-gray-500">
-          <div className="flex items-center gap-1">
-            <BookOpen className="h-3 w-3" /> 
-            <span>{module.totalLessons} bài</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Clock className="h-3 w-3" /> 
-            <span>{module.estimatedTime}</span>
-          </div>
-        </div>
-
-        {/* Action Buttons - thu nhỏ */}
-        <div className="flex gap-1.5">
-          <Button 
-            size="sm" 
-            className="bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center text-xs px-2 py-1 h-7"
-            onClick={() => handleSetLearningPathActive(module.id)}
-          >
-            <Flag className="h-3 w-3 mr-1" />
-            Đặt lộ trình
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-gray-600 bg-white border text-xs px-2 py-1 h-7"
-            onClick={() => navigate(`/roadmap-detail/${module.id}`)}
-          >
-            Chi tiết
-          </Button>
-        </div>
+      {/* Action Buttons */}
+      <div className="flex gap-3">
+        <Button 
+          className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-3 rounded-lg transition-colors duration-200"
+          onClick={() => handleSetLearningPathActive(module.id)}
+        >
+          <Flag className="h-4 w-4 mr-2" />
+          Đặt lộ trình này làm lộ trình chính
+        </Button>
+        <Button
+          variant="outline"
+          className="px-6 py-3 text-gray-700 border-gray-300 hover:bg-gray-50 rounded-lg transition-colors duration-200"
+          onClick={() => navigate(`/roadmap-detail/${module.id}`)}
+        >
+          Chi tiết
+        </Button>
       </div>
     </div>
   );
@@ -410,7 +398,7 @@ export function LearningPathPage() {
       return (
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
-            <RefreshCw className="h-8 w-8 mx-auto mb-4 animate-spin text-blue-500" />
+            <Clock className="h-8 w-8 mx-auto mb-4 animate-spin text-blue-500" />
             <p className="text-gray-600">Đang tải lộ trình học...</p>
           </div>
         </div>
@@ -419,20 +407,18 @@ export function LearningPathPage() {
 
     if (error) {
       return (
-        <div className="text-center py-12">
-          <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-500" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Đã xảy ra lỗi</h3>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <div className="flex justify-center space-x-4">
-            <Button onClick={handleRefresh} className="bg-blue-600 hover:bg-blue-700 text-white">
-              <RefreshCw className="h-4 w-4 mr-1" />
-              Tải lại
-            </Button>
-            {error.includes("đăng nhập") && (
-              <Button onClick={() => navigate('/login')} className="bg-green-600 hover:bg-green-700 text-white">
-                Đăng nhập
-              </Button>
-            )}
+        <div className="text-center py-16">
+          <div className="max-w-md mx-auto">
+            <AlertCircle className="h-16 w-16 mx-auto mb-6 text-red-500" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">Đã xảy ra lỗi</h3>
+            <p className="text-gray-600 mb-6 text-sm leading-relaxed">{error}</p>
+            <div className="flex justify-center space-x-4">
+              {error.includes("đăng nhập") && (
+                <Button onClick={() => navigate('/login')} className="bg-red-600 hover:bg-red-700 text-white px-6 py-2">
+                  Đăng nhập
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       );
@@ -440,17 +426,16 @@ export function LearningPathPage() {
 
     if (filteredModules.length === 0) {
       return (
-        <div className="text-center py-12">
-          <BookOpen className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Chưa có lộ trình học chờ</h3>
-          <p className="text-gray-600 mb-4">
-            {activePath 
-              ? 'Bạn đã có một lộ trình đang học. Hãy hoàn thành lộ trình này trước khi thêm lộ trình mới.'
-              : 'Bạn chưa có lộ trình học nào. Hãy tạo lộ trình đầu tiên!'}
-          </p>
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-            + Tạo lộ trình mới
-          </Button>
+        <div className="text-center py-16">
+          <div className="max-w-md mx-auto">
+            <BookOpen className="h-16 w-16 mx-auto mb-6 text-gray-400" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">Chưa có lộ trình học chờ</h3>
+            <p className="text-gray-600 text-sm leading-relaxed">
+              {activePath 
+                ? 'Bạn đã có một lộ trình đang học. Hãy hoàn thành lộ trình này trước khi thêm lộ trình mới.'
+                : 'Bạn chưa có lộ trình học nào. Liên hệ với giáo viên để được hỗ trợ tạo lộ trình phù hợp.'}
+            </p>
+          </div>
         </div>
       );
     }
@@ -460,30 +445,12 @@ export function LearningPathPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-0 py-1">
-      <div className="flex items-center gap-4 mb-6">
-        <Button
-          variant="ghost"
-          onClick={() => navigate('/')}
-          className="p-2 hover:bg-gray-100 text-gray-600"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold text-blue-600">Lộ trình học tập</h1>
-          <p className="text-gray-600 text-sm">Quản lý và theo dõi tiến độ học tập của bạn</p>
-        </div>
-        <Button 
-          onClick={handleRefresh}
-          disabled={isLoading}
-          variant="outline"
-          className="flex items-center gap-2 ml-auto"
-        >
-          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          {isLoading ? 'Đang tải...' : 'Làm mới'}
-        </Button>
-      </div>          <Alert className="mb-6">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <div className="mb-6">
+            <Breadcrumb items={breadcrumbItems} />
+          </div>
+          <Alert className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <h3 className="font-semibold">Thông báo</h3>
             <p className="mt-2 text-sm">{error}</p>
@@ -494,118 +461,48 @@ export function LearningPathPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-0 py-1">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Breadcrumb */}
-        <div className="mb-4">
+        <div className="mb-6">
           <Breadcrumb items={breadcrumbItems} />
         </div>
 
         {/* Main Layout: Left (List) - Right (Current Roadmap) */}
-        <div className="flex gap-1">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
           {/* Left Side: Search + Learning Modules List */}
-          <div className="flex-1 w-3/5">
-            {/* Header với nút lùi về và tiêu đề */}
-            <div className="flex items-center gap-4 mb-4">
-              <Button
-                variant="ghost"
-                onClick={() => navigate('/')}
-                className="p-2 hover:bg-gray-100 text-gray-600"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-blue-600">Lộ trình học tập</h1>
-                <p className="text-gray-600 text-sm">
-                  Quản lý và theo dõi tiến độ học tập của bạn
-                  {process.env.NODE_ENV === 'development' && (
-                    <span className="ml-2 text-xs bg-gray-100 px-1 py-0.5 rounded">
-                      {modules.length} lộ trình chờ, {activePath ? '1' : '0'} lộ trình đang học
-                    </span>
-                  )}
-                </p>
-              </div>
-              <Button 
-                onClick={handleRefresh}
-                disabled={isLoading}
-                variant="outline"
-                className="flex items-center gap-2 ml-auto"
-              >
-                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                {isLoading ? 'Đang tải...' : 'Làm mới'}
-              </Button>
-            </div>
-            {/* Progress Overview Cards */}
-            <div className="grid grid-cols-2 gap-3 mb-4 w-full">
-              <Card className="bg-blue-600 text-white">
-                <CardContent className="p-3">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-blue-100 text-xs">Tổng lộ trình</p>
-                      <p className="text-xl font-bold">{modules.length}</p>
-                    </div>
-                    <BookOpen className="h-6 w-6 text-blue-200" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-green-600 text-white">
-                <CardContent className="p-3">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="text-green-100 text-xs">Hoàn thành</p>
-                      <p className="text-xl font-bold">
-                        {modules.filter(m => m.status === 'FINISHED').length}
-                      </p>
-                    </div>
-                    <Award className="h-6 w-6 text-green-200" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Search, Filter, Sort Controls và nút Tạo lộ trình */}
-            <div className="flex flex-wrap gap-3 mb-3 items-center justify-between">
-              <div className="flex flex-wrap gap-3 items-center">
+          <div className="lg:col-span-3">
+            {/* Search và Sort trên cùng một dòng */}
+            <div className="flex gap-4 mb-6">
+              <div className="flex-1">
                 <Input
-                  placeholder="Tìm kiếm lộ trình..."
+                  placeholder="Tìm kiếm lộ trình học tập..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  className="w-48 text-sm"
+                  className="w-full h-11 text-sm border-gray-300 focus:border-red-500 focus:ring-red-500"
                 />
-                {/* Không cần filter trạng thái vì chỉ hiển thị PENDING */}
-                {/*<select
-                  value={filterStatus}
-                  onChange={e => setFilterStatus(e.target.value)}
-                  className="border rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="PENDING">Chưa bắt đầu</option>
-                  <option value="STUDYING">Đang học</option>
-                  <option value="FINISHED">Hoàn thành</option>
-                </select>*/}
-                <select
-                  value={sortOrder}
-                  onChange={e => setSortOrder(e.target.value)}
-                  className="border rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="newest">Mới nhất</option>
-                  <option value="oldest">Cũ nhất</option>
-                </select>
               </div>
-              <Button className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2">
-                + Tạo lộ trình mới
-              </Button>
+              <select
+                value={sortOrder}
+                onChange={e => setSortOrder(e.target.value)}
+                className="h-11 px-4 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white min-w-[140px]"
+              >
+                <option value="newest">Mới nhất</option>
+                <option value="oldest">Cũ nhất</option>
+              </select>
             </div>
 
             {/* Learning Modules */}
-            <div className="space-y-3">
+            <div className="space-y-4">
               {renderLearningModules()}
             </div>
           </div>
 
           {/* Right Side: Current Learning Roadmap */}
-          <div className="w-2/5 sticky top-16 self-start">
-            <CurrentLearningRoadmap activePath={activePath} />
+          <div className="lg:col-span-2">
+            <div className="sticky top-6">
+              <CurrentLearningRoadmap activePath={activePath} />
+            </div>
           </div>
         </div>
       </div>

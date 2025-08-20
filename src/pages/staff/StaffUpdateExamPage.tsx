@@ -7,16 +7,28 @@ import { Label } from '../../components/ui/Label'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
 import { Alert } from '../../components/ui/Alert'
+import { UnitSelector } from '../../components/ui/UnitSelector'
+import { StaffExamService } from '../../services/staffExamService'
 import { UnitService, type Unit } from '../../services/unitService'
 import { QuestionService } from '../../services/questionService'
-import { StaffExamService } from '../../services/staffExamService'
 import { StaffNavigation } from '../../components/layout/StaffNavigation'
-import QuestionDialog from '../../components/exam/QuestionDialog'
-import { UnitSelector } from '../../components/ui/UnitSelector'
-import { FileText, BookOpen, Settings, CheckCircle, Plus, Search, ArrowLeft, Edit, Trash2, AlertTriangle, Upload, Minus } from "lucide-react"
 import { useToast } from '../../hooks/useToast'
-import api from '../../api/axios'
-import type { Question } from '../../types/exam'
+// import { useAuth } from '../../hooks/useAuth'
+import { 
+  FileText, 
+  BookOpen, 
+  Settings, 
+  CheckCircle, 
+  Plus, 
+  Search, 
+  Minus, 
+  Edit, 
+  Trash2, 
+  AlertTriangle,
+  ArrowLeft
+} from "lucide-react"
+import type { Question } from '../../types/question'
+import axios from 'axios'
 
 interface ExamQuestion {
   id: string
@@ -31,7 +43,6 @@ interface ExamQuestion {
   }>
   correctAnswer?: string
   explanation?: string
-  points: number
   difficulty: "Dễ" | "Trung bình" | "Khó"
   skill: "Ngữ pháp" | "Từ vựng" | "Kanji" | "Đọc hiểu" | "Nghe"
   isNew?: boolean // Flag để đánh dấu question mới tạo
@@ -51,18 +62,6 @@ interface QuestionFormData {
     content: string
     isCorrect: boolean
   }>
-  unitIds: string[]
-}
-
-interface AvailableQuestion {
-  id: string
-  content: string
-  scope: string
-  type: string
-  explanation: string
-  fileUrl: string | null
-  createdAt: string
-  options: any[] | null
   unitIds: string[]
 }
 
@@ -116,6 +115,7 @@ export const StaffUpdateExamPage: React.FC = () => {
   const location = useLocation()
   const state = location.state as LocationState
   const { showToast } = useToast()
+  // const { user } = useAuth()
 
   const [examState, setExamState] = useState<ExamUpdateState>({
     currentStep: 1,
@@ -127,140 +127,135 @@ export const StaffUpdateExamPage: React.FC = () => {
 
   // Question management state
   const [editingQuestion, setEditingQuestion] = useState<ExamQuestion | null>(null)
-  const [showQuestionDialog, setShowQuestionDialog] = useState(false)
+  // const [showQuestionDialog, setShowQuestionDialog] = useState(false)
   const [showSelectQuestionDialog, setShowSelectQuestionDialog] = useState(false)
   const [showNewQuestionDialog, setShowNewQuestionDialog] = useState(false)
 
-  // Available questions state (for selection popup)
-  const [availableQuestions, setAvailableQuestions] = useState<AvailableQuestion[]>([])
-  const [availableUnits, setAvailableUnits] = useState<any[]>([])
+  // Available questions state (for selection popup) - sử dụng Question type từ question.ts
+  const [availableQuestions, setAvailableQuestions] = useState<Question[]>([])
+  const [allUnits, setAllUnits] = useState<Unit[]>([]) // All units for UnitSelector in NewQuestionDialog
   const [loading, setLoading] = useState(false)
 
-  // Filters for available questions
-  const [searchTerm, setSearchTerm] = useState('')
+  // Filters for available questions - cập nhật theo StaffCreateQuestion
+  const [searchQuestionId, setSearchQuestionId] = useState('')
   const [unitFilter, setUnitFilter] = useState<string>('all')
-  const [typeFilter, setTypeFilter] = useState<string>('all')
-  const [scopeFilter, setScopeFilter] = useState<string>('all')
   
-  // Pagination for available questions
+  // Pagination for available questions - cập nhật với pageSize changeable
   const [currentPage, setCurrentPage] = useState(0)
-  const [pageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(10)
   const [totalPages, setTotalPages] = useState(0)
   const [totalElements, setTotalElements] = useState(0)
-
-  // All units for UnitSelector in NewQuestionDialog
-  const [allUnits, setAllUnits] = useState<Unit[]>([])
 
   // Load exam data on component mount
   useEffect(() => {
     loadExamData()
-    loadUnits()
+    loadUnitsForCourse()
   }, [examId])
 
   useEffect(() => {
     if (showSelectQuestionDialog) {
-      loadAvailableUnits()
-      loadAvailableQuestions()
+      loadUnitsForCourse() // Load units for filter
+      const delayedFetch = setTimeout(() => {
+        loadAvailableQuestions()
+      }, 300) // Debounce search
+      
+      return () => clearTimeout(delayedFetch)
     }
-  }, [showSelectQuestionDialog])
+  }, [showSelectQuestionDialog, currentPage, pageSize, searchQuestionId, unitFilter])
 
-  useEffect(() => {
-    if (showSelectQuestionDialog) {
-      loadAvailableQuestions()
-    }
-  }, [currentPage, pageSize, searchTerm, unitFilter, typeFilter, scopeFilter])
-
-  // Load all units for unit selector
-  const loadUnits = async () => {
+  // Load units based on course scope for both filter and NewQuestionDialog
+  // Using old logic: get chapters by courseId, then get units by chapterId
+  const loadUnitsForCourse = async () => {
     try {
-      // Load units using UnitService
-      const unitsData = await UnitService.getAllUnits()
-      setAllUnits(unitsData)
+      let staffUnits: any[] = []
+      
+      if (examState.examData?.scope === 'COURSE') {
+        // Step 1: Get all chapters of this course
+        const chapters = await StaffExamService.getChaptersByCourseId(examState.examData.courseId!)
+        console.log('Chapters for course:', chapters)
+        
+        // Step 2: Get units for each chapter
+        for (const chapter of chapters) {
+          try {
+            const chapterUnits = await StaffExamService.getUnitsByChapterId(chapter.id)
+            staffUnits = [...staffUnits, ...chapterUnits]
+          } catch (error) {
+            console.error(`Error loading units for chapter ${chapter.id}:`, error)
+            // Continue with other chapters even if one fails
+          }
+        }
+      } else if (examState.examData?.scope === 'CHAPTER') {
+        // Load units by chapter directly
+        staffUnits = await StaffExamService.getUnitsByChapterId(examState.examData.chapterId!)
+      } else if (examState.examData?.scope === 'UNIT') {
+        // For unit scope, we need to get the specific unit info
+        // Since we don't have a direct API, we'll get all units and filter by ID
+        const allUnits = await UnitService.getAllUnits()
+        const unitData = allUnits.find(unit => unit.id === examState.examData?.unitId)
+        if (unitData) {
+          staffUnits = [{
+            id: unitData.id,
+            title: unitData.title,
+            description: '',
+            status: 'ACTIVE',
+            chapterId: unitData.chapterId,
+            courseId: unitData.courseId,
+            prerequisiteUnitId: null
+          }]
+        }
+      }
+      
+      console.log('All units loaded for scope:', staffUnits)
+      
+      // Convert StaffUnit to Unit format
+      const units: Unit[] = staffUnits.map(unit => ({
+        id: unit.id,
+        title: unit.title,
+        chapterId: unit.chapterId,
+        courseId: unit.courseId
+      }))
+      
+      setAllUnits(units)
     } catch (error) {
-      console.error('Failed to load units:', error)
-      // Set empty array as fallback
+      console.error('Error loading units for course:', error)
+      showToast('error', 'Lỗi khi tải danh sách units')
       setAllUnits([])
     }
   }
 
-  // Load available units based on scope
-  const loadAvailableUnits = async () => {
-    try {
-      setLoading(true)
-      let units: any[] = []
-      
-      if (examState.examData?.scope === 'COURSE') {
-        // For course-level exam, get all units in the course via chapters
-        if (examState.examData.courseId) {
-          const chapters = await StaffExamService.getChaptersByCourseId(examState.examData.courseId)
-          // Get units from all chapters
-          for (const chapter of chapters) {
-            const chapterUnits = await StaffExamService.getUnitsByChapterId(chapter.id)
-            units = [...units, ...chapterUnits]
-          }
-        }
-      } else if (examState.examData?.scope === 'CHAPTER') {
-        // For chapter-level exam, get all units in the chapter
-        if (examState.examData.chapterId) {
-          units = await StaffExamService.getUnitsByChapterId(examState.examData.chapterId)
-        }
-      } else if (examState.examData?.scope === 'UNIT') {
-        // For unit-level exam, get only the specific unit via all units
-        if (examState.examData.unitId) {
-          const allUnits = await UnitService.getAllUnits()
-          const unit = allUnits.find(u => u.id === examState.examData?.unitId)
-          units = unit ? [unit] : []
-        }
-      }
-      
-      setAvailableUnits(units)
-    } catch (error) {
-      console.error('Error loading units:', error)
-      showToast('error', 'Lỗi khi tải danh sách units')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Load available questions with filtering
+  // Load available questions with filtering - sử dụng QuestionService như StaffCreateQuestion
   const loadAvailableQuestions = async () => {
     try {
       setLoading(true)
       
-      let params: any = {
-        page: currentPage,
-        size: pageSize
+      // Prepare filters theo cách của StaffCreateQuestion
+      const questionIdParam = searchQuestionId?.trim() || undefined
+      const unitIdParam = unitFilter === "all" ? undefined : unitFilter
+      
+      const pagedData = await QuestionService.getAllQuestions(
+        currentPage, 
+        pageSize, 
+        questionIdParam, 
+        unitIdParam
+      )
+      console.log('Paged questions data received:', pagedData)
+      
+      // pagedData is now PagedQuestions type with all pagination info
+      const safeQuestionsData = Array.isArray(pagedData.content) ? pagedData.content : []
+      setAvailableQuestions(safeQuestionsData)
+      
+      // Set pagination info from PagedQuestions
+      if (pagedData.number !== currentPage) {
+        setCurrentPage(pagedData.number || 0)
       }
-
-      // Add search term
-      if (searchTerm.trim()) {
-        params.search = searchTerm.trim()
-      }
-
-      // Add filters
-      if (typeFilter !== 'all') {
-        params.type = typeFilter
-      }
-      if (scopeFilter !== 'all') {
-        params.scope = scopeFilter
-      }
-
-      // Handle unit filtering based on exam scope
-      if (examState.examData?.scope === 'UNIT') {
-        // For unit-level exam, only show questions from that unit
-        params.unitId = examState.examData.unitId
-      } else if (unitFilter !== 'all') {
-        params.unitId = unitFilter
-      }
-
-      const result = await StaffExamService.getQuestions(params)
-      setAvailableQuestions(result.content)
-      setTotalPages(result.totalPages)
-      setTotalElements(result.totalElements)
+      setTotalPages(pagedData.totalPages)
+      setTotalElements(pagedData.totalElements)
     } catch (error) {
       console.error('Error loading questions:', error)
       showToast('error', 'Lỗi khi tải danh sách câu hỏi')
       setAvailableQuestions([])
+      setTotalPages(0)
+      setTotalElements(0)
     } finally {
       setLoading(false)
     }
@@ -287,8 +282,14 @@ export const StaffUpdateExamPage: React.FC = () => {
       setExamState(prev => ({ ...prev, isLoading: true, error: null }))
       
       // Get auth headers
+      const token = localStorage.getItem('access_token')
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+      
       // API call to get exam details
-      const examResponse = await api.get(`/exams/${examId}`)
+      const examResponse = await axios.get(`http://localhost:8080/api/exams/${examId}`, { headers })
       
       if (!examResponse.data.success) {
         throw new Error(examResponse.data.message || 'Không thể tải thông tin bài thi')
@@ -296,14 +297,69 @@ export const StaffUpdateExamPage: React.FC = () => {
 
       const examData = examResponse.data.data
 
-      // API call to get exam questions
-      const questionsResponse = await api.get(`/exams/${examId}/questions`)
+      // API call to get exam questions - sử dụng QuestionService để lấy thông tin đầy đủ bao gồm đáp án đúng
+      const questionsResponse = await axios.get(`http://localhost:8080/api/exams/${examId}/questions`, { headers })
       
       if (!questionsResponse.data.success) {
         throw new Error(questionsResponse.data.message || 'Không thể tải câu hỏi bài thi')
       }
 
-      const questions = questionsResponse.data.data || []
+      const questionIds = questionsResponse.data.data || []
+      const detailedQuestions = []
+
+      // Lấy thông tin chi tiết từng câu hỏi qua QuestionService để có đáp án đúng
+      for (const questionId of questionIds) {
+        try {
+          // Ensure questionId is a string, not an object
+          const idString = typeof questionId === 'string' ? questionId : questionId.id || questionId
+          console.log(`Loading question details for ID: ${idString}`)
+          
+          // Kết hợp 2 API calls:
+          // 1. getQuestionById - lấy thông tin chi tiết đầy đủ (nhưng không có đáp án đúng)
+          // 2. getAllQuestions với search - lấy đáp án đúng (isCorrect flag)
+          
+          const [detailQuestion, searchResult] = await Promise.all([
+            QuestionService.getQuestionById(idString),
+            QuestionService.getAllQuestions(0, 1, idString, undefined)
+          ])
+          
+          console.log(`Detail question (no correct answers):`, detailQuestion)
+          console.log(`Search result (with correct answers):`, searchResult)
+          
+          // Combine data: use detail question as base, but merge correct answers from search
+          let combinedQuestion = { ...detailQuestion }
+          
+          if (searchResult.content && searchResult.content.length > 0) {
+            const searchQuestion = searchResult.content[0]
+            console.log(`Search question found with options:`, searchQuestion.options)
+            
+            // Merge options with correct answers from search result
+            if (searchQuestion.options && searchQuestion.options.length > 0) {
+              combinedQuestion.options = searchQuestion.options.map(searchOption => ({
+                id: searchOption.id,
+                content: searchOption.content,
+                isCorrect: searchOption.isCorrect // This is the key data we need
+              }))
+            }
+          }
+          
+          console.log(`Combined question ${idString} with correct answers:`, combinedQuestion.options)
+          detailedQuestions.push(combinedQuestion)
+        } catch (error) {
+          console.error(`Error loading question ${questionId}:`, error)
+          // Nếu không lấy được từ QuestionService, tạo question cơ bản
+          const idString = typeof questionId === 'string' ? questionId : questionId.id || questionId
+          detailedQuestions.push({
+            id: idString,
+            content: `Câu hỏi ${idString}`,
+            type: 'MULTIPLE_CHOICE',
+            scope: 'VOCAB',
+            options: [],
+            explanation: '',
+            unitIds: []
+          })
+        }
+      }
 
       // Convert API response to ExamData format
       const processedExamData: ExamData = {
@@ -319,25 +375,31 @@ export const StaffUpdateExamPage: React.FC = () => {
         type: examData.type,
         gradingMethod: examData.gradingMethod,
         instructions: examData.instructions || '',
-        questions: questions.map((q: any) => ({
-          id: q.id,
-          type: q.type,
-          question: q.content,
-          content: q.content,
-          scope: q.scope,
-          options: q.options || [],
-          correctAnswer: '',
-          explanation: q.explanation || '',
-          points: 1, // Default points, có thể cần điều chỉnh
-          difficulty: "Trung bình" as const,
-          skill: "Ngữ pháp" as const,
-          isNew: false,
-          unitIds: q.unitIds || []
-        })),
+        questions: detailedQuestions.map((q: any) => {
+          console.log(`Processing question ${q.id} with options:`, q.options)
+          return {
+            id: q.id,
+            type: q.type,
+            question: q.content,
+            content: q.content,
+            scope: q.scope,
+            options: q.options ? q.options.map((opt: any) => ({
+              id: opt.id,
+              content: opt.content,
+              isCorrect: opt.isCorrect
+            })) : [],
+            correctAnswer: '',
+            explanation: q.explanation || '',
+            difficulty: "Trung bình" as const,
+            skill: "Ngữ pháp" as const,
+            isNew: false, // Existing questions from exam
+            unitIds: q.unitIds || []
+          }
+        }),
         status: 'ACTIVE',
         createdAt: examData.createdAt,
         updatedAt: examData.updatedAt,
-        totalPoints: questions.length * 1, // Calculate based on actual questions
+        totalPoints: detailedQuestions.length * 1, // Calculate based on actual questions
         level: 'N5', // Default level, có thể cần điều chỉnh
         passingScore: 60,
         difficulty: 'Trung bình',
@@ -442,28 +504,79 @@ export const StaffUpdateExamPage: React.FC = () => {
     handleInputChange('questions', updatedQuestions)
   }
 
-  const handleSaveQuestion = (question: Question) => {
-    // Convert Question to ExamQuestion
-    const examQuestion: ExamQuestion = {
-      id: question.id,
-      type: question.type,
-      question: question.question,
-      content: question.question, // Use question field for content
-      scope: "VOCAB" as const, // Default value since Question doesn't have scope
-      options: question.options || [],
-      explanation: question.explanation,
-      points: question.points,
-      difficulty: question.difficulty as "Dễ" | "Trung bình" | "Khó",
-      skill: question.skill as "Ngữ pháp" | "Từ vựng" | "Kanji" | "Đọc hiểu" | "Nghe",
-      unitIds: [] // Default empty array since Question doesn't have unitIds
-    }
-    
-    handleSaveNewQuestion(examQuestion)
-  }
+  const handleEditQuestionClick = async (question: ExamQuestion) => {
+    try {
+      // If this is a new question (isNew = true), no need to fetch from API
+      if (question.isNew === true) {
+        setEditingQuestion(question)
+        setShowNewQuestionDialog(true)
+        return
+      }
+      
+      // For existing questions, kết hợp dữ liệu từ 2 nguồn:
+      // 1. question từ list (có thông tin đáp án đúng)
+      // 2. fullQuestion từ detail API (có đầy đủ thông tin khác như units)
+      console.log('Question from list (có correct answers):', question)
+      
+      // Fetch full question details to get complete data including units
+      console.log('Fetching question details for ID:', question.id)
+      const fullQuestion = await QuestionService.getQuestionById(question.id)
+      console.log('Full question from detail API:', fullQuestion)
+      
+      // Combine options: use options from question (với isCorrect) nhưng ensure có đầy đủ fields
+      const combinedOptions = question.options?.map((listOption, index) => ({
+        id: listOption.id || `${question.id}-${index + 1}`,
+        content: listOption.content,
+        isCorrect: listOption.isCorrect // Lấy isCorrect từ list data
+      })) || []
+      
+      // Nếu fullQuestion có options mà list không có, merge chúng
+      if (fullQuestion.options && fullQuestion.options.length > 0) {
+        fullQuestion.options.forEach((detailOption) => {
+          const existingOption = combinedOptions.find(opt => opt.id === detailOption.id)
+          if (!existingOption) {
+            // Option mới từ detail API, add vào (nhưng cần xác định isCorrect từ list)
+            const listMatch = question.options?.find(opt => opt.content === detailOption.content)
+            combinedOptions.push({
+              id: detailOption.id || `${question.id}-${combinedOptions.length + 1}`,
+              content: detailOption.content,
+              isCorrect: listMatch?.isCorrect || false
+            })
+          } else {
+            // Update content từ detail API nhưng giữ nguyên isCorrect từ list
+            existingOption.content = detailOption.content
+          }
+        })
+      }
 
-  const handleEditQuestionClick = (question: ExamQuestion) => {
-    setEditingQuestion(question)
-    setShowQuestionDialog(true)
+      // Ensure unitIds is always an array (lấy từ detail API)
+      const safeUnitIds = Array.isArray(fullQuestion.unitIds) ? fullQuestion.unitIds : []
+      
+      console.log('Combined options with correct answers:', combinedOptions)
+      console.log('Safe unitIds from detail API:', safeUnitIds)
+
+      // Use combined data for editingQuestion
+      const combinedQuestion: ExamQuestion = {
+        ...question,
+        // Update with data from detail API
+        content: fullQuestion.content || question.content,
+        explanation: fullQuestion.explanation || question.explanation,
+        options: combinedOptions,
+        unitIds: safeUnitIds,
+        // Keep the ExamQuestion specific fields
+        question: fullQuestion.content || question.content,
+        type: 'MULTIPLE_CHOICE', // Fixed to MULTIPLE_CHOICE
+        difficulty: question.difficulty,
+        skill: question.skill,
+        isNew: false // Existing question
+      }
+      
+      setEditingQuestion(combinedQuestion)
+      setShowNewQuestionDialog(true)
+    } catch (error: any) {
+      console.error('Error fetching question details:', error)
+      showToast('error', error.message || 'Không thể tải chi tiết câu hỏi')
+    }
   }
 
   const handleDeleteQuestionClick = (questionId: string) => {
@@ -591,7 +704,13 @@ export const StaffUpdateExamPage: React.FC = () => {
       }
 
       // Get auth headers
-      const updateResponse = await api.put(`/exams/${examId}`, updateExamPayload)
+      const token = localStorage.getItem('access_token')
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+
+      const updateResponse = await axios.put(`http://localhost:8080/api/exams/${examId}`, updateExamPayload, { headers })
       
       if (!updateResponse.data.success) {
         throw new Error(updateResponse.data.message || 'Không thể cập nhật thông tin bài thi')
@@ -601,9 +720,10 @@ export const StaffUpdateExamPage: React.FC = () => {
       if (examState.examData.questions.length > 0) {
         const questionIds = examState.examData.questions.map(q => q.id)
 
-        const addQuestionsResponse = await api.post(
-          `/exams/${examId}/questions`, 
-          questionIds // Gửi array đơn giản theo format API
+        const addQuestionsResponse = await axios.post(
+          `http://localhost:8080/api/exams/${examId}/questions`, 
+          questionIds, // Gửi array đơn giản theo format API
+          { headers }
         )
         
         if (!addQuestionsResponse.data.success) {
@@ -1061,8 +1181,8 @@ export const StaffUpdateExamPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Question Dialog */}
-          <QuestionDialog
+          {/* Question Dialog - commented out temporarily */}
+          {/* <QuestionDialog
             isOpen={showQuestionDialog}
             question={editingQuestion}
             onSave={handleSaveQuestion}
@@ -1070,7 +1190,7 @@ export const StaffUpdateExamPage: React.FC = () => {
               setShowQuestionDialog(false)
               setEditingQuestion(null)
             }}
-          />
+          /> */}
 
           {/* New Question Dialog */}
           <NewQuestionDialog
@@ -1089,23 +1209,19 @@ export const StaffUpdateExamPage: React.FC = () => {
             isOpen={showSelectQuestionDialog}
             onClose={() => setShowSelectQuestionDialog(false)}
             onSelectQuestions={handleSelectQuestions}
-            state={state}
             availableQuestions={availableQuestions}
-            availableUnits={availableUnits}
+            availableUnits={allUnits}
             loading={loading}
-            searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
+            searchQuestionId={searchQuestionId}
+            setSearchQuestionId={setSearchQuestionId}
             unitFilter={unitFilter}
             setUnitFilter={setUnitFilter}
-            typeFilter={typeFilter}
-            setTypeFilter={setTypeFilter}
-            scopeFilter={scopeFilter}
-            setScopeFilter={setScopeFilter}
             currentPage={currentPage}
             setCurrentPage={setCurrentPage}
             totalPages={totalPages}
             totalElements={totalElements}
             pageSize={pageSize}
+            setPageSize={setPageSize}
             existingQuestions={examState.examData?.questions || []}
           />
         </div>
@@ -1168,7 +1284,6 @@ const QuestionListItem: React.FC<QuestionListItemProps> = ({ question, index, on
           </div>
         </div>
         <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-600">{question.points} điểm</span>
           <Button
             variant="ghost"
             size="sm"
@@ -1191,19 +1306,19 @@ const QuestionListItem: React.FC<QuestionListItemProps> = ({ question, index, on
       <h4 className="font-medium text-gray-900 mb-2">{question.question || question.content}</h4>
 
       {question.type === 'MULTIPLE_CHOICE' && question.options && question.options.length > 0 && (
-        <div className="space-y-1">
+        <div className="space-y-1 mb-2">
           {question.options.map((option, optionIndex) => (
             <div
               key={option.id}
-              className={`text-sm p-2 rounded ${
+              className={`text-sm p-2 rounded flex items-center ${
                 option.isCorrect 
-                  ? 'bg-green-50 text-green-800 border border-green-200' 
-                  : 'text-gray-600'
+                  ? "bg-green-50 text-green-800 border border-green-200" 
+                  : "text-gray-600 bg-gray-50"
               }`}
             >
               <span className="font-medium mr-2">{String.fromCharCode(65 + optionIndex)}.</span>
-              {option.content}
-              {option.isCorrect && <CheckCircle className="h-3 w-3 inline ml-2 text-green-600" />}
+              <span className="flex-1">{option.content}</span>
+              {option.isCorrect && <CheckCircle className="h-3 w-3 ml-2 text-green-600" />}
             </div>
           ))}
         </div>
@@ -1238,16 +1353,10 @@ const ExamSummary: React.FC<ExamSummaryProps> = ({ examData }) => {
         <CardTitle className="text-lg">Tổng quan exam</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <div className="text-center p-3 bg-blue-50 rounded-lg">
             <div className="text-2xl font-bold text-blue-600">{examData.questions.length}</div>
             <div className="text-sm text-gray-600">Câu hỏi</div>
-          </div>
-          <div className="text-center p-3 bg-green-50 rounded-lg">
-            <div className="text-2xl font-bold text-green-600">
-              {examData.questions.reduce((sum, q) => sum + q.points, 0)}
-            </div>
-            <div className="text-sm text-gray-600">Tổng điểm</div>
           </div>
         </div>
 
@@ -1463,7 +1572,6 @@ const NewQuestionDialog: React.FC<NewQuestionDialogProps> = ({
       scope: formData.scope,
       options: formData.type === 'MULTIPLE_CHOICE' ? formData.options : undefined,
       explanation: formData.explanation,
-      points: 10,
       difficulty: 'Trung bình',
       skill: 'Ngữ pháp',
       unitIds: formData.unitIds,
@@ -1515,48 +1623,18 @@ const NewQuestionDialog: React.FC<NewQuestionDialogProps> = ({
               />
             </div>
             <div>
-              <label htmlFor="fileUpload" className="block text-sm font-medium text-gray-700 mb-1">
-                File đính kèm
-              </label>
-              <div className="relative">
-                <input
-                  id="fileUpload"
-                  type="file"
-                  accept="image/*,audio/*,video/*,.pdf,.doc,.docx"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] || null;
-                    setFormData(prev => ({ ...prev, uploadedFile: file }));
-                  }}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                />
-                <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white/70 flex items-center justify-between cursor-pointer hover:bg-gray-50">
-                  <span className="text-gray-500 text-sm">
-                    {formData.uploadedFile?.name ?? 'Chọn file...'}
-                  </span>
-                  <Upload className="h-4 w-4 text-gray-400" />
-                </div>
-              </div>
+              <label htmlFor="questionType" className="block text-sm font-medium text-gray-700 mb-1">Loại câu hỏi</label>
+              <Input
+                id="questionType"
+                value="Trắc nghiệm"
+                disabled
+                className="bg-gray-100 text-gray-600"
+              />
             </div>
           </div>
 
-          {/* Type and Scope */}
+          {/* Scope */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="questionType" className="block text-sm font-medium text-gray-700 mb-1">Loại câu hỏi</label>
-              <select
-                id="questionType"
-                value={formData.type}
-                onChange={(e) => setFormData(prev => ({ 
-                  ...prev, 
-                  type: e.target.value as 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'WRITING'
-                }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white/70 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="MULTIPLE_CHOICE">Trắc nghiệm</option>
-                <option value="TRUE_FALSE">Đúng/Sai</option>
-                <option value="WRITING">Tự luận</option>
-              </select>
-            </div>
             <div>
               <label htmlFor="questionScope" className="block text-sm font-medium text-gray-700 mb-1">Phạm vi</label>
               <select
@@ -1576,6 +1654,7 @@ const NewQuestionDialog: React.FC<NewQuestionDialogProps> = ({
                 <option value="WRITING">Viết</option>
               </select>
             </div>
+            <div></div>
           </div>
 
           {/* Question Content */}
@@ -1652,7 +1731,7 @@ const NewQuestionDialog: React.FC<NewQuestionDialogProps> = ({
               selectedUnitIds={formData.unitIds}
               onChange={(unitIds) => setFormData(prev => ({ ...prev, unitIds }))}
               placeholder="Tìm kiếm và chọn units (tùy chọn)..."
-              multiple={true}
+              multiple={false}
               required={false}
             />
           </div>
@@ -1692,80 +1771,83 @@ const NewQuestionDialog: React.FC<NewQuestionDialogProps> = ({
   )
 }
 
-// SelectQuestionDialog Component - full implementation từ StaffCreateExamPage
 function SelectQuestionDialog({ 
   isOpen, 
   onClose, 
   onSelectQuestions,
-  state,
   availableQuestions,
   availableUnits,
   loading,
-  searchTerm,
-  setSearchTerm,
+  searchQuestionId,
+  setSearchQuestionId,
   unitFilter,
   setUnitFilter,
-  typeFilter,
-  setTypeFilter,
-  scopeFilter,
-  setScopeFilter,
   currentPage,
   setCurrentPage,
   totalPages,
   totalElements,
   pageSize,
+  setPageSize,
   existingQuestions
 }: Readonly<{
   isOpen: boolean
   onClose: () => void
   onSelectQuestions: (questions: ExamQuestion[]) => void
-  state: LocationState | null
-  availableQuestions: AvailableQuestion[]
-  availableUnits: any[]
+  availableQuestions: Question[]
+  availableUnits: Unit[]
   loading: boolean
-  searchTerm: string
-  setSearchTerm: (value: string) => void
+  searchQuestionId: string
+  setSearchQuestionId: (value: string) => void
   unitFilter: string
   setUnitFilter: (value: string) => void
-  typeFilter: string
-  setTypeFilter: (value: string) => void
-  scopeFilter: string
-  setScopeFilter: (value: string) => void
   currentPage: number
   setCurrentPage: (value: number) => void
   totalPages: number
   totalElements: number
   pageSize: number
+  setPageSize: (value: number) => void
   existingQuestions: ExamQuestion[]
 }>) {
-  const [selectedQuestions, setSelectedQuestions] = useState<AvailableQuestion[]>([])
+  const [selectedQuestions, setSelectedQuestions] = useState<Question[]>([])
 
   if (!isOpen) return null
 
   const getScopeName = (scope: string) => {
     switch (scope) {
-      case 'KANJI': return 'Kanji'
-      case 'VOCAB': return 'Từ vựng'
-      case 'GRAMMAR': return 'Ngữ pháp'
-      case 'LISTENING': return 'Nghe'
-      case 'READING': return 'Đọc'
-      case 'WRITING': return 'Viết'
-      default: return scope
+      case "KANJI":
+        return "Kanji";
+      case "VOCAB":
+        return "Từ vựng";
+      case "GRAMMAR":
+        return "Ngữ pháp";
+      case "LISTENING":
+        return "Nghe";
+      case "READING":
+        return "Đọc";
+      case "WRITING":
+        return "Viết";
+      default:
+        return scope;
     }
   }
 
   const getQuestionTypeName = (type: string) => {
     switch (type) {
-      case 'MULTIPLE_CHOICE': return 'Trắc nghiệm'
-      case 'TRUE_FALSE': return 'Đúng/Sai'
-      case 'WRITING': return 'Tự luận'
-      default: return type
+      case "MULTIPLE_CHOICE":
+        return "Trắc nghiệm";
+      case "TRUE_FALSE":
+        return "Đúng/Sai";
+      case "WRITING":
+        return "Tự luận";
+      default:
+        return "Khác";
     }
   }
 
-  const handleSelectQuestion = (question: AvailableQuestion) => {
+  const handleSelectQuestion = (question: Question) => {
     const isAlreadyInExam = existingQuestions.some((q: ExamQuestion) => q.id === question.id)
     if (isAlreadyInExam) {
+      // Don't allow selecting questions already in exam
       return
     }
     
@@ -1778,18 +1860,17 @@ function SelectQuestionDialog({
   }
 
   const handleConfirmSelection = () => {
-    // Convert AvailableQuestion to ExamQuestion format
+    // Convert Question to ExamQuestion format
     const examQuestions: ExamQuestion[] = selectedQuestions.map(q => ({
       id: q.id,
-      type: q.type as "MULTIPLE_CHOICE" | "TRUE_FALSE" | "WRITING",
+      type: q.type,
       question: q.content,
       content: q.content,
-      scope: q.scope as "KANJI" | "VOCAB" | "GRAMMAR" | "LISTENING" | "READING" | "WRITING",
+      scope: q.scope,
       options: q.options || [],
       explanation: q.explanation,
-      points: 10,
       difficulty: 'Trung bình' as const,
-      skill: 'Ngữ pháp' as const,
+      skill: 'Ngữ pháp' as const, // Default skill
       unitIds: q.unitIds || []
     }))
 
@@ -1799,153 +1880,162 @@ function SelectQuestionDialog({
 
   return (
     <div className="fixed inset-0 bg-gray-500/75 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white/95 backdrop-blur-sm rounded-xl max-w-6xl w-full max-h-[90vh] overflow-hidden m-4 shadow-2xl">
-        {/* Header */}
+      <div className="bg-white/95 backdrop-blur-sm rounded-xl max-w-6xl max-h-[90vh] overflow-hidden mx-4 w-full shadow-2xl">
         <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold">Chọn câu hỏi có sẵn</h3>
-              <p className="text-blue-100 text-sm">
-                Cho exam cấp {state?.scope || 'unknown'}: {state?.scopeName || 'N/A'}
-              </p>
-            </div>
-            <Button
-              onClick={onClose}
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-white/20"
-            >
-              ✕
-            </Button>
-          </div>
+          <h2 className="text-xl font-semibold">Chọn câu hỏi có sẵn</h2>
+          <p className="text-blue-100 mt-1">Tìm và chọn câu hỏi để thêm vào bài thi</p>
         </div>
 
-        {/* Filters */}
-        <div className="p-4 border-b border-gray-200 bg-gray-50/50">
+        {/* Filters - cập nhật theo yêu cầu */}
+        <div className="p-6 border-b border-gray-200 bg-white/90">
           <div className="flex flex-col md:flex-row gap-4">
-            {/* Search */}
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Tìm kiếm câu hỏi..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Tìm kiếm theo Question ID..."
+                  value={searchQuestionId}
+                  onChange={(e) => setSearchQuestionId(e.target.value)}
                   className="pl-10 bg-white/70"
                 />
               </div>
             </div>
-
-            {/* Filters */}
             <div className="flex gap-2">
               {/* Unit Filter */}
-              <SearchableUnitSelect
-                availableUnits={availableUnits}
-                selectedUnitId={unitFilter}
-                onChange={setUnitFilter}
-                placeholder="Tất cả units"
-              />
-
-              {/* Type Filter */}
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg bg-white/70 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              >
-                <option value="all">Tất cả loại</option>
-                <option value="MULTIPLE_CHOICE">Trắc nghiệm</option>
-                <option value="TRUE_FALSE">Đúng/Sai</option>
-                <option value="WRITING">Tự luận</option>
-              </select>
-
-              {/* Scope Filter */}
-              <select
-                value={scopeFilter}
-                onChange={(e) => setScopeFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg bg-white/70 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              >
-                <option value="all">Tất cả phạm vi</option>
-                <option value="KANJI">Kanji</option>
-                <option value="VOCAB">Từ vựng</option>
-                <option value="GRAMMAR">Ngữ pháp</option>
-                <option value="LISTENING">Nghe</option>
-                <option value="READING">Đọc</option>
-                <option value="WRITING">Viết</option>
-              </select>
+              <div className="w-64">
+                <UnitSelector
+                  units={availableUnits}
+                  selectedUnitIds={unitFilter === "all" ? [] : [unitFilter]}
+                  onChange={(unitIds) => setUnitFilter(unitIds.length > 0 ? unitIds[0] : "all")}
+                  placeholder="Tất cả units"
+                  multiple={false}
+                  required={false}
+                />
+              </div>
             </div>
           </div>
         </div>
-
-        {/* Question List */}
-        <div className="flex-1 overflow-y-auto max-h-96">
+        
+        {/* Questions List */}
+        <div className="p-6 overflow-y-auto max-h-[50vh]">
           {loading ? (
-            <div className="p-8 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Đang tải câu hỏi...</p>
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="text-gray-600 mt-2">Đang tải...</p>
             </div>
           ) : (
             <>
               {availableQuestions.length === 0 ? (
-                <div className="p-8 text-center">
+                <div className="text-center py-8 text-gray-500">
                   <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h4 className="text-lg font-medium text-gray-900 mb-2">Không có câu hỏi nào</h4>
-                  <p className="text-gray-600">Thử thay đổi bộ lọc để tìm thêm câu hỏi.</p>
+                  <p>Không tìm thấy câu hỏi nào phù hợp với bộ lọc.</p>
                 </div>
               ) : (
-                <div className="p-4 space-y-2">
-                  {availableQuestions.map((question) => {
+                <div className="space-y-3">
+                  {availableQuestions.map((question, index) => {
                     const isSelected = selectedQuestions.some(q => q.id === question.id)
                     const isAlreadyInExam = existingQuestions.some((q: ExamQuestion) => q.id === question.id)
+                    const isDisabled = isAlreadyInExam
+                    
+                    // Determine button styling
+                    let buttonClass = 'w-full text-left border rounded-lg p-4 cursor-pointer transition-all '
+                    if (isDisabled) {
+                      buttonClass += 'border-gray-300 bg-gray-100 opacity-60 cursor-not-allowed'
+                    } else if (isSelected) {
+                      buttonClass += 'border-blue-500 bg-blue-50 shadow-md'
+                    } else {
+                      buttonClass += 'border-gray-200 bg-white hover:shadow-md hover:border-gray-300'
+                    }
+                    
+                    // Determine checkbox styling
+                    let checkboxClass = 'w-6 h-6 rounded border-2 flex items-center justify-center '
+                    if (isDisabled) {
+                      checkboxClass += 'border-gray-400 bg-gray-300 text-gray-600'
+                    } else if (isSelected) {
+                      checkboxClass += 'border-blue-500 bg-blue-500 text-white'
+                    } else {
+                      checkboxClass += 'border-gray-300'
+                    }
                     
                     return (
-                      <div
-                        key={question.id}
-                        className={`p-4 border rounded-lg cursor-pointer transition-all duration-200 ${
-                          isAlreadyInExam
-                            ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200'
-                            : isSelected
-                            ? 'bg-blue-50 border-blue-300 shadow-sm'
-                            : 'bg-white hover:bg-gray-50 border-gray-200 hover:border-blue-200'
-                        }`}
-                        onClick={() => !isAlreadyInExam && handleSelectQuestion(question)}
+                      <button 
+                        key={question.id} 
+                        className={buttonClass}
+                        onClick={() => !isDisabled && handleSelectQuestion(question)}
+                        disabled={isDisabled}
                       >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <span className="text-xs font-medium text-gray-500">#{question.id}</span>
-                              <Badge variant="outline" className="text-xs">
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex items-center space-x-3">
+                            <div className={checkboxClass}>
+                              {isDisabled && (
+                                <span className="text-xs font-bold">✓</span>
+                              )}
+                              {!isDisabled && isSelected && (
+                                <CheckCircle className="h-4 w-4" />
+                              )}
+                            </div>
+                            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full flex items-center justify-center">
+                              <span className="text-sm font-medium">{index + 1}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Badge className="bg-blue-100 text-blue-800">
                                 {getQuestionTypeName(question.type)}
                               </Badge>
-                              <Badge variant="outline" className="text-xs">
-                                {getScopeName(question.scope)}
-                              </Badge>
-                              {isAlreadyInExam && (
-                                <Badge className="bg-gray-200 text-gray-600 text-xs">
+                              {question.scope && (
+                                <Badge className="bg-green-100 text-green-800">
+                                  {getScopeName(question.scope)}
+                                </Badge>
+                              )}
+                              <span className="text-xs text-gray-500">ID: {question.id}</span>
+                              {isDisabled && (
+                                <Badge className="bg-red-100 text-red-800">
                                   Đã có trong bài thi
                                 </Badge>
                               )}
-                              {isSelected && !isAlreadyInExam && (
-                                <Badge className="bg-blue-600 text-white text-xs">
-                                  Đã chọn
-                                </Badge>
-                              )}
                             </div>
-                            <p className={`font-medium mb-1 ${isAlreadyInExam ? 'text-gray-500' : 'text-gray-900'}`}>
-                              {question.content}
-                            </p>
-                            {question.explanation && (
-                              <p className={`text-sm ${isAlreadyInExam ? 'text-gray-400' : 'text-gray-600'}`}>
-                                💡 {question.explanation}
-                              </p>
-                            )}
-                            {question.unitIds && question.unitIds.length > 0 && (
-                              <div className="mt-2">
-                                <span className="text-xs text-gray-500">Units: {question.unitIds.join(', ')}</span>
-                              </div>
-                            )}
                           </div>
                         </div>
-                      </div>
+
+                        <h4 className="font-medium text-gray-900 mb-2"
+                            dangerouslySetInnerHTML={{
+                              __html: question.content
+                                .replace(/<u>/g, '<span style="text-decoration: underline;">')
+                                .replace(/<\/u>/g, '</span>')
+                                .replace(/<strong>/g, '<span style="font-weight: bold;">')
+                                .replace(/<\/strong>/g, '</span>')
+                                .replace(/<em>/g, '<span style="font-style: italic;">')
+                                .replace(/<\/em>/g, '</span>')
+                            }}
+                        />
+
+                        {/* Hiển thị options cho MULTIPLE_CHOICE như StaffCreateQuestion */}
+                        {question.type === "MULTIPLE_CHOICE" && question.options && (
+                          <div className="space-y-1 mb-2">
+                            {question.options.map((option, optionIndex) => (
+                              <div
+                                key={option.id}
+                                className={`text-sm p-2 rounded ${
+                                  option.isCorrect ? "bg-green-50 text-green-800 border border-green-200" : "text-gray-600"
+                                }`}
+                              >
+                                <span className="font-medium mr-2">{String.fromCharCode(65 + optionIndex)}.</span>
+                                {option.content}
+                                {option.isCorrect && <CheckCircle className="h-3 w-3 inline ml-2 text-green-600" />}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {question.explanation && (
+                          <div className="mt-2 p-2 bg-blue-50 rounded text-sm text-blue-800">
+                            <strong>Giải thích:</strong> {question.explanation}
+                          </div>
+                        )}
+
+                        <div className="mt-2 text-xs text-gray-500">
+                          Tạo: {new Date(question.createdAt).toLocaleString("vi-VN")}
+                        </div>
+                      </button>
                     )
                   })}
                 </div>
@@ -1954,33 +2044,93 @@ function SelectQuestionDialog({
           )}
         </div>
 
-        {/* Pagination */}
+        {/* Pagination - cập nhật theo StaffCreateQuestion */}
         {totalPages > 1 && (
-          <div className="px-6 py-3 border-t border-gray-200 bg-gray-50/50">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-700">
-                Hiển thị {currentPage * pageSize + 1} - {Math.min((currentPage + 1) * pageSize, totalElements)} của {totalElements} câu hỏi
-              </span>
+          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50/50">
+            <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
-                  disabled={currentPage === 0}
-                >
-                  Trước
-                </Button>
-                <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded text-sm">
-                  {currentPage + 1} / {totalPages}
+                <span className="text-sm text-gray-700">
+                  Hiển thị {currentPage * pageSize + 1} - {Math.min((currentPage + 1) * pageSize, totalElements)} của {totalElements} câu hỏi
                 </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
-                  disabled={currentPage === totalPages - 1}
+              </div>
+              <div className="flex items-center space-x-2">
+                {/* Page size selector */}
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value))
+                    setCurrentPage(0) // Reset to first page
+                  }}
+                  className="px-3 py-1 border border-gray-300 rounded-lg bg-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  Sau
-                </Button>
+                  <option value={5}>5 / trang</option>
+                  <option value={10}>10 / trang</option>
+                  <option value={20}>20 / trang</option>
+                  <option value={50}>50 / trang</option>
+                </select>
+                
+                {/* Pagination buttons */}
+                <div className="flex items-center space-x-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(0)}
+                    disabled={currentPage === 0}
+                    className="px-2 py-1"
+                  >
+                    ««
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 0}
+                    className="px-2 py-1"
+                  >
+                    ‹
+                  </Button>
+                  
+                  {/* Page numbers */}
+                  {(() => {
+                    const pages = []
+                    const startPage = Math.max(0, currentPage - 2)
+                    const endPage = Math.min(totalPages - 1, currentPage + 2)
+                    
+                    for (let i = startPage; i <= endPage; i++) {
+                      pages.push(
+                        <Button
+                          key={i}
+                          variant={i === currentPage ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(i)}
+                          className={`px-3 py-1 ${i === currentPage ? 'bg-blue-600 text-white' : ''}`}
+                        >
+                          {i + 1}
+                        </Button>
+                      )
+                    }
+                    return pages
+                  })()}
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={currentPage === totalPages - 1}
+                    className="px-2 py-1"
+                  >
+                    ›
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(totalPages - 1)}
+                    disabled={currentPage === totalPages - 1}
+                    className="px-2 py-1"
+                  >
+                    »»
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -1997,7 +2147,7 @@ function SelectQuestionDialog({
               onClick={() => {
                 onClose()
                 setSelectedQuestions([])
-                setSearchTerm('')
+                setSearchQuestionId('')
                 setCurrentPage(0)
               }}
             >
@@ -2013,90 +2163,6 @@ function SelectQuestionDialog({
           </div>
         </div>
       </div>
-    </div>
-  )
-}
-
-// SearchableUnitSelect Component
-function SearchableUnitSelect({
-  availableUnits,
-  selectedUnitId,
-  onChange,
-  placeholder
-}: Readonly<{
-  availableUnits: any[]
-  selectedUnitId: string
-  onChange: (unitId: string) => void
-  placeholder: string
-}>) {
-  const [isOpen, setIsOpen] = useState(false)
-  const [searchTerm, setSearchTerm] = useState('')
-
-  const filteredUnits = availableUnits.filter(unit =>
-    unit.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    unit.id?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
-  const selectedUnit = availableUnits.find(unit => unit.id === selectedUnitId)
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        className="relative w-full border border-gray-300 rounded-lg bg-white/70 focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer text-left px-3 py-2"
-        onClick={() => setIsOpen(!isOpen)}
-        aria-expanded={isOpen}
-        aria-haspopup="listbox"
-      >
-        <div className="flex items-center justify-between">
-          <span className="text-sm truncate">
-            {selectedUnit ? selectedUnit.title : placeholder}
-          </span>
-          <Search className="h-4 w-4 text-gray-400 ml-2" />
-        </div>
-      </button>
-
-      {isOpen && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
-          <div className="p-2 border-b border-gray-200">
-            <input
-              type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Tìm kiếm unit..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-          
-          <div className="max-h-48 overflow-y-auto">
-            <button
-              type="button"
-              className="w-full text-left p-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100"
-              onClick={() => {
-                onChange('all')
-                setIsOpen(false)
-              }}
-            >
-              {placeholder}
-            </button>
-            {filteredUnits.map(unit => (
-              <button
-                key={unit.id}
-                type="button"
-                className="w-full text-left p-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-                onClick={() => {
-                  onChange(unit.id)
-                  setIsOpen(false)
-                }}
-              >
-                <div className="text-sm font-medium">{unit.title}</div>
-                <div className="text-xs text-gray-500">ID: {unit.id}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
