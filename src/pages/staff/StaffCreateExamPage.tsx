@@ -270,7 +270,9 @@ const StaffCreateExamPage: React.FC = () => {
         return
       }
       
-      // For existing questions, fetch full details from API
+      // For existing questions, kết hợp dữ liệu từ 2 nguồn:
+      // 1. question từ list (có thông tin đáp án đúng)
+      // 2. fullQuestion từ detail API (có đầy đủ thông tin khác như units)
       console.log('Question from list (có correct answers):', question)
       
       // Fetch full question details to get complete data including units
@@ -975,15 +977,26 @@ function QuestionListItem({
             {question.scope && (
               <Badge variant="outline">{question.scope}</Badge>
             )}
+            {question.isNew && (
+              <Badge className="bg-blue-100 text-blue-800">Mới tạo</Badge>
+            )}
           </div>
           <p className="font-medium mb-2">Câu {index + 1}: {question.question}</p>
-          {question.type === 'MULTIPLE_CHOICE' && (
-            <div className="text-sm text-gray-600">
-              {question.options?.map((opt, i) => (
-                <p key={opt.id} className={`flex items-center ${opt.isCorrect ? 'text-green-600 font-medium' : 'text-gray-700'}`}>
-                  <span className="mr-2">{String.fromCharCode(65 + i)}.</span> {opt.content}
-                  {opt.isCorrect && <CheckCircle className="h-3 w-3 ml-2 text-green-600" />}
-                </p>
+          {question.type === 'MULTIPLE_CHOICE' && question.options && (
+            <div className="space-y-1 mb-2">
+              {question.options.map((option, optionIndex) => (
+                <div
+                  key={option.id}
+                  className={`text-sm p-2 rounded flex items-center ${
+                    option.isCorrect 
+                      ? "bg-green-50 text-green-800 border border-green-200" 
+                      : "text-gray-600 bg-gray-50"
+                  }`}
+                >
+                  <span className="font-medium mr-2">{String.fromCharCode(65 + optionIndex)}.</span>
+                  <span className="flex-1">{option.content}</span>
+                  {option.isCorrect && <CheckCircle className="h-3 w-3 ml-2 text-green-600" />}
+                </div>
               ))}
             </div>
           )}
@@ -1405,7 +1418,7 @@ function NewQuestionDialog({
               selectedUnitIds={formData.unitIds}
               onChange={(unitIds) => setFormData(prev => ({ ...prev, unitIds }))}
               placeholder="Tìm kiếm và chọn units..."
-              multiple={true}
+              multiple={false}
               required={true}
             />
           </div>

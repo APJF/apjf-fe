@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import { Alert } from '../../components/ui/Alert'
-import { AlertCircle, BookOpen, ArrowLeft, FileText, ExternalLink, Music, Edit, Plus, CheckCircle, XCircle, Hash, Eye, Info } from 'lucide-react'
+import { AlertCircle, BookOpen, ArrowLeft, FileText, ExternalLink, Music, Edit, Plus, CheckCircle, XCircle, Hash, Info } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
@@ -790,73 +790,11 @@ export const StaffUnitDetailPage: React.FC = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className={`space-y-4 ${exams.length > 4 ? 'max-h-80 overflow-y-auto pr-2' : ''}`}>
-                    {exams.length > 0 ? (
-                      exams.map((exam, index) => (
-                        <div 
-                          key={exam.id} 
-                          className="p-4 bg-white rounded-lg border border-purple-100 shadow-sm hover:shadow-md transition-shadow"
-                        >
-                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-sm font-medium">
-                                  {index + 1}
-                                </div>
-                                <h4 className="font-semibold text-purple-900 text-lg">{exam.title}</h4>
-                                <Badge className={`${
-                                  exam.status === 'ACTIVE' 
-                                    ? 'bg-green-100 text-green-800 border-green-300' 
-                                    : 'bg-yellow-100 text-yellow-800 border-yellow-300'
-                                }`}>
-                                  {exam.status === 'ACTIVE' ? 'Hoạt động' : 'Chưa kích hoạt'}
-                                </Badge>
-                              </div>
-                              <p className="text-purple-700 text-sm mb-2 ml-11">{exam.description}</p>
-                              <div className="text-xs text-purple-500 ml-11 space-y-1">
-                                <div>Mã bài kiểm tra: {exam.id}</div>
-                                <div>Thời gian: {exam.duration} phút</div>
-                                <div>Số câu hỏi: {exam.questionCount}</div>
-                                <div>Độ khó: {exam.difficulty}</div>
-                                <div>Điểm tối đa: {exam.totalPoints}</div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => navigate(`/staff/exams/${exam.id}`)}
-                                className="text-purple-600 border-purple-300 hover:bg-purple-50"
-                              >
-                                <Eye className="h-4 w-4 mr-1" />
-                                Xem chi tiết
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-12">
-                        <AlertCircle className="h-16 w-16 mx-auto text-purple-300 mb-4" />
-                        <p className="text-purple-600 font-medium mb-2">Chưa có bài kiểm tra nào</p>
-                        <p className="text-sm text-purple-500 mb-6">
-                          Thêm bài kiểm tra đầu tiên cho bài học này
-                        </p>
-                        <Button 
-                          onClick={() => navigate('/staff/create-exam', { 
-                            state: { 
-                              scope: 'unit', 
-                              scopeId: unit.id, 
-                              scopeName: unit.title 
-                            } 
-                          })}
-                          className="bg-purple-600 hover:bg-purple-700 text-white"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Tạo bài kiểm tra
-                        </Button>
-                      </div>
-                    )}
+                  {/* Hard-coded exam display commented out per request. */}
+                  <div className="space-y-4">
+                    <div className="text-center py-8">
+                      <p className="text-sm text-gray-500">Danh sách bài kiểm tra tạm ẩn — sẽ hiển thị khi dữ liệu được kết nối từ API.</p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
