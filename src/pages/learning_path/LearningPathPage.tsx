@@ -14,7 +14,8 @@ import {
   BookOpen,
   Clock,
   AlertCircle,
-  Flag
+  Flag,
+  RefreshCw
 } from "lucide-react";
 
 // Interface to map learning paths to our UI - for compatibility with existing code
@@ -245,8 +246,8 @@ export function LearningPathPage() {
         // Cập nhật state
         setActivePath(studyingPath || null);
         
-        // Chỉ hiển thị các lộ trình PENDING trong danh sách bên trái
-        const modulesData: LearningModule[] = pendingPaths.map((path: LearningPath) => ({
+        // Hiển thị TẤT CẢ lộ trình trong danh sách bên trái (bao gồm cả STUDYING)
+        const modulesData: LearningModule[] = paths.map((path: LearningPath) => ({
           id: path.id,
           title: path.title,
           description: path.description || "Không có mô tả",
@@ -373,13 +374,22 @@ export function LearningPathPage() {
 
       {/* Action Buttons */}
       <div className="flex gap-3">
-        <Button 
-          className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-3 rounded-lg transition-colors duration-200"
-          onClick={() => handleSetLearningPathActive(module.id)}
-        >
-          <Flag className="h-4 w-4 mr-2" />
-          Đặt lộ trình này làm lộ trình chính
-        </Button>
+        {module.status === 'STUDYING' ? (
+          // Nếu là lộ trình đang học, hiển thị text với màu xanh để đánh dấu
+          <div className="flex-1 bg-green-600 text-white font-medium py-3 px-4 rounded-lg text-center flex items-center justify-center">
+            <Flag className="h-4 w-4 mr-2" />
+            Lộ trình đang hoạt động
+          </div>
+        ) : (
+          // Nếu không phải lộ trình đang học, hiển thị nút như bình thường
+          <Button 
+            className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-3 rounded-lg transition-colors duration-200"
+            onClick={() => handleSetLearningPathActive(module.id)}
+          >
+            <Flag className="h-4 w-4 mr-2" />
+            Đặt lộ trình này làm lộ trình chính
+          </Button>
+        )}
         <Button
           variant="outline"
           className="px-6 py-3 text-gray-700 border-gray-300 hover:bg-gray-50 rounded-lg transition-colors duration-200"
@@ -428,10 +438,12 @@ export function LearningPathPage() {
         <div className="text-center py-16">
           <div className="max-w-md mx-auto">
             <BookOpen className="h-16 w-16 mx-auto mb-6 text-gray-400" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-3">Chưa có lộ trình học chờ</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">
+              {search !== "" ? 'Không tìm thấy kết quả' : 'Chưa có lộ trình học'}
+            </h3>
             <p className="text-gray-600 text-sm leading-relaxed">
-              {activePath 
-                ? 'Bạn đã có một lộ trình đang học. Hãy hoàn thành lộ trình này trước khi thêm lộ trình mới.'
+              {search !== "" 
+                ? 'Không tìm thấy lộ trình nào phù hợp với từ khóa tìm kiếm.'
                 : 'Bạn chưa có lộ trình học nào. Liên hệ với giáo viên để được hỗ trợ tạo lộ trình phù hợp.'}
             </p>
           </div>
@@ -465,6 +477,23 @@ export function LearningPathPage() {
         {/* Breadcrumb */}
         <div className="mb-6">
           <Breadcrumb items={breadcrumbItems} />
+        </div>
+
+        {/* Page Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Lộ trình học tập</h1>
+            <p className="text-gray-600">Khám phá và theo dõi tiến độ học tập tiếng Nhật của bạn</p>
+          </div>
+          <Button
+            onClick={loadRoadmapData}
+            disabled={isLoading}
+            variant="outline"
+            className="flex items-center gap-2 bg-white hover:bg-gray-50 border-gray-300"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Làm mới
+          </Button>
         </div>
 
         {/* Main Layout: Left (List) - Right (Current Roadmap) */}

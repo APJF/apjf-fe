@@ -41,6 +41,7 @@ import ForumPage from "../pages/ForumPage";
 import { ExamHistoryPage } from '../pages/exam/ExamHistoryPage';
 import AdminDashboardPage from "../pages/admin/AdminDashboardPage";
 import AdminManageAccountPage from "../pages/admin/AdminManageAccountPage";
+import ChatbotPage from "../pages/ChatbotPage";
 /**
  * Router Configuration - Cấu hình routing cho ứng dụng
  * Sử dụng React Router v6 với createBrowserRouter
@@ -131,14 +132,14 @@ const router = createBrowserRouter([
     path: "/oauth2/redirect",
     element: <OAuthCallback />,
   },
-  // {
-  //   path: "/chatbot",
-  //   element: (
-  //     <Layout>
-  //       <ChatbotPage />
-  //     </Layout>
-  //   ),
-  // },
+  {
+    path: "/chatbox",
+    element: (
+      <Layout>
+        <ChatbotPage />
+      </Layout>
+    ),
+  },
   {
     path: "/profile",
     element: (
