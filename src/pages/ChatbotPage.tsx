@@ -1,580 +1,731 @@
-// "use client"
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import {
+  Send,
+  Bot,
+  User,
+  Loader2,
+  Plus,
+  MessageSquare,
+  Trash2,
+  MoreHorizontal,
+  Search,
+  Settings,
+  Menu,
+  X,
+  Edit2,
+  ChevronDown,
+} from "lucide-react";
+import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
+import { Badge } from "../components/ui/Badge";
+import { ScrollArea } from "../components/ui/ScrollArea";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../components/ui/DropdownMenu";
+import { useAuth } from "../hooks/useAuth";
+import { chatbotService, getCurrentUserId, type ChatSession } from "../services/chatbotService";
+import type { FloatingChatSession, AISessionType, FloatingMessage } from "../types/floatingChat";
 
-// // @ts-nocheck
-// import React, { useState, useEffect, useRef, useCallback } from "react"
-// import {
-//   Send,
-//   Bot,
-//   Loader2,
-//   Plus,
-//   Settings,
-//   RefreshCw,
-//   ChevronDown,
-//   ChevronUp,
-// } from "lucide-react"
-// import { Button } from "../components/ui/Button"
-// import { Input } from "../components/ui/Input"
-// import { Badge } from "../components/ui/Badge"
-// import { ScrollArea } from "../components/ui/ScrollArea"
-// import { Alert, AlertDescription } from "../components/ui/Alert"
-// import { chatbotService } from "../services/chatbotService"
-// import type { Message, ChatSession } from "../types/chatbot"
-// import { Breadcrumb, type BreadcrumbItem } from '../components/ui/Breadcrumb'
-// // import { useAuth } from "../hooks/useAuth"
-// import ChatMessage from "../components/chatbot/ChatMessage"
-// import ChatSessionItem from "../components/chatbot/ChatSessionItem"
+const AI_SESSION_TYPES: Array<{ id: AISessionType; name: string; description: string }> = [
+  { id: 'qna', name: 'Trợ lý', description: 'Trả lời câu hỏi chung' },
+  { id: 'planner', name: 'Lộ trình học', description: 'Hỗ trợ lập kế hoạch học tập' },
+  { id: 'reviewer', name: 'Đánh giá', description: 'Hỗ trợ ôn tập kiến thức' },
+  { id: 'learning', name: 'Hướng dẫn học tập', description: 'Hướng dẫn học tập' }
+];
 
-// export function ChatbotPage() {
-//   const [messages, setMessages] = useState<Message[]>([])
-//   const [newMessage, setNewMessage] = useState("")
-//   const [isLoading, setIsLoading] = useState(false)
-//   const [sessions, setSessions] = useState<ChatSession[]>([])
-//   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
-//   const [sessionsDropdownOpen, setSessionsDropdownOpen] = useState(false)
-//   const [isLoadingSessions, setIsLoadingSessions] = useState(true)
-//   const [sessionNameModalOpen, setSessionNameModalOpen] = useState(false)
-//   const [newSessionName, setNewSessionName] = useState("")
-//   const [error, setError] = useState<string | null>(null)
-//   const messagesEndRef = useRef<HTMLDivElement>(null)
+const initialMessage: FloatingMessage = {
+  id: "1",
+  content:
+    "Xin chào! Tôi là AI Assistant của trung tâm tiếng Nhật. Tôi có thể giúp bạn tìm hiểu về các khóa học, lịch học, và trả lời mọi câu hỏi về việc học tiếng Nhật. Bạn cần hỗ trợ gì hôm nay? 🇯🇵",
+  role: "assistant",
+  timestamp: new Date(),
+};
 
-//   const breadcrumbItems: BreadcrumbItem[] = [
-//     { label: 'Trang chủ', href: '/' },
-//     { label: 'Chatbot' }
-//   ]
+const TypingIndicator = () => (
+  <div className="flex items-center gap-2">
+    <Loader2 className="h-4 w-4 animate-spin text-red-600" />
+    <span className="text-sm text-red-600">Đang trả lời...</span>
+  </div>
+);
 
-//   const currentChat = chatSessions.find((chat) => chat.id === currentChatId)
-  
-//   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-//     if (e.key === "Enter" && !e.shiftKey) {
-//       e.preventDefault()
-//       handleSendMessage(inputValue)
-//     }
-//   }
+function ChatbotPage() {
+  const { user } = useAuth();
+  const [chatSessions, setChatSessions] = useState<FloatingChatSession[]>([]);
+  const [currentChatId, setCurrentChatId] = useState<number | null>(null);
+  const [inputValue, setInputValue] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingSessions, setIsLoadingSessions] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentSessionType, setCurrentSessionType] = useState<AISessionType>('qna');
+  const [showSessionTypeDropdown, setShowSessionTypeDropdown] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState('');
+  const [isCreatingNewSession, setIsCreatingNewSession] = useState(false);
 
-//   const scrollToBottom = () => {
-//     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-//   }
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const hasLoadedSessionsRef = useRef(false);
+  const currentUserIdRef = useRef(getCurrentUserId());
 
-//   useEffect(() => {
-//     scrollToBottom()
-//   }, [currentChat?.messages])
+  const currentChat = chatSessions.find((chat) => chat.id === currentChatId);
+  const currentMessages = useMemo(() => currentChat?.messages || [], [currentChat?.messages]);
+  const currentUserId = getCurrentUserId();
 
-//   const loadChatMessages = useCallback(async (sessionId: string) => {
-//     setIsLoading(true)
-//     try {
-//       const response = await chatbotService.getSessionHistory(sessionId)
-//       if (response.messages) {
-//         const messages = response.messages
-//           .map((msg: Message, index: number) => ({
-//             id: `${sessionId}-${index}`,
-//             content: msg.content,
-//             type: msg.type,
-//             timestamp: new Date(),
-//           }))
-//           .filter((m: Message) => !m.isTyping) // Lọc bỏ tin nhắn đang gõ
+  const filteredChatSessions = chatSessions.filter(
+    (chat) =>
+      chat.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      chat.lastMessage.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
 
-//         setChatSessions((prev) =>
-//           prev.map((chat) => (chat.id === sessionId ? { ...chat, messages } : chat)),
-//         )
-//       }
-//     } catch (error) {
-//       console.error("Error loading messages:", error)
-//     } finally {
-//       setIsLoading(false)
-//     }
-//     setCurrentChatId(sessionId)
-//   }, [])
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
 
-//   const handleLoadedSessions = useCallback((sessions: ChatSession[] | undefined) => {
-//     if (!sessions) {
-//       setError("Không thể tải danh sách chat");
-//       return;
-//     }
+  useEffect(() => {
+    scrollToBottom();
+  }, [currentMessages, scrollToBottom]);
 
-//     const mappedSessions = sessions.map((session) => ({
-//       ...session,
-//       messages: [],
-//     }));
-//     setChatSessions(mappedSessions);
+  const convertToFloatingSession = (apiSession: ChatSession): FloatingChatSession => {
+    const getSessionType = (apiType: string): AISessionType => {
+      switch (apiType.toUpperCase()) {
+        case 'QNA': return 'qna';
+        case 'REVIEWER': return 'reviewer';  
+        case 'PLANNER': return 'planner';
+        case 'LEARNING': return 'learning';
+        default: return 'qna';
+      }
+    };
 
-//     if (mappedSessions.length > 0) {
-//       const firstSessionId = mappedSessions[0].id;
-//       setCurrentChatId(firstSessionId);
-//       loadChatMessages(firstSessionId);
-//     }
-//   }, [loadChatMessages]);
+    return {
+      id: apiSession.id,
+      name: apiSession.session_name,
+      lastMessage: 'Phiên chat đã tạo',
+      timestamp: new Date(apiSession.updated_at),
+      sessionType: getSessionType(apiSession.type),
+      messages: [],
+      isTemporary: false
+    };
+  };
 
-//   const loadChatSessions = useCallback(async () => {
-//     setError("")
-//     setIsLoading(true)
-//     try {
-//       const response = await chatbotService.getSessions();
-//       handleLoadedSessions(response.sessions);
-//     } catch (error) {
-//       setError("Lỗi kết nối đến server")
-//       console.error("Error loading chat sessions:", error)
-//     } finally {
-//       setIsLoading(false)
-//     }
-//   }, [handleLoadedSessions]);
+  const loadSessionMessages = useCallback(async (sessionId: number) => {
+    try {
+      const messages = await chatbotService.getMessages(sessionId.toString());
+      
+      const floatingMessages: FloatingMessage[] = messages.map((msg) => ({
+        id: msg.id,
+        content: msg.content,
+        role: msg.role,
+        timestamp: new Date(msg.timestamp)
+      }));
 
-//   // Load chat sessions on component mount
-//   useEffect(() => {
-//     loadChatSessions()
-//   }, [loadChatSessions])
+      setChatSessions(prev => prev.map(s => 
+        s.id === sessionId ? { ...s, messages: floatingMessages } : s
+      ));
 
-//   const createNewChat = async () => {
-//     setError("")
-//     setIsLoading(true)
-//     try {
-//       const newSessionData = await chatbotService.createSession("Cuộc trò chuyện mới")
-//       if (newSessionData.id) {
-//         const newSession: ChatSession = {
-//           ...newSessionData,
-//           messages: [],
-//         }
-//         setChatSessions((prev) => [newSession, ...prev])
-//         setCurrentChatId(newSession.id)
-//       } else {
-//         setError("Không thể tạo chat mới")
-//       }
-//     } catch (error) {
-//       setError("Lỗi khi tạo chat mới")
-//       console.error("Error creating new chat:", error)
-//     } finally {
-//       setIsLoading(false)
-//     }
-//   }
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+    } catch (error) {
+      console.error('Error loading session messages:', error);
+    }
+  }, [scrollToBottom]);
 
-//   const deleteChat = async (sessionId: string) => {
-//     const confirmDelete = window.confirm("Bạn có chắc muốn xóa cuộc trò chuyện này?");
-//     if (!confirmDelete) return;
+  const loadSessions = useCallback(async () => {
+    if (!currentUserId) return;
+    
+    try {
+      setIsLoadingSessions(true);
+      const apiSessions = await chatbotService.getSessions(currentUserId);
+      const floatingSessions = apiSessions.map(convertToFloatingSession);
+      setChatSessions(floatingSessions);
+      hasLoadedSessionsRef.current = true;
+      
+      if (!currentChatId && !isCreatingNewSession && floatingSessions.length > 0) {
+        setCurrentChatId(floatingSessions[0].id);
+        loadSessionMessages(floatingSessions[0].id);
+      }
+    } catch (error) {
+      console.error('Error loading sessions:', error);
+    } finally {
+      setIsLoadingSessions(false);
+    }
+  }, [currentUserId, currentChatId, isCreatingNewSession, loadSessionMessages]);
 
-//     setError("")
-//     try {
-//       await chatbotService.deleteSession(sessionId);
-//       const updatedSessions = chatSessions.filter((chat) => chat.id !== sessionId);
-//       setChatSessions(updatedSessions);
-//       handlePostDeleteNavigation(sessionId, updatedSessions);
-//     } catch (error) {
-//       setError("Lỗi khi xóa chat")
-//       console.error("Error deleting chat:", error)
-//     }
-//   }
+  useEffect(() => {
+    if (!hasLoadedSessionsRef.current) {
+      loadSessions();
+    }
+  }, [loadSessions]);
 
-//   const handlePostDeleteNavigation = (deletedSessionId: string, remainingSessions: ChatSession[]) => {
-//     if (currentChatId === deletedSessionId) {
-//       if (remainingSessions.length > 0) {
-//         const newCurrentChatId = remainingSessions[0].id;
-//         setCurrentChatId(newCurrentChatId);
-//         loadChatMessages(newCurrentChatId);
-//       } else {
-//         setCurrentChatId(null);
-//       }
-//     }
-//   };
+  useEffect(() => {
+    const newUserId = getCurrentUserId();
+    if (currentUserIdRef.current !== newUserId) {
+      currentUserIdRef.current = newUserId;
+      hasLoadedSessionsRef.current = false;
+      setChatSessions([]);
+      setCurrentChatId(null);
+      loadSessions();
+    }
+  }, [loadSessions]);
 
-//   const handleEditSessionName = async (sessionId: string, newName: string) => {
-//     if (!newName.trim()) return
+  const createNewChat = () => {
+    setCurrentChatId(null);
+    setInputValue('');
+    setIsCreatingNewSession(true);
+  };
 
-//     try {
-//       const response = await chatbotService.renameSession(sessionId, newName.trim())
-//       if (response.id) {
-//         setChatSessions((prev) =>
-//           prev.map((chat) => (chat.id === sessionId ? { ...chat, session_name: response.session_name } : chat)),
-//         )
-//         setEditingSessionId(null)
-//       } else {
-//         setError("Không thể cập nhật tên session")
-//       }
-//     } catch (error) {
-//       setError("Lỗi khi cập nhật tên session")
-//       console.error("Error updating session name:", error)
-//     }
-//   }
+    const handleDeleteSession = async (session: FloatingChatSession) => {
+    await chatbotService.deleteSession(session.id);
+    // Refresh sessions list after deletion
+    loadSessions();
+  };
 
-//   const handleSendMessage = async (content: string) => {
-//     if (!content.trim() || isLoading) return
+  const handleRenameSession = async (sessionId: number, newName: string) => {
+    try {
+      const originalSessions = [...chatSessions];
+      
+      const updatedSessions = chatSessions.map(s => 
+        s.id === sessionId ? { ...s, name: newName } : s
+      );
+      setChatSessions(updatedSessions);
+      
+      chatbotService.updateSessionName(sessionId, newName)
+        .catch((error: unknown) => {
+          console.error('Background rename failed, reverting optimistic update:', error);
+          setChatSessions(originalSessions);
+        });
+    } catch (error) {
+      console.error('Error in handleRenameSession:', error);
+    }
+  };
 
-//     const userMessage: Message = {
-//       id: Date.now().toString(),
-//       content: content.trim(),
-//       type: "human",
-//       role: "user",
-//       timestamp: new Date(),
-//     }
+  const handleSendMessage = async (content: string) => {
+    if (!content.trim() || isLoading) return;
 
-//     const typingMessage: Message = {
-//       id: "-1",
-//       content: "",
-//       type: "ai",
-//       role: "assistant",
-//       timestamp: new Date(),
-//       isTyping: true,
-//     }
+    const currentInput = content.trim();
+    setInputValue("");
+    setIsLoading(true);
 
-//     setInputValue("")
-//     setIsLoading(true)
-//     setError("")
+    try {
+      if (!currentChatId || isCreatingNewSession) {
+        const tempSessionId = Date.now();
+        
+        const userMessage: FloatingMessage = {
+          id: 'temp-user-' + Date.now(),
+          content: currentInput,
+          role: 'user',
+          timestamp: new Date()
+        };
 
-//     let finalChatId = currentChatId
+        const typingMessage: FloatingMessage = {
+          id: 'temp-typing-' + Date.now(),
+          content: '',
+          role: 'assistant',
+          timestamp: new Date(),
+          isTyping: true
+        };
 
-//     // If there's no active chat, create one first
-//     if (!finalChatId) {
-//       try {
-//         const newSessionResponse = await chatbotService.createSession(content.trim().substring(0, 30))
-//         if (newSessionResponse.id) {
-//           finalChatId = newSessionResponse.id
-//           const newSession: ChatSession = {
-//             ...newSessionResponse,
-//             messages: [userMessage, typingMessage], // Start with the new messages
-//           }
-//           setChatSessions((prev) => [newSession, ...prev])
-//           setCurrentChatId(finalChatId)
-//         } else {
-//           throw new Error("Failed to create new session")
-//         }
-//       } catch (error) {
-//         setError("Lỗi khi tạo cuộc trò chuyện mới")
-//         console.error("Error creating new session:", error)
-//         setIsLoading(false)
-//         return
-//       }
-//     } else {
-//       // Add user message and typing indicator to the existing chat session
-//       setChatSessions((prev) =>
-//         prev.map((chat) =>
-//           chat.id === finalChatId
-//             ? { ...chat, messages: [...(chat.messages || []), userMessage, typingMessage] }
-//             : chat,
-//         ),
-//       )
-//     }
+        const tempSessionForUI: FloatingChatSession = {
+          id: tempSessionId,
+          name: 'Đang tạo phiên...',
+          sessionType: currentSessionType,
+          messages: [userMessage, typingMessage],
+          lastMessage: 'AI đang trả lời...',
+          timestamp: new Date()
+        };
 
-//     try {
-//       if (!finalChatId) {
-//         console.error('No chat ID available');
-//         return;
-//       }
-//       const response = await chatbotService.invoke(finalChatId, content.trim());
-//       handleSuccessfulAiResponse(finalChatId, response.ai_response);
-//     } catch (error) {
-//       if (finalChatId) {
-//         handleFailedAiResponse(finalChatId, error);
-//       }
-//     } finally {
-//       setIsLoading(false);
-//     }
-//   }
+        setChatSessions(prev => [tempSessionForUI, ...prev]);
+        setCurrentChatId(tempSessionId);
+        setIsCreatingNewSession(false);
+        
+        const context: Record<string, number | string> = {};
+        const currentPath = window.location.pathname;
+        
+        if (currentSessionType === 'reviewer') {
+          const examResultRegex = /\/exam-result\/(\d+)/;
+          const examResultMatch = examResultRegex.exec(currentPath);
+          if (examResultMatch) {
+            const examResultId = parseInt(examResultMatch[1]);
+            context.exam_result_id = examResultId;
+          }
+        }
 
-//   const updateChatWithNewMessage = (chatId: string, message: Message) => {
-//     setChatSessions(newSessions => {
-//       const chatIndex = newSessions.findIndex((chat) => chat.id === chatId)
+        if (!currentUserId) {
+          console.error('No user ID available for creating session');
+          return;
+        }
 
-//       if (chatIndex !== -1) {
-//         const newMessages = (newSessions[chatIndex].messages || []).filter((m) => !m.isTyping)
-//         newSessions[chatIndex] = {
-//           ...newSessions[chatIndex],
-//           messages: [...newMessages, message],
-//         }
-//       }
-//       return newSessions
-//     })
-//   }
+        const createSessionRequest = {
+          user_id: currentUserId,
+          session_type: currentSessionType,
+          first_message: currentInput,
+          context
+        };
+        
+        const newSession = await chatbotService.createSession(createSessionRequest);
 
-//   const handleSuccessfulAiResponse = (chatId: string, aiResponse: string) => {
-//     if (!aiResponse) {
-//       throw new Error("API call failed but did not throw an error.");
-//     }
-//     const aiMessage: Message = {
-//       id: (Date.now() + 1).toString(),
-//       content: aiResponse,
-//       type: "ai",
-//       role: "assistant",
-//       timestamp: new Date(),
-//     };
-//     updateChatWithNewMessage(chatId, aiMessage);
-//   };
+        const realUserMessage: FloatingMessage = {
+          id: 'user-' + Date.now(),
+          content: currentInput,
+          role: 'user',
+          timestamp: new Date()
+        };
 
-//   const handleFailedAiResponse = (chatId: string, error: unknown) => {
-//     setError("Lỗi khi gửi tin nhắn");
-//     console.error("Error sending message:", error);
+        const realAiMessage: FloatingMessage = {
+          id: 'ai-' + Date.now(),
+          content: newSession.ai_first_response,
+          role: 'assistant',
+          timestamp: new Date()
+        };
 
-//     const errorMessage: Message = {
-//       id: (Date.now() + 1).toString(),
-//       content: "Xin lỗi, tôi gặp sự cố kỹ thuật. Vui lòng thử lại sau. 😅",
-//       type: "ai",
-//       role: "assistant",
-//       timestamp: new Date(),
-//     };
-//     updateChatWithNewMessage(chatId, errorMessage);
-//   };
+        const realSessionForUI: FloatingChatSession = {
+          id: newSession.session_id,
+          name: newSession.session_name,
+          sessionType: currentSessionType,
+          messages: [realUserMessage, realAiMessage],
+          lastMessage: newSession.ai_first_response.substring(0, 50) + '...',
+          timestamp: new Date()
+        };
 
-//   const handleEditAndResubmit = async (newContent: string) => {
-//     if (!currentChatId || !newContent.trim()) return
+        setChatSessions(prev => prev.map(s => 
+          s.id === tempSessionId ? realSessionForUI : s
+        ));
+        setCurrentChatId(newSession.session_id);
+        
+      } else {
+        const userMessage: FloatingMessage = {
+          id: 'temp-user-' + Date.now(),
+          content: currentInput,
+          role: 'user',
+          timestamp: new Date()
+        };
 
-//     setIsLoading(true)
-//     setError("")
+        const typingMessage: FloatingMessage = {
+          id: 'temp-typing-' + Date.now(),
+          content: '',
+          role: 'assistant',
+          timestamp: new Date(),
+          isTyping: true
+        };
 
-//     try {
-//       const response = await chatbotService.editAndResubmit(currentChatId, newContent.trim())
+        setChatSessions(prev => prev.map(s => 
+          s.id === currentChatId 
+            ? { 
+                ...s, 
+                messages: [...s.messages, userMessage, typingMessage],
+                lastMessage: 'AI đang trả lời...',
+                timestamp: new Date()
+              }
+            : s
+        ));
+        
+        const sendMessageRequest = {
+          session_id: currentChatId,
+          user_input: currentInput
+        };
+        
+        const response = await chatbotService.sendMessage(sendMessageRequest);
 
-//       if (response.ai_response) {
-//         await loadChatMessages(currentChatId)
-//       } else {
-//         setError("Không thể chỉnh sửa và gửi lại tin nhắn")
-//       }
-//     } catch (error) {
-//       setError("Lỗi khi chỉnh sửa tin nhắn")
-//       console.error("Error editing and resubmitting:", error)
-//     } finally {
-//       setIsLoading(false)
-//       setEditingMessageId(null)
-//       setEditingContent("")
-//     }
-//   }
+        const realUserMessage: FloatingMessage = {
+          id: response.human_message_id.toString(),
+          content: currentInput,
+          role: 'user',
+          timestamp: new Date()
+        };
 
-//   const handleEditMessage = (messageId: string, content: string) => {
-//     const humanMessages = (currentChat?.messages || []).filter((msg) => msg.type === "human")
-//     const lastHumanMessage = humanMessages[humanMessages.length - 1]
+        const realAiMessage: FloatingMessage = {
+          id: response.ai_message_id.toString(),
+          content: response.ai_response,
+          role: 'assistant',
+          timestamp: new Date()
+        };
 
-//     if (messageId === lastHumanMessage?.id) {
-//       setEditingMessageId(messageId)
-//       setEditingContent(content)
-//     }
-//   }
+        setChatSessions(prev => prev.map(s => 
+          s.id === currentChatId 
+            ? { 
+                ...s, 
+                messages: [...s.messages.slice(0, -2), realUserMessage, realAiMessage],
+                lastMessage: response.ai_response.substring(0, 50) + '...',
+                timestamp: new Date()
+              }
+            : s
+        ));
+      }
+    } catch (error) {
+      console.error('Error in handleSendMessage:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-//   const handleSaveEdit = async () => {
-//     if (!editingMessageId || !currentChatId) return
-//     await handleEditAndResubmit(editingContent)
-//   }
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage(inputValue);
+    }
+  };
 
-//   const handleCancelEdit = () => {
-//     setEditingMessageId(null)
-//     setEditingContent("")
-//   }
+  const handleSessionClick = (sessionId: number) => {
+    setCurrentChatId(sessionId);
+    const session = chatSessions.find(s => s.id === sessionId);
+    
+    if (session && session.messages.length === 0) {
+      loadSessionMessages(sessionId);
+    }
+    
+    if (session) {
+      setCurrentSessionType(session.sessionType);
+    }
+  };
 
-//   const formatTime = (dateString: string) => {
-//     // Ensure the date string is treated as UTC by appending 'Z' if it's not already there.
-//     const utcDate = new Date(dateString.endsWith('Z') ? dateString : `${dateString}Z`);
-//     const now = new Date();
-//     const diff = now.getTime() - utcDate.getTime();
-//     const minutes = Math.floor(diff / (1000 * 60));
-//     const hours = Math.floor(diff / (1000 * 60 * 60));
-//     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const handleStartEdit = (session: FloatingChatSession) => {
+    setEditingId(session.id);
+    setEditName(session.name);
+  };
 
-//     if (minutes < 1) return "Vừa xong";
-//     if (minutes < 60) return `${minutes} phút trước`;
-//     if (hours < 24) return `${hours} giờ trước`;
-//     if (days < 7) return `${days} ngày trước`;
-//     return utcDate.toLocaleDateString("vi-VN");
-//   }
+  const handleSaveEdit = () => {
+    if (editingId && editName.trim()) {
+      handleRenameSession(editingId, editName.trim());
+    }
+    setEditingId(null);
+    setEditName('');
+  };
 
-//   const renderSession = (chat: ChatSession) => {
-//     const { id, session_name, updated_at } = chat
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditName('');
+  };
 
-//     const handleSelect = () => {
-//       if (editingSessionId !== id) {
-//         loadChatMessages(id)
-//       }
-//     }
+  const formatTime = (date: Date) => {
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
-//     const handleStartEdit = () => {
-//       setEditingSessionId(id)
-//       setEditingSessionName(session_name)
-//     }
+    if (minutes < 1) return "Vừa xong";
+    if (minutes < 60) return `${minutes} phút trước`;
+    if (hours < 24) return `${hours} giờ trước`;
+    if (days < 7) return `${days} ngày trước`;
+    return date.toLocaleDateString("vi-VN");
+  };
 
-//     const handleCancelEdit = () => {
-//       setEditingSessionId(null)
-//     }
+  const getCurrentSessionTypeName = () => {
+    const sessionType = AI_SESSION_TYPES.find(type => type.id === currentSessionType);
+    return sessionType?.name || 'Trợ lý';
+  };
 
-//     const handleSaveEdit = () => {
-//       handleEditSessionName(id, editingSessionName)
-//     }
+  const handleSessionTypeChange = (sessionType: AISessionType) => {
+    setCurrentSessionType(sessionType);
+    
+    if (currentChat?.isTemporary) {
+      setChatSessions(chatSessions.map(s => 
+        s.id === currentChatId ? { ...s, sessionType } : s
+      ));
+    }
+    
+    setShowSessionTypeDropdown(false);
+  };
 
-//     const handleDelete = () => {
-//       deleteChat(id)
-//     }
+  if (!user) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center bg-gray-50 py-8">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            Vui lòng đăng nhập để sử dụng tính năng này
+          </h2>
+          <p className="text-gray-600">
+            Bạn cần đăng nhập để có thể chat với AI Assistant
+          </p>
+        </div>
+      </div>
+    );
+  }
 
-//     const handleFormatTime = () => {
-//       return formatTime(updated_at.toISOString())
-//     }
+  return (
+    <div className="min-h-[90vh] bg-white flex">
+      {/* Sidebar */}
+      <div
+        className={`${sidebarOpen ? "w-80" : "w-0"} transition-all duration-300 border-r border-gray-200 flex flex-col overflow-hidden`}
+      >
+        {/* Sidebar Header */}
+        <div className="p-3 border-b border-gray-200 bg-gray-50">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-semibold text-gray-900">Lịch sử chat</h2>
+            <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(false)} className="lg:hidden">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
 
-//     return (
-//       <ChatSessionItem
-//         key={id}
-//         chat={chat}
-//         isActive={currentChatId === id}
-//         isEditing={editingSessionId === id}
-//         editingSessionName={editingSessionName}
-//         onSelect={handleSelect}
-//         onStartEdit={handleStartEdit}
-//         onCancelEdit={handleCancelEdit}
-//         onNameChange={setEditingSessionName}
-//         onSaveEdit={handleSaveEdit}
-//         onDelete={handleDelete}
-//         formatTime={handleFormatTime}
-//       />
-//     )
-//   }
+          <Button onClick={createNewChat} className="w-full bg-red-600 hover:bg-red-700 text-white mb-3 text-sm py-2">
+            <Plus className="h-4 w-4 mr-2" />
+            Tạo đoạn chat mới
+          </Button>
 
-//   const chatSessionList = chatSessions.map(renderSession)
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="Tìm kiếm cuộc trò chuyện..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 text-sm py-2"
+            />
+          </div>
+        </div>
 
-//   const humanMessages = (currentChat?.messages || []).filter((m) => m.type === "human")
-//   const lastHumanMessage = humanMessages[humanMessages.length - 1]
-//   const messageList = (currentChat?.messages || []).map((message) => {
-//     const isLastHumanMessage = message.id === lastHumanMessage?.id
+        {/* Chat Sessions List */}
+        <div className="flex-1 overflow-hidden">
+          <ScrollArea className="h-full max-h-[70vh]">
+            <div className="p-2">
+              {isLoadingSessions && (
+                <div className="p-3 text-center text-sm text-gray-500">
+                  Đang tải phiên chat...
+                </div>
+              )}
+              {!isLoadingSessions && filteredChatSessions.length === 0 && (
+                <div className="p-3 text-center text-sm text-gray-500">
+                  Chưa có phiên chat nào
+                </div>
+              )}
+              {!isLoadingSessions && filteredChatSessions.map((chat) => (
+              <button
+                key={chat.id}
+                className={`w-full text-left p-2 rounded-md cursor-pointer mb-1 group hover:bg-gray-50 transition-colors ${
+                  currentChatId === chat.id ? "bg-red-50 border border-red-200" : ""
+                }`}
+                onClick={() => handleSessionClick(chat.id)}
+                aria-label={`Select chat session: ${chat.name}`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <MessageSquare className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                      {editingId === chat.id ? (
+                        <input
+                          type="text"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          onBlur={handleSaveEdit}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveEdit();
+                            if (e.key === 'Escape') handleCancelEdit();
+                          }}
+                          className="w-full px-2 py-1 text-sm font-medium border border-red-300 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <h3 className="text-sm font-medium text-gray-900 truncate">{chat.name}</h3>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 truncate mb-1">{chat.lastMessage}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500">
+                        {AI_SESSION_TYPES.find(type => type.id === chat.sessionType)?.name || 'Trợ lý'}
+                      </span>
+                      <span className="text-xs text-gray-400">{formatTime(chat.timestamp)}</span>
+                    </div>
+                  </div>
 
-//     return (
-//       <ChatMessage
-//         key={message.id}
-//         message={message}
-//         isLastHumanMessage={isLastHumanMessage}
-//         editingMessageId={editingMessageId}
-//         editingContent={editingContent}
-//         isLoading={isLoading}
-//         onEditContentChange={setEditingContent}
-//         onSaveEdit={handleSaveEdit}
-//         onCancelEdit={handleCancelEdit}
-//         onEditMessage={handleEditMessage}
-//       />
-//     )
-//   })
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem 
+                        onClick={(e: React.MouseEvent) => {
+                          e.stopPropagation();
+                          handleStartEdit(chat);
+                        }}
+                      >
+                        <Edit2 className="h-4 w-4 mr-2" />
+                        Sửa tên
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={(e: React.MouseEvent) => {
+                          e.stopPropagation();
+                          handleDeleteSession(chat);
+                        }}
+                        className="text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Xóa
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </button>
+            ))}
+            </div>
+          </ScrollArea>
+        </div>
+      </div>
 
-//   // userId check removed
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Chat Header */}
+        <div className="p-3 border-b border-gray-200 bg-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {!sidebarOpen && (
+                <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(true)}>
+                  <Menu className="h-4 w-4" />
+                </Button>
+              )}
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center">
+                  <Bot className="h-4 w-4 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-base font-semibold text-gray-900">AI Assistant</h1>
+                  <div className="flex items-center gap-1 text-xs text-gray-500">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span>Đang hoạt động</span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-//   return (
-//     <div className="fixed top-16 left-0 right-0 bottom-0 bg-white flex flex-col overflow-hidden">
-//       {/* Breadcrumb */}
-//       <div className="p-4 border-b border-gray-100 bg-white flex-shrink-0">
-//         <div className="max-w-4xl mx-auto">
-//           <Breadcrumb items={breadcrumbItems} />
-//         </div>
-//       </div>
+            <div className="flex items-center gap-2">
+              {/* Session Type Selector */}
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowSessionTypeDropdown(!showSessionTypeDropdown)}
+                  className="flex items-center gap-2 px-3 py-2 bg-red-100 text-red-700 hover:bg-red-200"
+                >
+                  <span className="font-medium">{getCurrentSessionTypeName()}</span>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
 
-//       {/* Chat Header với Sessions Dropdown */}
-//       <div className="relative p-4 border-b border-gray-200 bg-white flex-shrink-0">
-//         <div className="flex items-center justify-between">
-//           <div className="flex items-center gap-3">
-//             {/* Sessions Dropdown Button */}
-//             <div className="relative">
-//               <Button 
-//                 variant="outline" 
-//                 size="sm" 
-//                 onClick={() => setSessionsDropdownOpen(!sessionsDropdownOpen)}
-//                 className="flex items-center gap-2"
-//               >
-//                 {sessionsDropdownOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-//                 <span className="text-sm">Phiên chat</span>
-//                 <Badge variant="secondary" className="text-xs">
-//                   {chatSessions.length}
-//                 </Badge>
-//               </Button>
+                {showSessionTypeDropdown && (
+                  <div className="absolute right-0 top-10 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-48">
+                    {AI_SESSION_TYPES.map((type) => (
+                      <button
+                        key={type.id}
+                        onClick={() => handleSessionTypeChange(type.id)}
+                        className={`w-full text-left px-3 py-2 hover:bg-gray-50 transition-colors text-sm first:rounded-t-lg last:rounded-b-lg ${
+                          currentSessionType === type.id ? 'bg-red-50 text-red-800' : 'text-gray-700'
+                        }`}
+                      >
+                        <div className="font-medium">{type.name}</div>
+                        <div className="text-xs text-gray-500 mt-1">{type.description}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-//               {/* Sessions Dropdown */}
-//               {sessionsDropdownOpen && (
-//                 <div className="absolute top-full left-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-96 overflow-hidden flex flex-col">
-//                   {/* Dropdown Header */}
-//                   <div className="p-3 border-b border-gray-200">
-//                     <div className="flex items-center gap-2 mb-3">
-//                       <div className="w-6 h-6 rounded-full bg-red-600 flex items-center justify-center">
-//                         <Bot className="h-3 w-3 text-white" />
-//                       </div>
-//                       <h3 className="text-sm font-semibold text-gray-900">Trợ lý AI</h3>
-//                     </div>
-//                     <div className="flex gap-2">
-//                       <Button onClick={createNewChat} size="sm" className="flex-1 bg-red-600 hover:bg-red-700 text-white">
-//                         <Plus className="h-3 w-3 mr-1" />
-//                         Tạo mới
-//                       </Button>
-//                       <Button onClick={loadChatSessions} variant="outline" size="sm" className="px-3">
-//                         <RefreshCw className="h-3 w-3" />
-//                       </Button>
-//                     </div>
-//                   </div>
+              <Badge className="bg-red-100 text-red-700 hover:bg-red-100">🇯🇵 Tiếng Nhật</Badge>
+              <Button variant="ghost" size="sm">
+                <Settings className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
 
-//                   {/* Sessions List */}
-//                   <ScrollArea className="flex-1">
-//                     <div className="p-2">
-//                       {chatSessionList}
-//                     </div>
-//                   </ScrollArea>
-//                 </div>
-//               )}
-//             </div>
-            
-//             {/* Current Chat Title */}
-//             {currentChat && (
-//               <div className="text-sm text-gray-600">
-//                 {currentChat.name || `Chat ${currentChat.id}`}
-//               </div>
-//             )}
-//           </div>
-          
-//           <div className="flex items-center gap-2">
-//             <Badge className="bg-red-100 text-red-700 hover:bg-red-100">🇯🇵 Tiếng Nhật</Badge>
-//             <Button variant="ghost" size="sm">
-//               <Settings className="h-4 w-4" />
-//             </Button>
-//           </div>
-//         </div>
+        {/* Messages */}
+        <div className="flex-1 overflow-hidden">
+          <ScrollArea className="h-full max-h-[75vh]">
+            <div className="p-3 space-y-3 max-w-4xl mx-auto">
+              {currentMessages.length === 0 && !isCreatingNewSession && (
+                <div className="text-center py-6">
+                  <div className="w-12 h-12 rounded-full bg-red-600 flex items-center justify-center mx-auto mb-3">
+                    <Bot className="h-6 w-6 text-white" />
+                  </div>
+                  <h3 className="text-base font-medium text-gray-900 mb-2">Chào mừng bạn đến với AI Assistant!</h3>
+                  <p className="text-gray-600 mb-3 text-sm">{initialMessage.content}</p>
+                  <Button 
+                    onClick={createNewChat}
+                    className="bg-red-600 hover:bg-red-700 text-white text-sm py-2"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Bắt đầu cuộc trò chuyện
+                  </Button>
+                </div>
+              )}
+              
+              {currentMessages.map((message: FloatingMessage) => (
+                <div
+                  key={message.id}
+                  className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                >
+                  {message.role === "assistant" && (
+                    <div className="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center flex-shrink-0">
+                      <Bot className="h-4 w-4 text-white" />
+                    </div>
+                  )}
 
-//         {/* Overlay để đóng dropdown khi click outside */}
-//         {sessionsDropdownOpen && (
-//           <div 
-//             className="fixed inset-0 z-40" 
-//             onClick={() => setSessionsDropdownOpen(false)}
-//           />
-//         )}
-//       </div>
+                  <div
+                    className={`max-w-[70%] rounded-2xl px-3 py-2 ${
+                      message.role === "user" ? "bg-red-600 text-white" : "bg-gray-100 text-gray-900"
+                    }`}
+                  >
+                    {message.isTyping ? (
+                      <TypingIndicator />
+                    ) : (
+                      <>
+                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                        <p className="text-xs opacity-70 mt-1">
+                          {message.timestamp.toLocaleTimeString("vi-VN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                      </>
+                    )}
+                  </div>
 
-//       {/* Error Alert */}
-//       {error && (
-//         <div className="p-4 flex-shrink-0">
-//           <Alert variant="destructive">
-//             <AlertDescription>{error}</AlertDescription>
-//           </Alert>
-//         </div>
-//       )}
+                  {message.role === "user" && (
+                    <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0">
+                      <User className="h-4 w-4 text-white" />
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+          </ScrollArea>
+        </div>
 
-//       {/* Messages */}
-//       <div className="flex-1 overflow-hidden">
-//         <ScrollArea className="h-full">
-//           <div className="p-4 space-y-4 max-w-4xl mx-auto">
-//             {messageList}
-//             <div ref={messagesEndRef} />
-//           </div>
-//         </ScrollArea>
-//       </div>
+        {/* Input */}
+        <div className="p-3 border-t border-gray-200 bg-white">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex gap-2 items-end">
+              <div className="flex-1 relative">
+                <Input
+                  ref={inputRef}
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  placeholder="Nhập tin nhắn của bạn..."
+                  disabled={isLoading}
+                  className="pr-10 py-2 rounded-2xl border-gray-300 focus:border-red-400 focus:ring-red-400 text-sm"
+                />
+                <Button
+                  onClick={() => handleSendMessage(inputValue)}
+                  disabled={!inputValue.trim() || isLoading}
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 bg-red-600 hover:bg-red-700 rounded-full h-7 w-7 p-0"
+                >
+                  {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-2 text-center">
+              AI có thể mắc lỗi. Vui lòng kiểm tra thông tin quan trọng.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-//       {/* Input */}
-//       <div className="p-4 bg-white flex-shrink-0">
-//         <div className="max-w-4xl mx-auto">
-//           <div className="flex gap-3 items-end">
-//             <div className="flex-1 relative">
-//               <Input
-//                 ref={inputRef}
-//                 value={inputValue}
-//                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInputValue(e.target.value)}
-//                 onKeyDown={handleKeyDown}
-//                 placeholder="Nhập tin nhắn của bạn..."
-//                 disabled={isLoading || !currentChatId}
-//                 className="pr-12 py-3 rounded-2xl border-gray-300 focus:border-red-400 focus:ring-red-400"
-//               />
-//               <Button
-//                 onClick={() => handleSendMessage(inputValue)}
-//                 disabled={!inputValue.trim() || isLoading || !currentChatId}
-//                 className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-red-600 hover:bg-red-700 rounded-full h-8 w-8 p-0"
-//               >
-//                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-//               </Button>
-//             </div>
-//           </div>
-//           <p className="text-xs text-gray-500 mt-2 text-center">
-//             AI có thể mắc lỗi. Vui lòng kiểm tra thông tin quan trọng.
-//           </p>
-//         </div>
-//       </div>
-//     </div>
-//   )
-// }
+export default ChatbotPage;

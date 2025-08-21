@@ -3,6 +3,7 @@ export interface FloatingMessage {
   content: string;
   role: "user" | "assistant";
   timestamp: Date;
+  isTyping?: boolean;
 }
 
 export interface FloatingChatSession {

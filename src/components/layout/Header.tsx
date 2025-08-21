@@ -122,7 +122,7 @@ export function Header() {
     { href: "/courses", label: t('header.courses') },
     { href: "/learning-path", label: t('header.learningPath') },
     { href: "/forum", label: t('header.community') },
-    { href: "/chatbot", label: t('header.aiChat') },
+    { href: "/chatbox", label: t('header.aiChat') },
   ]
 
   const handleLanguageChange = (languageCode: string) => {
