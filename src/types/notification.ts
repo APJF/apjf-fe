@@ -2,7 +2,7 @@
 export interface NotificationAPIItem {
   id: number;
   content: string;
-  isRead: boolean;
+  read: boolean; // API trả về 'read' chứ không phải 'isRead'
   createdAt: string;
   senderId: number;
   senderUsername: string;

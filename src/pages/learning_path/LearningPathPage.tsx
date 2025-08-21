@@ -104,7 +104,6 @@ function CurrentLearningRoadmap({ activePath }: { readonly activePath: LearningP
       theme="blue"
       showHeader={true}
       showNavigation={true}
-      showStageCards={true}
       showActionButtons={true}
       headerInfo={{
         targetLevel: activePath.targetLevel,

@@ -30,7 +30,7 @@ const convertAPINotificationToUI = (apiNotification: NotificationAPIItem): Notif
     title,
     message: apiNotification.content,
     type,
-    isRead: apiNotification.isRead,
+    isRead: apiNotification.read, // API trả về 'read' property
     createdAt: apiNotification.createdAt,
     senderUsername: apiNotification.senderUsername,
     postId: apiNotification.postId?.toString(),
