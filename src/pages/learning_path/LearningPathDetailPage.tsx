@@ -689,7 +689,6 @@ export default function LearningPathDetailPage() {
                 theme="blue"
                 showHeader={true}
                 showNavigation={true}
-                showStageCards={false}
                 showActionButtons={false}
               />
             </div>
