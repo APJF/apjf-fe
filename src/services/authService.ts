@@ -565,27 +565,29 @@ class AuthService {
   }
 
   /**
-   * Google OAuth2 Login - redirect to Google OAuth
+   * Google OAuth2 Login - redirect to Google OAuth (Frontend direct approach)
    */
   initiateGoogleLogin(): void {
     try {
-      // Get API base URL with smart fallback
-      let apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+      // Get backend URL to determine callback
+      let backendUrl = import.meta.env.VITE_API_BASE_URL;
       
       // Smart fallback based on current domain
-      if (!apiBaseUrl) {
+      if (!backendUrl) {
         const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-        apiBaseUrl = isProduction 
+        backendUrl = isProduction 
           ? 'https://webapp-apjf-be-d5dpgucvaqddexb9.southeastasia-01.azurewebsites.net/api'
           : 'http://localhost:8080/api';
       }
       
-      const baseUrl = apiBaseUrl.replace('/api', '');
+      const baseUrl = backendUrl.replace('/api', '');
+      
+      // Option 1: Let backend handle OAuth (current approach)
       const googleAuthUrl = `${baseUrl}/oauth2/authorization/google`;
       
       console.log('Current domain:', window.location.hostname);
-      console.log('API Base URL:', apiBaseUrl);
-      console.log('Redirecting to Google OAuth:', googleAuthUrl);
+      console.log('Backend URL:', backendUrl);
+      console.log('Redirecting to backend OAuth endpoint:', googleAuthUrl);
       
       window.location.href = googleAuthUrl;
     } catch (error) {
