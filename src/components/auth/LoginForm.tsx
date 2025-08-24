@@ -81,8 +81,10 @@ export function LoginForm() {
     try {
       // Chuyển hướng đến Google OAuth
       authService.initiateGoogleLogin()
+      // Không set setIsLoading(false) ở đây vì sẽ redirect
     } catch (error) {
-      setMessage("Không thể kết nối đến Google OAuth")
+      const errorMessage = error instanceof Error ? error.message : "Không thể kết nối đến Google OAuth"
+      setMessage(errorMessage)
       console.error("Google login error:", error)
       setIsLoading(false)
     }

@@ -568,9 +568,18 @@ class AuthService {
    * Google OAuth2 Login - redirect to Google OAuth
    */
   initiateGoogleLogin(): void {
-    // Use environment variable for API base URL
-    const baseUrl = import.meta.env.VITE_API_BASE_URL.replace('/api', '');
-    window.location.href = `${baseUrl}/oauth2/authorization/google`;
+    try {
+      // Safe fallback for API base URL
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+      const baseUrl = apiBaseUrl.replace('/api', '');
+      const googleAuthUrl = `${baseUrl}/oauth2/authorization/google`;
+      
+      console.log('Redirecting to Google OAuth:', googleAuthUrl);
+      window.location.href = googleAuthUrl;
+    } catch (error) {
+      console.error('Google login initiation failed:', error);
+      throw new Error('Không thể khởi tạo đăng nhập Google');
+    }
   }
 
   /**
