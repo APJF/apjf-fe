@@ -3,6 +3,47 @@ import react from '@vitejs/plugin-react-swc'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
 
+// Vendor chunk helpers
+function getVendorChunk(id: string): string | undefined {
+  if (id.includes('react') && !id.includes('react-router')) return 'react-vendor'
+  if (id.includes('react-router-dom')) return 'router-vendor'
+  if (id.includes('lucide-react') || id.includes('@radix-ui')) return 'ui-vendor'
+  if (id.includes('clsx') || id.includes('tailwind-merge') || id.includes('class-variance-authority')) return 'utils-vendor'
+  if (id.includes('pdfjs-dist')) return 'pdf-vendor'
+  if (id.includes('axios')) return 'api-vendor'
+  if (id.includes('i18next') || id.includes('react-i18next')) return 'i18n-vendor'
+  return undefined
+}
+
+function getPageChunk(id: string): string | undefined {
+  if (id.includes('/pages/admin/')) return 'admin-pages'
+  if (id.includes('/pages/auth-user_profile/')) return 'auth-pages'
+  if (id.includes('/pages/exam/')) return 'exam-pages'
+  if (id.includes('/pages/learning_path/')) return 'learning-pages'
+  if (id.includes('/pages/manager/')) return 'manager-pages'
+  if (id.includes('/pages/staff/')) return 'staff-pages'
+  if (id.includes('/pages/study/')) return 'study-pages'
+  if (id.includes('/pages/')) return 'main-pages'
+  return undefined
+}
+
+// Main chunk strategy function
+function getManualChunk(id: string): string | undefined {
+  // Node modules
+  if (id.includes('node_modules')) {
+    return getVendorChunk(id)
+  }
+  
+  // App source code
+  if (id.includes('/src/')) {
+    if (id.includes('/services/')) return 'services-vendor'
+    if (id.includes('/components/')) return 'components-vendor'
+    return getPageChunk(id)
+  }
+  
+  return undefined
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -12,33 +53,12 @@ export default defineConfig({
     },
   },
   build: {
-    // Increase chunk size warning limit to 1000kb
-    chunkSizeWarningLimit: 1000,
+    // Increase chunk size warning limit to 500kb
+    chunkSizeWarningLimit: 500,
     rollupOptions: {
       output: {
         // Manual chunking strategy
-        manualChunks: {
-          // React core libraries
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          
-          // UI component libraries
-          'ui-vendor': ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-select', '@radix-ui/react-avatar', '@radix-ui/react-label', '@radix-ui/react-separator', '@radix-ui/react-slot'],
-          
-          // Utility libraries
-          'utils-vendor': ['clsx', 'tailwind-merge', 'class-variance-authority'],
-          
-          // PDF handling
-          'pdf-vendor': ['pdfjs-dist'],
-          
-          // Authentication and API
-          'api-vendor': ['axios'],
-          
-          // Internationalization
-          'i18n-vendor': ['i18next', 'i18next-browser-languagedetector', 'i18next-http-backend', 'react-i18next'],
-          
-          // Drag and drop
-          'dnd-vendor': ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities']
-        },
+        manualChunks: getManualChunk,
         
         // Custom chunk naming
         chunkFileNames: () => {

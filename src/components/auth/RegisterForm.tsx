@@ -81,8 +81,10 @@ export function RegisterForm() {
     try {
       // Chuyển hướng đến Google OAuth (giống như LoginForm)
       authService.initiateGoogleLogin()
+      // Không set setIsLoading(false) ở đây vì sẽ redirect
     } catch (error) {
-      setErrors({ general: "Không thể kết nối đến Google OAuth" })
+      const errorMessage = error instanceof Error ? error.message : "Không thể kết nối đến Google OAuth"
+      setErrors({ general: errorMessage })
       console.error("Google register error:", error)
       setIsLoading(false)
     }
