@@ -569,12 +569,24 @@ class AuthService {
    */
   initiateGoogleLogin(): void {
     try {
-      // Safe fallback for API base URL
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+      // Get API base URL with smart fallback
+      let apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+      
+      // Smart fallback based on current domain
+      if (!apiBaseUrl) {
+        const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+        apiBaseUrl = isProduction 
+          ? 'https://webapp-apjf-be-d5dpgucvaqddexb9.southeastasia-01.azurewebsites.net/api'
+          : 'http://localhost:8080/api';
+      }
+      
       const baseUrl = apiBaseUrl.replace('/api', '');
       const googleAuthUrl = `${baseUrl}/oauth2/authorization/google`;
       
+      console.log('Current domain:', window.location.hostname);
+      console.log('API Base URL:', apiBaseUrl);
       console.log('Redirecting to Google OAuth:', googleAuthUrl);
+      
       window.location.href = googleAuthUrl;
     } catch (error) {
       console.error('Google login initiation failed:', error);
