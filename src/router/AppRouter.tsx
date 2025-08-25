@@ -1,6 +1,7 @@
 import React from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import Layout from "../components/layout/Layout";
+import LayoutNoFooter from "../components/layout/LayoutNoFooter";
 import { ProtectedRoute } from "../components/auth/ProtectedRoute";
 import OAuthCallback from "../components/auth/OAuthCallback";
 import HomePage from "../pages/HomePage";
@@ -49,7 +50,7 @@ import ChatbotPage from "../pages/ChatbotPage";
  * Auth pages không có layout wrapper
  */
 
-// Main router configuration
+// Main router configuration with scroll restoration
 const router = createBrowserRouter([
   {
     path: "/",
@@ -135,9 +136,9 @@ const router = createBrowserRouter([
   {
     path: "/chatbox",
     element: (
-      <Layout>
+      <LayoutNoFooter>
         <ChatbotPage />
-      </Layout>
+      </LayoutNoFooter>
     ),
   },
   {
@@ -367,7 +368,16 @@ const router = createBrowserRouter([
       </Layout>
     ),
   },
-]);
+], {
+  future: {
+    v7_startTransition: true,
+    v7_relativeSplatPath: true,
+    v7_fetcherPersist: true,
+    v7_normalizeFormMethod: true,
+    v7_partialHydration: true,
+    v7_skipActionErrorRevalidation: true,
+  },
+});
 
 /**
  * AppRouter Component - Router wrapper component

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Header } from './Header';
 import Footer from './Footer';
+import ScrollToTop from '../common/ScrollToTop';
 import { GlobalFloatingChat } from '../chatbot/GlobalFloatingChat';
 
 /**
@@ -13,8 +14,13 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
+  console.log('🏗️ [Layout] Rendering Layout component');
+  
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col">      
+      {/* Scroll restoration for navigation */}
+      <ScrollToTop />
+      
       {/* Header - Navigation */}
       <Header />
 

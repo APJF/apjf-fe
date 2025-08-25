@@ -1,6 +1,11 @@
 @import "tailwindcss";
 
 @layer base {
+  /* Enable smooth scrolling globally */
+  html {
+    scroll-behavior: smooth;
+  }
+
   :root {
     --background: 0 0% 100%; /* White */
     --foreground: 224 71.4% 4.1%; /* Near Black */

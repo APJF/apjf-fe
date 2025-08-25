@@ -1,6 +1,6 @@
 import { useState, useRef } from "react"
 import { Link } from 'react-router-dom';
-import { Menu, X, BookOpen, Bell, Globe, Package, MessageCircle, Settings } from "lucide-react"
+import { Menu, X, Bell, Globe, Package, MessageCircle, Settings } from "lucide-react"
 import { AuthSection } from "./AuthSection";
 import { Button } from "../ui/Button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/DropdownMenu";
@@ -183,7 +183,11 @@ export function Header() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo/Brand */}
           <Link to="/" className="flex items-center space-x-2">
-            <BookOpen className="h-6 w-6 text-red-600" />
+            <img 
+              src="/img/APJF-logo.png" 
+              alt="APJF Logo" 
+              className="h-14 w-auto transition-transform duration-200 hover:scale-105"
+            />
             <span className="text-xl font-bold">
               <span className="text-red-600">日本語</span>
               <span className="text-gray-900">Learning</span>
