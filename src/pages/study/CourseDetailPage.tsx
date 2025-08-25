@@ -178,7 +178,7 @@ export default function CourseDetailPage() {
             <img
               src={course.image || "/placeholder.svg"}
               alt={course.title}
-              className="w-full h-56 sm:h-72 object-cover"
+              className="w-full aspect-[2/1] object-cover"
             />
 
             {/* Nội dung detail */}

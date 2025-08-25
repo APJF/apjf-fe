@@ -128,7 +128,30 @@ export const ExamDoingPage: React.FC = () => {
       const tokenValid = await authService.ensureValidTokenForCriticalOperation();
       if (!tokenValid) {
         console.error('❌ Failed to ensure valid token for exam submission');
-        setError('Phiên đăng nhập sắp hết hạn. Vui lòng thử lại.');
+        // Show more specific error and allow retry
+        setError('Không thể xác thực phiên đăng nhập. Đang thử lại...');
+        
+        // Retry once more after a short delay
+        setTimeout(async () => {
+          try {
+            const retryTokenValid = await authService.ensureValidTokenForCriticalOperation();
+            if (retryTokenValid) {
+              console.log('✅ Token validation successful on retry');
+              setError(''); // Clear error
+              // Recursively call handleSubmit again
+              handleSubmit(answers);
+              return;
+            } else {
+              setError('Phiên đăng nhập đã hết hạn. Vui lòng lưu bài và đăng nhập lại.');
+              // Don't navigate away - let user save their progress
+              return;
+            }
+          } catch (retryError) {
+            console.error('❌ Retry token validation failed:', retryError);
+            setError('Lỗi kết nối. Vui lòng kiểm tra mạng và thử lại.');
+            return;
+          }
+        }, 2000);
         return;
       }
 
