@@ -246,22 +246,22 @@ export default function ExamDetailPage({ examId: propExamId, fetchUrl, onBack: p
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+    <div className="min-h-full pb-8 bg-gradient-to-b from-slate-50 to-white">
       {/* Top Bar */}
-      <div className="max-w-6xl mx-auto px-4 pt-4">
+      <div className="max-w-6xl mx-auto px-4 pt-2">
         <button onClick={handleBack} className="inline-flex items-center gap-2 text-sm text-blue-700 hover:text-blue-800">
           <ChevronLeft className="size-4" /> Quay lại
         </button>
       </div>
 
       {/* Header */}
-      <header className="max-w-6xl mx-auto px-4 mt-3">
+  <header className="max-w-6xl mx-auto px-4 mt-2 mb-6">
         <div className="rounded-3xl overflow-hidden shadow-sm border border-slate-200">
-          <div className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white px-6 py-6">
+          <div className="bg-gradient-to-r from-indigo-600 to-blue-600 text-white px-5 py-4">
             <h1 className="text-2xl sm:text-3xl font-semibold">{exam?.title || "Đang tải..."}</h1>
             <p className="mt-1 text-white/90 text-sm">{exam?.description || " "}</p>
           </div>
-          <div className="bg-white px-6 py-5">
+          <div className="bg-white px-5 py-4">
             {loading && <Skeleton />}
             {!loading && error && (
               <div className="space-y-4">
@@ -288,15 +288,15 @@ export default function ExamDetailPage({ examId: propExamId, fetchUrl, onBack: p
             {!loading && !error && exam && (
               <>
                 {/* Meta cards */}
-                <div className="grid sm:grid-cols-3 gap-4">
+                <div className="grid sm:grid-cols-3 gap-3">
                   {meta!.map((m) => (
                     <StatCard key={m.label} icon={m.icon} label={m.label} value={m.value} />
                   ))}
                 </div>
 
                 {/* Combined info card */}
-                <div className="mt-5">
-                  <div className="rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm ring-1 ring-slate-100">
+                <div className="mt-4">
+                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm ring-1 ring-slate-100">
                     <div className="text-xs text-gray-500 mb-3">Phạm vi & Cách chấm</div>
                     <div className="grid gap-4">
                       <div className="flex items-start gap-3">
@@ -326,18 +326,18 @@ export default function ExamDetailPage({ examId: propExamId, fetchUrl, onBack: p
                   </div>
                 </div>
 
-                {/* Instructions */}
-                <div className="mt-5">
+        {/* Instructions */}
+        <div className="mt-4">
                   <Instructions />
                 </div>
 
                 {/* Start button */}
-                <div className="mt-6 flex items-center justify-between gap-3">
+        <div className="mt-4 flex items-center justify-between gap-3">
                   <div className="text-xs text-gray-500">* Khi nhấn bắt đầu, đồng hồ sẽ đếm ngược và không thể tạm dừng.</div>
                   <button
                     onClick={() => handleStart(exam)}
                     disabled={isStarting}
-                    className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 text-white font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isStarting ? (
                       <>

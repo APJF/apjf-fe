@@ -19,6 +19,7 @@ export interface Course {
   status: "ACTIVE" | "INACTIVE";
   prerequisiteCourseId: string | null;
   topics: Topic[];
+  price?: number;
   averageRating?: number;
   rating?: number; // thêm field này để tương thích
   isEnrolled?: boolean; // field mới từ API course detail

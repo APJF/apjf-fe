@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { AlertCircle, Clock, GraduationCap, Tag } from "lucide-react";
+import { AlertCircle, Clock, GraduationCap } from "lucide-react";
 import { StarDisplay } from "../../components/ui/StarDisplay";
 import EnrollButton from "../../components/course/EnrollButton";
 import CourseTabs from "../../components/course/CourseTabs";
@@ -8,6 +8,7 @@ import { CourseService } from "../../services/courseService";
 import type { Course, Chapter } from "../../types/course";
 import { Breadcrumb, type BreadcrumbItem } from '../../components/ui/Breadcrumb';
 import { useLanguage } from "../../contexts/LanguageContext";
+import { RoadmapView, type RoadmapStage } from "../../components/roadmap/RoadmapView";
 
 // Function to sort chapters by prerequisite order
 function sortChaptersByPrerequisite(chapters: Chapter[]): Chapter[] {
@@ -156,6 +157,7 @@ export default function CourseDetailPage() {
   }
 
   const description = course.description || t('courseDetail.defaultDescription');
+  
     
   // Create breadcrumb items
   const breadcrumbItems: BreadcrumbItem[] = [
@@ -164,87 +166,123 @@ export default function CourseDetailPage() {
     { label: course.title } // Current page - no href
   ];
 
+  // Mock roadmap data for this course
+  const roadmapStages: RoadmapStage[] = [
+    {
+      id: 1,
+      title: "Cơ bản",
+      description: "Nắm vững kiến thức nền tảng",
+      status: course.isEnrolled ? "completed" : "locked",
+      progress: course.isEnrolled ? 100 : 0,
+    },
+    {
+      id: 2,
+      title: "Thực hành",
+      description: "Luyện tập với bài tập",
+      status: course.isEnrolled ? "in_progress" : "locked",
+      progress: course.isEnrolled ? 65 : 0,
+    },
+    {
+      id: 3,
+      title: "Nâng cao",
+      description: "Kiến thức chuyên sâu",
+      status: "locked",
+      progress: 0,
+    },
+    {
+      id: 4,
+      title: "Kiểm tra",
+      description: "Đánh giá kết quả",
+      status: "locked",
+      progress: 0,
+    },
+  ];
+
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Breadcrumb */}
       <Breadcrumb items={breadcrumbItems} />
 
-      {/* Layout 10 cột: trái 7/10 cho detail + tabs */}
-      <section className="grid grid-cols-1 lg:grid-cols-10 gap-8">
-        <div className="lg:col-span-7 space-y-6">
-          {/* Card detail */}
-          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-            {/* Ảnh cover */}
-            <img
-              src={course.image || "/placeholder.svg"}
-              alt={course.title}
-              className="w-full aspect-[2/1] object-cover"
-            />
+      {/* Layout theo ảnh: Trái to (chapters/exam/review/description) - Phải nhỏ (course detail + roadmap) */}
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Cột trái: Course detail (hero) + Tabs description/chapters/exams/reviews */}
+        <div className="lg:col-span-8 space-y-6">
+          {/* Large course hero / detail */}
+          <div className="bg-rose-50 text-slate-900 rounded-xl shadow-lg overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-12 items-stretch gap-3 lg:gap-4 min-h-0">
+              <div className="lg:col-span-6 p-2 sm:p-4 flex flex-col justify-between h-full">
+                <div className="space-y-1.5 sm:space-y-2">
+                  <h1 className="text-base sm:text-lg lg:text-2xl font-semibold leading-tight">{course.id}</h1>
+                  <p className="text-rose-700 text-sm mb-1">{course.title}</p>
 
-            {/* Nội dung detail */}
-            <div className="p-6">
-              <h1 className="text-2xl font-semibold text-gray-900">{course.id}</h1>
-              <p className="text-lg text-gray-600 mt-2">{course.title}</p>
-
-              {/* Hàng 1: Duration + Level */}
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-                <span className="inline-flex items-center gap-2 px-2 py-1 rounded-md bg-gray-100 text-gray-700">
-                  <Clock className="w-4 h-4 text-gray-500" />
-                  {Math.round((course.duration || 0) / 60)}h
-                </span>
-                <span className="inline-flex items-center gap-2 px-2 py-1 rounded-md bg-blue-100 text-blue-700">
-                  <GraduationCap className="w-4 h-4 text-blue-500" />
-                  {course.level}
-                </span>
-              </div>
-
-              {/* Hàng 2: Topics */}
-              {course.topics && course.topics.length > 0 && (
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-                  {course.topics.map((topic) => (
-                    <span 
-                      key={topic.id} 
-                      className="inline-flex items-center gap-2 px-2 py-1 rounded-md bg-rose-100 text-rose-700"
-                    >
-                      <Tag className="w-4 h-4 text-rose-500" />
-                      {topic.name}
+                  <div className="flex items-center gap-3 text-sm text-rose-700">
+                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded bg-white/60 text-slate-900">
+                      <Clock className="w-4 h-4 text-rose-600" /> {Math.round((course.duration || 0) / 60)}h
                     </span>
-                  ))}
-                </div>
-              )}
+                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded bg-white/60 text-slate-900">
+                      <GraduationCap className="w-4 h-4 text-rose-600" /> {course.level}
+                    </span>
+                  </div>
 
-              {/* Rating ngay dưới */}
-              <div className="mt-3">
-                <StarDisplay rating={course.averageRating || 0} />
+                  {/* Rating */}
+                  <div>
+                    <StarDisplay rating={course.averageRating || 0} />
+                  </div>
+
+                  {/* Tags */}
+                  <div className="flex flex-wrap gap-2">
+                    {course.topics?.slice(0, 4).map((topic) => (
+                      <span key={topic.id} className="text-xs px-2 py-0.5 bg-white/60 rounded-lg text-slate-900">{topic.name}</span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Enroll (left) + Price (right) */}
+                <div className="flex items-center justify-between gap-3 mt-3">
+                  <div className="flex items-center">
+                    <EnrollButton courseId={course.id} courseTitle={course.title} isEnrolled={course.isEnrolled} />
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-rose-600">Giá</div>
+                    <div className="text-lg font-bold text-slate-900">
+                      { (course.price ?? 0) === 0 ? t('courseDetail.free') || 'Miễn phí' : `${(course.price ?? 0).toLocaleString('vi-VN')}₫` }
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Hàng: Giá + Enroll (cùng hàng) */}
-              <div className="mt-4 flex items-center gap-4">
-                <div className="text-2xl sm:text-3xl font-bold text-gray-900 tabular-nums">{t('courseDetail.free')}</div>
-                <div className="ml-auto">
-                  <EnrollButton 
-                    courseId={course.id} 
-                    courseTitle={course.title} 
-                    isEnrolled={course.isEnrolled} 
-                  />
+              <div className="lg:col-span-6 p-2 sm:p-4 flex items-center justify-center">
+                <div className="w-full max-w-[540px] rounded-xl shadow-2xl overflow-hidden ring-1 ring-white/10">
+                  <img src={course.image || '/placeholder.svg'} alt={course.title} className="w-full h-full object-cover aspect-[2/1] block" />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Tabs: Chapters / Overview / Reviews */}
-          <CourseTabs 
-            description={description} 
-            chapters={chapters.map(ch => ({
-              id: ch.id,
-              title: ch.title,
-              duration: 0 // Tạm thời set duration = 0, có thể tính từ units sau
-            }))} 
+          {/* Tabs: Description / Chapters / Exams / Reviews (left, under hero) */}
+          <CourseTabs
+            description={description}
+            chapters={chapters.map(ch => ({ id: ch.id, title: ch.title, duration: 0 }))}
           />
         </div>
 
-        {/* Cột phải 3/10 (để trống cho mở rộng sau) */}
-        <div className="hidden lg:block lg:col-span-3" />
+        {/* Cột phải: Roadmap (narrow) */}
+        <div className="lg:col-span-4">
+          <RoadmapView
+            stages={roadmapStages}
+            title="Lộ trình"
+            compact={true}
+            showHeader={true}
+            showNavigation={false}
+            showStageCards={false}
+            headerInfo={{
+              targetLevel: course.level,
+              status: course.isEnrolled ? "Đang học" : "Chưa đăng ký",
+              coursesCount: chapters.length
+            }}
+            onStageClick={(stageId) => console.log('Clicked stage:', stageId)}
+          />
+        </div>
       </section>
     </main>
   );

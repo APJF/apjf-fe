@@ -17,9 +17,9 @@ function getVendorChunk(id: string): string | undefined {
 
 function getPageChunk(id: string): string | undefined {
   if (id.includes('/pages/admin/')) return 'admin-pages'
-  if (id.includes('/pages/auth-user_profile/')) return 'auth-pages'
+  if (id.includes('/pages/auth/')) return 'auth-pages'
   if (id.includes('/pages/exam/')) return 'exam-pages'
-  if (id.includes('/pages/learning_path/')) return 'learning-pages'
+  if (id.includes('/pages/learning-path/')) return 'learning-pages'
   if (id.includes('/pages/manager/')) return 'manager-pages'
   if (id.includes('/pages/staff/')) return 'staff-pages'
   if (id.includes('/pages/study/')) return 'study-pages'

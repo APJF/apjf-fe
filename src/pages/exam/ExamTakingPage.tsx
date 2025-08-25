@@ -21,7 +21,7 @@ interface ExamQuestion {
   scope?: string;
 }
 
-export const ExamDoingPage: React.FC = () => {
+export const ExamTakingPage: React.FC = () => {
   const { examId } = useParams<{ examId: string }>();
   const navigate = useNavigate();
   
@@ -113,12 +113,12 @@ export const ExamDoingPage: React.FC = () => {
     selectedOptionId?: string | null;
     userAnswer?: string | null;
   }>) => {
-    console.log('🚀 ExamDoingPage: handleSubmit called')
-    console.log('🚀 ExamDoingPage: examId =', examId)
-    console.log('🚀 ExamDoingPage: received answers =', answers)
+    console.log('🚀 ExamTakingPage: handleSubmit called')
+    console.log('🚀 ExamTakingPage: examId =', examId)
+    console.log('🚀 ExamTakingPage: received answers =', answers)
     
     if (!examId) {
-      console.log('❌ ExamDoingPage: No examId, returning early')
+      console.log('❌ ExamTakingPage: No examId, returning early')
       return;
     }
 
@@ -162,11 +162,11 @@ export const ExamDoingPage: React.FC = () => {
         userAnswer: answer.userAnswer ?? null
       }));
 
-      console.log('🚀 ExamDoingPage: transformed submitAnswers =', submitAnswers)
+      console.log('🚀 ExamTakingPage: transformed submitAnswers =', submitAnswers)
 
       const currentTime = new Date().toISOString();
-      console.log('🚀 ExamDoingPage: currentTime =', currentTime)
-      console.log('🚀 ExamDoingPage: Calling ExamService.submitExam with:', {
+      console.log('🚀 ExamTakingPage: currentTime =', currentTime)
+      console.log('🚀 ExamTakingPage: Calling ExamService.submitExam with:', {
         examId,
         startedAt: currentTime,
         submittedAt: currentTime,
@@ -174,15 +174,15 @@ export const ExamDoingPage: React.FC = () => {
       })
 
       const submitResult = await ExamService.submitExam(examId, currentTime, currentTime, submitAnswers);
-      console.log('✅ ExamDoingPage: submitExam successful, result =', submitResult)
+      console.log('✅ ExamTakingPage: submitExam successful, result =', submitResult)
       
       // Always call AI overview API after successful submit
       if (submitResult?.examResultId) {
         const resultId = submitResult.examResultId;
-        console.log('🤖 ExamDoingPage: Calling AI overview for result ID:', resultId);
+        console.log('🤖 ExamTakingPage: Calling AI overview for result ID:', resultId);
         
         const aiOverview = await examOverviewService.getOverview(resultId.toString());
-        console.log('✅ ExamDoingPage: AI overview successful:', aiOverview);
+        console.log('✅ ExamTakingPage: AI overview successful:', aiOverview);
         
         // Navigate to ExamOverviewPage with AI data
         navigate(`/exam/${examId}/overview`, {
@@ -192,11 +192,11 @@ export const ExamDoingPage: React.FC = () => {
           }
         });
       } else {
-        console.error('❌ ExamDoingPage: No examResultId found in submit response');
+        console.error('❌ ExamTakingPage: No examResultId found in submit response');
         setError('Exam submitted but could not get result ID. Please contact support.');
       }
     } catch (err) {
-      console.error('❌ ExamDoingPage: Error submitting exam:', err);
+      console.error('❌ ExamTakingPage: Error submitting exam:', err);
       setError('Failed to submit exam. Please try again.');
     }
   };
