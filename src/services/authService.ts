@@ -321,17 +321,28 @@ class AuthService {
    * Lấy thông tin profile người dùng
    */
   async getProfile(): Promise<UserProfileResponse> {
+    console.log('🔍 [AuthService] Getting user profile...');
+    
     try {
-      const response = await api.get<UserProfileResponse>("/users/profile")
-      return response.data
+      console.log('📡 [AuthService] Making API call to /users/profile');
+      const response = await api.get<UserProfileResponse>("/users/profile");
+      
+      console.log('✅ [AuthService] Profile API response:', response.data);
+      return response.data;
+      
     } catch (error) {
+      console.error('❌ [AuthService] Profile API error:', error);
+      
       if (error && typeof error === "object" && "response" in error) {
-        const axiosError = error as { response?: { data?: UserProfileResponse } }
+        const axiosError = error as { response?: { status?: number, data?: UserProfileResponse } }
+        console.log('🔍 [AuthService] Error response status:', axiosError.response?.status);
+        console.log('🔍 [AuthService] Error response data:', axiosError.response?.data);
+        
         if (axiosError.response?.data) {
-          return axiosError.response.data
+          return axiosError.response.data;
         }
       }
-      throw error
+      throw error;
     }
   }
 
@@ -565,104 +576,170 @@ class AuthService {
   }
 
   /**
-   * Google OAuth2 Login - redirect to Google OAuth (Frontend direct approach)
+   * Google OAuth2 Login - Sử dụng Spring Security OAuth2 Authorization Endpoint
    */
   initiateGoogleLogin(): void {
     try {
-      // Get backend URL to determine callback
-      let backendUrl = import.meta.env.VITE_API_BASE_URL;
+      console.log('🚀 [AuthService] Starting Google OAuth login...');
       
-      // Smart fallback based on current domain
+      // Get backend API base URL
+      let backendUrl = import.meta.env.VITE_API_BASE_URL;
+      console.log('🔍 [AuthService] Environment VITE_API_BASE_URL:', backendUrl);
+      
       if (!backendUrl) {
         const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
         backendUrl = isProduction 
           ? 'https://webapp-apjf-be-d5dpgucvaqddexb9.southeastasia-01.azurewebsites.net/api'
           : 'http://localhost:8080/api';
+        console.log('🔧 [AuthService] Using fallback backend URL:', backendUrl);
       }
       
+      // Sử dụng Spring Security OAuth2 authorization endpoint thay vì tạo URL trực tiếp
       const baseUrl = backendUrl.replace('/api', '');
+      const oauth2Endpoint = `${baseUrl}/oauth2/authorization/google`;
       
-      // Option 1: Let backend handle OAuth (current approach)
-      const googleAuthUrl = `${baseUrl}/oauth2/authorization/google`;
+      console.log('🌐 [AuthService] Current domain:', window.location.hostname);
+      console.log('🎯 [AuthService] Backend base URL:', baseUrl);
+      console.log('� [AuthService] Spring Security OAuth2 endpoint:', oauth2Endpoint);
       
-      console.log('Current domain:', window.location.hostname);
-      console.log('Backend URL:', backendUrl);
-      console.log('Redirecting to backend OAuth endpoint:', googleAuthUrl);
+      console.log('🔑 [AuthService] Using Spring Security OAuth2 Flow');
+      console.log('➡️  [AuthService] Redirecting to Spring Security endpoint...');
       
-      window.location.href = googleAuthUrl;
+      // Redirect đến Spring Security OAuth2 authorization endpoint
+      window.location.href = oauth2Endpoint;
+      
     } catch (error) {
-      console.error('Google login initiation failed:', error);
+      console.error('❌ [AuthService] Google login initiation failed:', error);
       throw new Error('Không thể khởi tạo đăng nhập Google');
     }
   }
 
   /**
-   * Xử lý callback từ Google OAuth2
+   * Xử lý callback từ Spring Security OAuth2
    */
   async handleGoogleCallback(): Promise<boolean> {
-    const urlParams = new URLSearchParams(window.location.search)
-    const access_token = urlParams.get('token') || ''
-    const refresh_token = urlParams.get('refreshToken') || ''
-    const email = urlParams.get('email')
-    const username = urlParams.get('username')
-
-    if (access_token && refresh_token && email && username) {
+    console.log('🔄 [AuthService] Processing Spring Security OAuth2 callback...');
+    console.log('🌐 [AuthService] Current URL:', window.location.href);
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    // Log all parameters for debugging
+    console.log('📋 [AuthService] URL parameters:');
+    for (const [key, value] of urlParams.entries()) {
+      console.log(`  - ${key}:`, value);
+    }
+    
+    // Check for OAuth error from Google or Spring Security
+    const error = urlParams.get('error');
+    const errorDescription = urlParams.get('error_description');
+    const message = urlParams.get('message');
+    
+    if (error) {
+      console.error('❌ [AuthService] OAuth error:', error);
+      console.error('   Description:', errorDescription);
+      console.error('   Message:', message);
+      return false;
+    }
+    
+    // Check for success params (Spring Security success handler should include tokens)
+    const access_token = urlParams.get('token');
+    const refresh_token = urlParams.get('refreshToken'); 
+    const email = urlParams.get('email');
+    const username = urlParams.get('username');
+    
+    console.log('🔍 [AuthService] Success parameters:');
+    console.log('  - token:', access_token ? `${access_token.substring(0, 20)}...` : 'null');
+    console.log('  - refreshToken:', refresh_token ? `${refresh_token.substring(0, 20)}...` : 'null');
+    console.log('  - email:', email);
+    console.log('  - username:', username);
+    
+    // If we have tokens, process successful login
+    if (access_token && refresh_token) {
+      console.log('✅ [AuthService] Processing successful OAuth tokens...');
+      
       try {
-        // Lưu tokens trước
-        localStorage.setItem('access_token', access_token)
-        localStorage.setItem('refresh_token', refresh_token)
+        // Save tokens
+        localStorage.setItem('access_token', access_token);
+        localStorage.setItem('refresh_token', refresh_token);
         
-        console.log('✅ Google OAuth tokens saved, fetching user profile...');
+        console.log('🔍 [AuthService] Fetching user profile...');
         
-        // Gọi getProfile để lấy thông tin đầy đủ từ backend, bao gồm avatar
+        // Get full profile from backend
         const profileResponse = await this.getProfile();
         
         if (profileResponse.success && profileResponse.data) {
           const profileData = profileResponse.data;
           
-          // Tạo userInfo object với thông tin đầy đủ từ backend
           const userInfo: UserInfo = {
             id: profileData.id,
             email: profileData.email,
             username: profileData.username,
-            avatar: profileData.avatar || '', // Lấy avatar từ backend
-            roles: profileData.authorities || ['ROLE_USER'] // Map authorities to roles
-          }
+            avatar: profileData.avatar || '',
+            roles: profileData.authorities || ['ROLE_USER']
+          };
 
-          // Lưu userInfo đầy đủ
-          localStorage.setItem('userInfo', JSON.stringify(userInfo))
+          localStorage.setItem('userInfo', JSON.stringify(userInfo));
           
           // Dispatch auth state change event
           window.dispatchEvent(new CustomEvent('authStateChanged', {
             detail: { user: userInfo, isAuthenticated: true }
-          }))
+          }));
 
-          console.log('✅ Google OAuth login successful with full profile:', userInfo.username);
+          console.log('🎉 [AuthService] Spring Security OAuth login completed:', userInfo.username);
+          
+          // Clean URL by removing query parameters
+          window.history.replaceState({}, '', window.location.pathname);
+          
           return true;
         } else {
-          console.error('❌ Failed to fetch profile after Google OAuth:', profileResponse.message);
-          // Clear tokens nếu không lấy được profile
+          console.error('❌ [AuthService] Profile fetch failed:', profileResponse.message);
           localStorage.removeItem('access_token');
           localStorage.removeItem('refresh_token');
           return false;
         }
       } catch (profileError) {
-        console.error('❌ Profile fetch error after Google OAuth:', profileError);
-        // Clear tokens nếu lỗi
+        console.error('❌ [AuthService] Profile error:', profileError);
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         return false;
       }
     }
+    
+    // If no tokens but no error, check if user is already authenticated (session-based)
+    if (!error) {
+      console.log('🔍 [AuthService] No tokens found, checking existing authentication...');
+      
+      try {
+        const profileResponse = await this.getProfile();
+        
+        if (profileResponse.success && profileResponse.data) {
+          console.log('✅ [AuthService] User already authenticated via session');
+          const profileData = profileResponse.data;
+          
+          const userInfo: UserInfo = {
+            id: profileData.id,
+            email: profileData.email,
+            username: profileData.username,
+            avatar: profileData.avatar || '',
+            roles: profileData.authorities || ['ROLE_USER']
+          };
 
-    // Xử lý error case
-    const error = urlParams.get('error')
-    const message = urlParams.get('message')
-    if (error || message) {
-      console.error('Google OAuth error:', { error, message })
+          localStorage.setItem('userInfo', JSON.stringify(userInfo));
+          
+          window.dispatchEvent(new CustomEvent('authStateChanged', {
+            detail: { user: userInfo, isAuthenticated: true }
+          }));
+
+          console.log('🎉 [AuthService] Session-based OAuth login completed:', userInfo.username);
+          return true;
+        }
+      } catch {
+        console.log('ℹ️  [AuthService] No existing authentication found');
+      }
     }
 
-    return false
+    console.log('❌ [AuthService] OAuth callback processing failed');
+    return false;
   }
 
   /**
