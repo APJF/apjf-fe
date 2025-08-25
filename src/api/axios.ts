@@ -60,8 +60,10 @@ const processQueue = (error: Error | null, token: string | null = null) => {
 
 // Request interceptor to add the auth token to headers
 api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('access_token');
+  async (config) => {
+    // Try to refresh token proactively if needed
+    const validToken = await refreshTokenIfNeeded();
+    const token = validToken || localStorage.getItem('access_token');
     
     const isPublicEndpoint = publicEndpoints.some((endpoint: string) => {
       if (endpoint.endsWith('/*')) {
@@ -75,7 +77,8 @@ api.interceptors.request.use(
     console.log('Request Interceptor:', {
       url: config.url,
       hasAuth: !!token,
-      isPublic: isPublicEndpoint
+      isPublic: isPublicEndpoint,
+      tokenRefreshed: validToken !== null
     });
 
     // Add token to headers if available and not a public endpoint
@@ -177,8 +180,8 @@ api.interceptors.response.use(
       }
 
       try {
-        console.log(`DEBUG: Attempting to refresh token`);
-        const { data } = await axios.post(
+        console.log(`DEBUG: Attempting to refresh token with refresh_token: ${refreshToken?.substring(0, 20)}...`);
+        const refreshResponse = await axios.post(
           `${getApiBaseUrl()}/auth/refresh-token`,
           { refresh_token: refreshToken },
           { 
@@ -187,15 +190,24 @@ api.interceptors.response.use(
           }
         );
 
+        console.log('DEBUG: Refresh response status:', refreshResponse.status);
+        console.log('DEBUG: Refresh response data:', JSON.stringify(refreshResponse.data, null, 2));
+
+        const data = refreshResponse.data;
         if (!data?.success || !data?.data?.access_token) {
           throw new Error(`Invalid refresh response: ${JSON.stringify(data)}`);
         }
 
         const newAccessToken = data.data.access_token;
+        console.log(`DEBUG: New access token received: ${newAccessToken?.substring(0, 20)}...`);
+        
         localStorage.setItem('access_token', newAccessToken);
         
         if (data.data.refresh_token) {
+          console.log(`DEBUG: New refresh token received: ${data.data.refresh_token?.substring(0, 20)}...`);
           localStorage.setItem('refresh_token', data.data.refresh_token);
+        } else {
+          console.log('DEBUG: No new refresh token in response, keeping existing one');
         }
 
         isRefreshing = false;
@@ -273,6 +285,83 @@ const isValidJWT = (token: string): boolean => {
   } catch {
     return false;
   }
+};
+
+// Check if token is expired (or close to expiry)
+const isTokenExpired = (token: string): boolean => {
+  try {
+    if (!isValidJWT(token)) return true;
+    
+    const base64Payload = token.split('.')[1];
+    const payload = JSON.parse(atob(base64Payload));
+    
+    if (!payload.exp) return false;
+    
+    // Consider token expired if it expires within next 5 minutes (300 seconds)
+    const expiryTime = payload.exp * 1000;
+    const currentTime = Date.now();
+    const bufferTime = 5 * 60 * 1000; // 5 minutes
+    
+    const isExpired = (expiryTime - currentTime) <= bufferTime;
+    
+    if (isExpired) {
+      console.log('DEBUG: Token is expired or will expire soon', {
+        expiryTime: new Date(expiryTime).toISOString(),
+        currentTime: new Date(currentTime).toISOString(),
+        timeLeft: Math.floor((expiryTime - currentTime) / 1000 / 60) + ' minutes'
+      });
+    }
+    
+    return isExpired;
+  } catch (error) {
+    console.warn('DEBUG: Error checking token expiry:', error);
+    return true;
+  }
+};
+
+// Proactive token refresh function
+const refreshTokenIfNeeded = async (): Promise<string | null> => {
+  const accessToken = localStorage.getItem('access_token');
+  const refreshToken = localStorage.getItem('refresh_token');
+  
+  if (!accessToken || !refreshToken) {
+    return null;
+  }
+  
+  if (!isTokenExpired(accessToken)) {
+    return accessToken; // Token is still valid
+  }
+  
+  console.log('DEBUG: Proactively refreshing expired token');
+  
+  try {
+    const refreshResponse = await axios.post(
+      `${getApiBaseUrl()}/auth/refresh-token`,
+      { refresh_token: refreshToken },
+      { 
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 10000
+      }
+    );
+    
+    const data = refreshResponse.data;
+    if (data?.success && data?.data?.access_token) {
+      const newAccessToken = data.data.access_token;
+      localStorage.setItem('access_token', newAccessToken);
+      
+      if (data.data.refresh_token) {
+        localStorage.setItem('refresh_token', data.data.refresh_token);
+      }
+      
+      console.log('DEBUG: Proactive token refresh successful');
+      return newAccessToken;
+    }
+  } catch (error) {
+    console.warn('DEBUG: Proactive token refresh failed:', error);
+    return null;
+  }
+  
+  return null;
 };
 
 export default api;

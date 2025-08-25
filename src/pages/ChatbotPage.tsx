@@ -9,7 +9,6 @@ import {
   Trash2,
   MoreHorizontal,
   Search,
-  Settings,
   Menu,
   X,
   Edit2,
@@ -17,7 +16,6 @@ import {
 } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
-import { Badge } from "../components/ui/Badge";
 import { ScrollArea } from "../components/ui/ScrollArea";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../components/ui/DropdownMenu";
 import { useAuth } from "../hooks/useAuth";
@@ -60,8 +58,10 @@ function ChatbotPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
   const [isCreatingNewSession, setIsCreatingNewSession] = useState(false);
+  const [isAiOnline, setIsAiOnline] = useState(true); // Track AI service status
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const hasLoadedSessionsRef = useRef(false);
   const currentUserIdRef = useRef(getCurrentUserId());
@@ -77,7 +77,19 @@ function ChatbotPage() {
   );
 
   const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // Scroll within the messages container, not the entire page
+    if (messagesScrollRef.current) {
+      messagesScrollRef.current.scrollTop = messagesScrollRef.current.scrollHeight;
+      console.log('� [ChatbotPage] Scrolled messages container to bottom');
+    } else if (messagesEndRef.current) {
+      // Fallback to scrollIntoView but only within the scroll container
+      messagesEndRef.current.scrollIntoView({ 
+        behavior: "smooth",
+        block: "end",
+        inline: "nearest"
+      });
+      console.log('📜 [ChatbotPage] Used scrollIntoView fallback');
+    }
   }, []);
 
   useEffect(() => {
@@ -134,6 +146,7 @@ function ChatbotPage() {
     
     try {
       setIsLoadingSessions(true);
+      setIsAiOnline(true); // Assume online until error occurs
       const apiSessions = await chatbotService.getSessions(currentUserId);
       const floatingSessions = apiSessions.map(convertToFloatingSession);
       setChatSessions(floatingSessions);
@@ -145,6 +158,14 @@ function ChatbotPage() {
       }
     } catch (error) {
       console.error('Error loading sessions:', error);
+      // Check if it's a network error indicating AI service is down
+      if (error instanceof Error && (
+        error.message.includes('Network Error') || 
+        error.message.includes('ERR_CONNECTION_REFUSED') ||
+        error.message.includes('fetch')
+      )) {
+        setIsAiOnline(false);
+      }
     } finally {
       setIsLoadingSessions(false);
     }
@@ -352,6 +373,14 @@ function ChatbotPage() {
       }
     } catch (error) {
       console.error('Error in handleSendMessage:', error);
+      // Check if it's a network error indicating AI service is down
+      if (error instanceof Error && (
+        error.message.includes('Network Error') || 
+        error.message.includes('ERR_CONNECTION_REFUSED') ||
+        error.message.includes('fetch')
+      )) {
+        setIsAiOnline(false);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -442,23 +471,31 @@ function ChatbotPage() {
   }
 
   return (
-    <div className="min-h-[90vh] bg-white flex">
+    <div className="h-full bg-white flex overflow-hidden">
       {/* Sidebar */}
       <div
-        className={`${sidebarOpen ? "w-80" : "w-0"} transition-all duration-300 border-r border-gray-200 flex flex-col overflow-hidden`}
+        className={`${sidebarOpen ? "w-80" : "w-0"} transition-all duration-300 border-r border-gray-200 flex flex-col overflow-hidden bg-gray-50`}
       >
         {/* Sidebar Header */}
-        <div className="p-3 border-b border-gray-200 bg-gray-50">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-semibold text-gray-900">Lịch sử chat</h2>
+        <div className="p-4 border-b border-gray-200 bg-white">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Lịch sử chat</h2>
             <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(false)} className="lg:hidden">
               <X className="h-4 w-4" />
             </Button>
           </div>
 
-          <Button onClick={createNewChat} className="w-full bg-red-600 hover:bg-red-700 text-white mb-3 text-sm py-2">
+          <Button 
+            onClick={createNewChat} 
+            disabled={!isAiOnline}
+            className={`w-full mb-4 py-2.5 rounded-lg font-medium shadow-sm ${
+              isAiOnline 
+                ? 'bg-red-600 hover:bg-red-700 text-white' 
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+          >
             <Plus className="h-4 w-4 mr-2" />
-            Tạo đoạn chat mới
+            {isAiOnline ? 'Tạo đoạn chat mới' : 'AI không khả dụng'}
           </Button>
 
           <div className="relative">
@@ -467,26 +504,34 @@ function ChatbotPage() {
               placeholder="Tìm kiếm cuộc trò chuyện..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 text-sm py-2"
+              className="pl-10 py-2.5 rounded-lg border-gray-300 focus:border-red-500 focus:ring-red-500"
             />
           </div>
         </div>
 
         {/* Chat Sessions List */}
-        <div className="flex-1 overflow-hidden">
-          <ScrollArea className="h-full max-h-[70vh]">
-            <div className="p-2">
+        <div className="flex-1 overflow-hidden min-h-0">
+          <ScrollArea className="h-full">
+            <div className="p-3">
               {isLoadingSessions && (
                 <div className="p-3 text-center text-sm text-gray-500">
                   Đang tải phiên chat...
                 </div>
               )}
-              {!isLoadingSessions && filteredChatSessions.length === 0 && (
+              {!isLoadingSessions && !isAiOnline && (
+                <div className="p-3 text-center text-sm text-gray-500">
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+                    <p className="text-red-800 font-medium">AI không khả dụng</p>
+                    <p className="text-red-600 text-xs mt-1">Không thể tải danh sách phiên chat</p>
+                  </div>
+                </div>
+              )}
+              {!isLoadingSessions && isAiOnline && filteredChatSessions.length === 0 && (
                 <div className="p-3 text-center text-sm text-gray-500">
                   Chưa có phiên chat nào
                 </div>
               )}
-              {!isLoadingSessions && filteredChatSessions.map((chat) => (
+              {!isLoadingSessions && isAiOnline && filteredChatSessions.map((chat) => (
               <button
                 key={chat.id}
                 className={`w-full text-left p-2 rounded-md cursor-pointer mb-1 group hover:bg-gray-50 transition-colors ${
@@ -568,9 +613,9 @@ function ChatbotPage() {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0">
         {/* Chat Header */}
-        <div className="p-3 border-b border-gray-200 bg-white">
+        <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-white shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               {!sidebarOpen && (
@@ -585,8 +630,8 @@ function ChatbotPage() {
                 <div>
                   <h1 className="text-base font-semibold text-gray-900">AI Assistant</h1>
                   <div className="flex items-center gap-1 text-xs text-gray-500">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span>Đang hoạt động</span>
+                    <div className={`w-2 h-2 rounded-full ${isAiOnline ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                    <span>{isAiOnline ? 'Đang hoạt động' : 'Không hoạt động'}</span>
                   </div>
                 </div>
               </div>
@@ -599,56 +644,90 @@ function ChatbotPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowSessionTypeDropdown(!showSessionTypeDropdown)}
-                  className="flex items-center gap-2 px-3 py-2 bg-red-100 text-red-700 hover:bg-red-200"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-lg transition-all duration-200"
                 >
-                  <span className="font-medium">{getCurrentSessionTypeName()}</span>
-                  <ChevronDown className="h-4 w-4" />
+                  <span className="font-medium text-sm">{getCurrentSessionTypeName()}</span>
+                  <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showSessionTypeDropdown ? 'rotate-180' : ''}`} />
                 </Button>
 
                 {showSessionTypeDropdown && (
-                  <div className="absolute right-0 top-10 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-48">
+                  <div className="absolute right-0 top-12 bg-white border border-gray-200 rounded-xl shadow-lg z-20 min-w-64 overflow-hidden">
                     {AI_SESSION_TYPES.map((type) => (
                       <button
                         key={type.id}
                         onClick={() => handleSessionTypeChange(type.id)}
-                        className={`w-full text-left px-3 py-2 hover:bg-gray-50 transition-colors text-sm first:rounded-t-lg last:rounded-b-lg ${
-                          currentSessionType === type.id ? 'bg-red-50 text-red-800' : 'text-gray-700'
+                        className={`w-full text-left px-4 py-3 hover:bg-red-50 transition-colors border-b border-gray-100 last:border-b-0 ${
+                          currentSessionType === type.id ? 'bg-red-50 text-red-800 border-red-100' : 'text-gray-700'
                         }`}
                       >
-                        <div className="font-medium">{type.name}</div>
-                        <div className="text-xs text-gray-500 mt-1">{type.description}</div>
+                        <div className="flex items-center gap-3">
+                          <div className={`w-2 h-2 rounded-full ${currentSessionType === type.id ? 'bg-red-600' : 'bg-gray-300'}`}></div>
+                          <div className="flex-1">
+                            <div className="font-medium text-sm">{type.name}</div>
+                            <div className="text-xs text-gray-500 mt-1 leading-relaxed">{type.description}</div>
+                          </div>
+                        </div>
                       </button>
                     ))}
                   </div>
                 )}
               </div>
-
-              <Badge className="bg-red-100 text-red-700 hover:bg-red-100">🇯🇵 Tiếng Nhật</Badge>
-              <Button variant="ghost" size="sm">
-                <Settings className="h-4 w-4" />
-              </Button>
             </div>
           </div>
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-hidden">
-          <ScrollArea className="h-full max-h-[75vh]">
-            <div className="p-3 space-y-3 max-w-4xl mx-auto">
-              {currentMessages.length === 0 && !isCreatingNewSession && (
-                <div className="text-center py-6">
-                  <div className="w-12 h-12 rounded-full bg-red-600 flex items-center justify-center mx-auto mb-3">
-                    <Bot className="h-6 w-6 text-white" />
+        <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+          <ScrollArea className="flex-1 h-full" ref={messagesScrollRef}>
+            <div className="p-4 space-y-4 min-h-full pb-4">
+              {!isAiOnline && (
+                <div className="flex items-center justify-center h-full min-h-[400px]">
+                  <div className="text-center">
+                    <div className="w-16 h-16 rounded-full bg-gray-400 flex items-center justify-center mx-auto mb-4">
+                      <Bot className="h-8 w-8 text-white" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">AI Assistant hiện không khả dụng</h3>
+                    <p className="text-gray-600 mb-6 max-w-md mx-auto leading-relaxed">
+                      Dịch vụ AI hiện đang gặp sự cố hoặc đang bảo trì. 
+                      Vui lòng thử lại sau hoặc liên hệ với bộ phận hỗ trợ nếu vấn đề vẫn tiếp diễn.
+                    </p>
+                    <Button 
+                      onClick={loadSessions}
+                      className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium"
+                      disabled={isLoadingSessions}
+                    >
+                      {isLoadingSessions ? (
+                        <>
+                          <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                          Đang thử lại...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-5 w-5 mr-2" />
+                          Thử lại kết nối
+                        </>
+                      )}
+                    </Button>
                   </div>
-                  <h3 className="text-base font-medium text-gray-900 mb-2">Chào mừng bạn đến với AI Assistant!</h3>
-                  <p className="text-gray-600 mb-3 text-sm">{initialMessage.content}</p>
-                  <Button 
-                    onClick={createNewChat}
-                    className="bg-red-600 hover:bg-red-700 text-white text-sm py-2"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Bắt đầu cuộc trò chuyện
-                  </Button>
+                </div>
+              )}
+              
+              {isAiOnline && currentMessages.length === 0 && !isCreatingNewSession && (
+                <div className="flex items-center justify-center h-full min-h-[400px]">
+                  <div className="text-center">
+                    <div className="w-16 h-16 rounded-full bg-red-600 flex items-center justify-center mx-auto mb-4">
+                      <Bot className="h-8 w-8 text-white" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Chào mừng bạn đến với AI Assistant!</h3>
+                    <p className="text-gray-600 mb-4 max-w-md mx-auto leading-relaxed">{initialMessage.content}</p>
+                    <Button 
+                      onClick={createNewChat}
+                      className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium"
+                    >
+                      <Plus className="h-5 w-5 mr-2" />
+                      Bắt đầu cuộc trò chuyện
+                    </Button>
+                  </div>
                 </div>
               )}
               
@@ -658,22 +737,24 @@ function ChatbotPage() {
                   className={`flex gap-3 ${message.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   {message.role === "assistant" && (
-                    <div className="w-8 h-8 rounded-full bg-red-600 flex items-center justify-center flex-shrink-0">
-                      <Bot className="h-4 w-4 text-white" />
+                    <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <Bot className="h-5 w-5 text-white" />
                     </div>
                   )}
 
                   <div
-                    className={`max-w-[70%] rounded-2xl px-3 py-2 ${
-                      message.role === "user" ? "bg-red-600 text-white" : "bg-gray-100 text-gray-900"
+                    className={`max-w-[75%] rounded-2xl px-4 py-3 shadow-sm ${
+                      message.role === "user" 
+                        ? "bg-red-600 text-white" 
+                        : "bg-white border border-gray-200 text-gray-900"
                     }`}
                   >
                     {message.isTyping ? (
                       <TypingIndicator />
                     ) : (
                       <>
-                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                        <p className="text-xs opacity-70 mt-1">
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                        <p className={`text-xs mt-2 ${message.role === "user" ? "text-red-100" : "text-gray-500"}`}>
                           {message.timestamp.toLocaleTimeString("vi-VN", {
                             hour: "2-digit",
                             minute: "2-digit",
@@ -684,8 +765,8 @@ function ChatbotPage() {
                   </div>
 
                   {message.role === "user" && (
-                    <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0">
-                      <User className="h-4 w-4 text-white" />
+                    <div className="w-10 h-10 rounded-full bg-gray-600 flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <User className="h-5 w-5 text-white" />
                     </div>
                   )}
                 </div>
@@ -696,32 +777,35 @@ function ChatbotPage() {
         </div>
 
         {/* Input */}
-        <div className="p-3 border-t border-gray-200 bg-white">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex gap-2 items-end">
-              <div className="flex-1 relative">
-                <Input
-                  ref={inputRef}
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  placeholder="Nhập tin nhắn của bạn..."
-                  disabled={isLoading}
-                  className="pr-10 py-2 rounded-2xl border-gray-300 focus:border-red-400 focus:ring-red-400 text-sm"
-                />
-                <Button
-                  onClick={() => handleSendMessage(inputValue)}
-                  disabled={!inputValue.trim() || isLoading}
-                  className="absolute right-1 top-1/2 transform -translate-y-1/2 bg-red-600 hover:bg-red-700 rounded-full h-7 w-7 p-0"
-                >
-                  {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
-                </Button>
-              </div>
+        <div className="flex-shrink-0 border-t border-gray-200 bg-white p-4 shadow-lg">
+          <div className="flex gap-3 items-end">
+            <div className="flex-1 relative">
+              <Input
+                ref={inputRef}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyPress}
+                placeholder={isAiOnline ? "Nhập tin nhắn của bạn..." : "AI đang không khả dụng..."}
+                disabled={isLoading || !isAiOnline}
+                className={`pr-12 py-3 text-base rounded-xl border-gray-300 focus:border-red-500 focus:ring-red-500 shadow-sm ${
+                  !isAiOnline ? 'bg-gray-100 text-gray-500' : ''
+                }`}
+              />
+              <Button
+                onClick={() => handleSendMessage(inputValue)}
+                disabled={!inputValue.trim() || isLoading || !isAiOnline}
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-red-600 hover:bg-red-700 rounded-lg h-8 w-8 p-0 shadow-sm disabled:opacity-50"
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </Button>
             </div>
-            <p className="text-xs text-gray-500 mt-2 text-center">
-              AI có thể mắc lỗi. Vui lòng kiểm tra thông tin quan trọng.
-            </p>
           </div>
+          <p className="text-xs text-gray-500 mt-2 text-center">
+            {isAiOnline ? 
+              "AI có thể mắc lỗi. Vui lòng kiểm tra thông tin quan trọng." :
+              "Dịch vụ AI hiện không khả dụng. Vui lòng thử lại sau."
+            }
+          </p>
         </div>
       </div>
     </div>
