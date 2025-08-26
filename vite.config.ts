@@ -45,13 +45,8 @@ function getManualChunk(id: string): string | undefined {
 }
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig({
   plugins: [react(), tailwindcss()],
-  base: '/',
-  define: {
-    // Ensure import.meta.env is properly handled
-    __VITE_IS_PRODUCTION__: mode === 'production',
-  },
   resolve: {
     alias: {
       '@': path.resolve(process.cwd(), 'src'),
@@ -99,4 +94,4 @@ export default defineConfig(({ mode }) => ({
     // Source maps for debugging (optional, disable in production)
     sourcemap: false
   }
-}))
+})

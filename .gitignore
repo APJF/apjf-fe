@@ -22,7 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-*.github
 # VS Code cache
 .vscode/.cache/
 node_modules/.tmp/
