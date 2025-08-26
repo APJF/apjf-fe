@@ -12,6 +12,7 @@ import { CourseService } from '../../services/courseService'
 import api from '../../api/axios'
 import type { Course, Chapter } from '../../types/course'
 import type { Unit } from '../../types/unit'
+import type { Exam } from '../../types/exam'
 
 // Type aliases for compatibility
 type StaffCourseDetail = Course
@@ -218,7 +219,7 @@ export const StaffChapterDetailPage: React.FC = () => {
   }, [successMessage])
 
   const handleViewUnit = (unitId: string) => {
-    const unit = chapter?.units?.find((u: import('../../types/unit').Unit) => u.id === unitId)
+    const unit = chapter?.units?.find((u: Unit) => u.id === unitId)
     if (unit && chapter && course) {
       navigate(`/staff/courses/${courseId}/chapters/${chapterId}/units/${unitId}`, {
         state: { course, chapter, unit }
@@ -663,7 +664,7 @@ export const StaffChapterDetailPage: React.FC = () => {
                 <CardContent>
                   <div className={`space-y-4 ${chapter.exams && chapter.exams.length > 4 ? 'max-h-80 overflow-y-auto pr-2' : ''}`}>
                     {chapter.exams && chapter.exams.length > 0 ? (
-                      chapter.exams.map((exam: import('../../types/exam').Exam, index: number) => (
+                      chapter.exams.map((exam: Exam, index: number) => (
                         <div 
                           key={exam.id} 
                           className="p-4 bg-white rounded-lg border border-purple-100 shadow-sm hover:shadow-md transition-shadow"

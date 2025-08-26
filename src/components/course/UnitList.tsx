@@ -1,5 +1,6 @@
 import { FileText, CheckCircle, Lock } from "lucide-react";
 import type { Chapter } from '@/types/course';
+import type { Unit } from '@/types/unit';
 
 interface UnitListProps {
   readonly chapter: Chapter;
@@ -58,7 +59,7 @@ export function UnitList({
 
   return (
     <div className="pl-8 space-y-1">
-      {chapter.units?.map((unit: import('@/types/unit').Unit) => {
+      {chapter.units?.map((unit: Unit) => {
         const isCompleted = completedUnits.includes(unit.id);
         const canAccess = isEnrolled;
         
