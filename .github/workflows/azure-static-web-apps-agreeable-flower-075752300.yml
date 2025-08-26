@@ -20,7 +20,7 @@ jobs:
           submodules: true
           lfs: false
 
-      # Set up Node.js với version phù hợp với Vite 7
+      # Set up Node.js LTS (20.x)
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
