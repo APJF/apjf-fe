@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, XCircle, MinusCircle, ChevronLeft, ChevronRight, Info, ArrowLeft } from "lucide-react";
 import type { ExamResult } from "../../types/exam";
+import { ExamReviewChatBox } from "./ExamReviewChatBox";
+import { useAuth } from "../../hooks/useAuth";
 
 // ===================== Types (100% Design Inheritance) =====================
 export type ChoiceKey = "A" | "B" | "C" | "D";
@@ -170,7 +172,7 @@ function AnswerRow({
 }
 
 // ===================== Main Component =====================
-export function ExamReview({ examResult, onBack }: Readonly<ExamReviewProps>) {
+export function ExamReview({ examResult, onBack }: ExamReviewProps) {
   // Convert examResult to ReviewQuestion format - API đã trả về đầy đủ data
   const data = useMemo<ReviewQuestion[]>(() => {
     if (!examResult.questionResults?.length) return [];
@@ -184,6 +186,7 @@ export function ExamReview({ examResult, onBack }: Readonly<ExamReviewProps>) {
 
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [active, setActive] = useState(1);
+  const { user } = useAuth();
 
   // Intersection Observer for active question
   useEffect(() => {
@@ -231,31 +234,31 @@ export function ExamReview({ examResult, onBack }: Readonly<ExamReviewProps>) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+      {/* Header tổng quan */}
+      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-gray-100 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={onBack}
-              className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors"
+              className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors font-semibold"
             >
-              <ArrowLeft className="size-4" />
-              Quay lại
+              <ChevronLeft className="size-5" /> Quay lại
             </button>
-            <div>
-              <h1 className={UI.header}>{examResult.examTitle || "Review kết quả bài thi"}</h1>
-              <p className="text-sm text-gray-600 mt-1">
-                Đúng: {correctCount} • Sai: {wrongCount} • Bỏ trống: {unansweredCount} • Điểm: {examResult.score.toFixed(1)}
-              </p>
-            </div>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Chữa bài kiểm tra</h1>
+          </div>
+          <div className="flex items-center gap-6">
+            <span className="text-base text-gray-600">Điểm: <b className="text-emerald-700">{examResult.score}</b></span>
+            <span className="text-base text-gray-600">Trạng thái: <b className={examResult.status === 'PASSED' ? 'text-emerald-700' : 'text-rose-700'}>{examResult.status === 'PASSED' ? 'Đạt' : 'Chưa đạt'}</b></span>
+            <span className="text-base text-gray-600">Đúng: <b className="text-emerald-700">{correctCount}</b></span>
+            <span className="text-base text-gray-600">Sai: <b className="text-rose-700">{wrongCount}</b></span>
+            <span className="text-base text-gray-600">Bỏ trống: <b className="text-amber-700">{total - correctCount - wrongCount}</b></span>
           </div>
         </div>
       </header>
 
-      {/* Body */}
-      <main className="max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <main className="grid grid-cols-1 lg:grid-cols-12 gap-8 px-6 py-8 mx-auto max-w-7xl">
         {/* Left: Questions */}
-        <section className="lg:col-span-8 space-y-4">
+        <section className="lg:col-span-8 flex flex-col gap-6">
           {data.map((q, idx) => {
             const state = resolveState(q);
             const stateChip =
@@ -270,33 +273,28 @@ export function ExamReview({ examResult, onBack }: Readonly<ExamReviewProps>) {
             return (
               <div
                 key={q.id}
-                ref={(el) => {
-                  cardRefs.current[idx] = el;
-                }}
+                ref={(el) => { cardRefs.current[idx] = el; }}
                 data-qid={q.id}
                 id={`q-${q.id}`}
-                className={`${UI.card} overflow-hidden`}
+                className={`${UI.card} overflow-hidden mb-0 p-0 shadow-md`}
+                style={{marginBottom: '18px', padding: '18px'}}
               >
                 {/* softer accent line */}
                 <div className={`h-1 ${state === "correct" ? UI.state.correct.line : state === "wrong" ? UI.state.wrong.line : UI.state.unanswered.line}`} />
-                <div className="p-4 sm:p-5">
+                <div className="p-3">
                   {/* Header row */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex items-start gap-2">
                       <span className={UI.numBadge}>{q.id}</span>
-                      <h2 className="text-base sm:text-lg font-medium leading-snug text-gray-900">
-                        <span
-                          dangerouslySetInnerHTML={{
-                            __html: highlightUnderlinedText(q.content)
-                          }}
-                        />
+                      <h2 className="text-base font-medium leading-snug text-gray-900">
+                        <span dangerouslySetInnerHTML={{ __html: highlightUnderlinedText(q.content) }} />
                       </h2>
                     </div>
                     {stateChip}
                   </div>
 
                   {/* Status notice */}
-                  <div className={`mt-3 rounded-xl px-3 py-2 text-sm border ${
+                  <div className={`mb-2 rounded-xl px-2 py-1 text-sm border ${
                     state === "correct"
                       ? "bg-emerald-50 text-emerald-800 border-emerald-200"
                       : state === "wrong"
@@ -317,7 +315,7 @@ export function ExamReview({ examResult, onBack }: Readonly<ExamReviewProps>) {
                   </div>
 
                   {/* Answers */}
-                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-1">
                     {q.answers.map((opt) => (
                       <AnswerRow
                         key={opt.key}
@@ -335,17 +333,16 @@ export function ExamReview({ examResult, onBack }: Readonly<ExamReviewProps>) {
             );
           })}
         </section>
-
-        {/* Right: Sticky Navigator */}
-        <aside className="lg:col-span-4">
-          <div className={`${UI.card} p-4 sticky top-[84px]`}>
-            {/* Scrollable 5x5 viewport for question numbers */}
-            <div className="h-72 overflow-y-auto overscroll-contain pr-1">
-              <div className="grid grid-cols-5 gap-2 place-items-center">
+        {/* Sidebar phải là một cột grid, di chuyển cùng trang */}
+        <aside className="lg:col-span-4 flex flex-col sticky" style={{top: '64px', maxHeight: 'calc(100vh - 64px)'}}>
+          {/* List question phía trên, chiều cao cố định, scroll riêng nếu nhiều */}
+          <div className={`${UI.card} flex flex-col`} style={{height: '320px', padding: '16px'}}>
+            <div className="flex-1 overflow-y-auto">
+              <div className="grid grid-cols-6 gap-x-2 gap-y-3 justify-items-center items-center p-2">
                 {data.map((q) => {
                   const s = resolveState(q);
                   const isActive = active === q.id;
-                  const base = "relative rounded-xl border text-sm font-semibold transition flex items-center justify-center h-12 w-12"; // bigger squares
+                  const base = "relative rounded-xl border text-sm font-semibold transition flex items-center justify-center h-10 w-10";
                   const color = s === "correct" ? UI.state.correct.nav : s === "wrong" ? UI.state.wrong.nav : UI.state.unanswered.nav;
                   const outline = isActive ? "ring-2 ring-emerald-400/30 border-emerald-400" : "border-gray-300 hover:border-gray-400";
                   return (
@@ -354,6 +351,7 @@ export function ExamReview({ examResult, onBack }: Readonly<ExamReviewProps>) {
                       onClick={() => scrollToIdx(q.id)}
                       className={[base, color, outline].join(" ")}
                       aria-label={`Đi tới ${q.id}`}
+                      style={{margin: '0'}}
                     >
                       {q.id}
                     </button>
@@ -361,16 +359,14 @@ export function ExamReview({ examResult, onBack }: Readonly<ExamReviewProps>) {
                 })}
               </div>
             </div>
-
             {/* Divider */}
-            <div className="my-4 h-px bg-gray-100" />
-
-            {/* Controls below grid */}
-            <div className="flex items-center justify-between">
+            <div className="my-2 h-px bg-gray-100" />
+            {/* Controls luôn hiển thị dưới grid, không bị scroll */}
+            <div className="flex items-center justify-between pt-2">
               <button
                 onClick={() => scrollToIdx(active - 1)}
                 disabled={active <= 1}
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 text-sm"
               >
                 <ChevronLeft className="size-4" /> Trước
               </button>
@@ -378,12 +374,18 @@ export function ExamReview({ examResult, onBack }: Readonly<ExamReviewProps>) {
               <button
                 onClick={() => scrollToIdx(active + 1)}
                 disabled={active >= total}
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 text-sm"
               >
                 Sau <ChevronRight className="size-4" />
               </button>
             </div>
           </div>
+          {/* Chatbox phía dưới, luôn hiện đầy đủ chiều cao kể cả chưa nhắn tin */}
+          {(!!user && !!examResult?.examResultId) && (
+            <div style={{height: 'calc(100vh - 320px - 64px)'}} className="flex-shrink-0 flex items-end sticky bottom-0">
+              <ExamReviewChatBox userId={String(user.id)} examResultId={examResult.examResultId} />
+            </div>
+          )}
         </aside>
       </main>
     </div>
