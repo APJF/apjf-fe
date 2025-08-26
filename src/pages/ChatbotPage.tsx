@@ -21,6 +21,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useAuth } from "../hooks/useAuth";
 import { chatbotService, getCurrentUserId, type ChatSession } from "../services/chatbotService";
 import type { FloatingChatSession, AISessionType, FloatingMessage } from "../types/floatingChat";
+import { parseMessageWithLinks } from "../utils/messageUtils";
 
 const AI_SESSION_TYPES: Array<{ id: AISessionType; name: string; description: string }> = [
   { id: 'qna', name: 'Trợ lý', description: 'Trả lời câu hỏi chung' },
@@ -753,7 +754,9 @@ function ChatbotPage() {
                       <TypingIndicator />
                     ) : (
                       <>
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                        <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                          {parseMessageWithLinks(message.content, message.role === "user")}
+                        </div>
                         <p className={`text-xs mt-2 ${message.role === "user" ? "text-red-100" : "text-gray-500"}`}>
                           {message.timestamp.toLocaleTimeString("vi-VN", {
                             hour: "2-digit",

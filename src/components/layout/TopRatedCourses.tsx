@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Clock, Star } from "lucide-react"
+import { Clock, Star, Users } from "lucide-react"
 import { Link, useNavigate } from "react-router-dom"
 import { CourseService } from "../../services/courseService"
 import { useLanguage } from "../../contexts/LanguageContext"
@@ -136,9 +136,17 @@ const CourseCard: React.FC<{ course: APICourse }> = ({ course }) => {
         <p className="text-gray-600 text-sm mb-4 line-clamp-2">{course.title}</p>
         <div className="flex items-center justify-between">
           <StarDisplay rating={course.averageRating || null} />
-          <div className="flex items-center gap-1 text-gray-500">
-            <Clock className="w-4 h-4" />
-            <span className="text-sm">{course.duration}h</span>
+          <div className="flex items-center gap-3 text-gray-500">
+            {course.totalEnrolled !== undefined && (
+              <div className="flex items-center gap-1">
+                <Users className="w-4 h-4" />
+                <span className="text-sm">{course.totalEnrolled}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-1">
+              <Clock className="w-4 h-4" />
+              <span className="text-sm">{course.duration}h</span>
+            </div>
           </div>
         </div>
       </div>
