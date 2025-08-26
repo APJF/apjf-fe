@@ -26,10 +26,56 @@ jobs:
         with:
           node-version: '20.19.0'
           cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
 
-      # Install dependencies with npm caching
-      - name: Install dependencies
-        run: npm ci
+      # Set up npm authentication (optional, only if NPM_TOKEN exists)  
+      - name: Set up npm auth
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" > ~/.npmrc
+            echo "NPM authentication configured"
+          else
+            echo "No NPM_TOKEN found, proceeding without authentication"
+          fi
+
+      # Install dependencies with retry mechanism
+      - name: Install dependencies with retry
+        run: |
+          # First try npm ci with retries
+          for i in 1 2 3; do
+            echo "npm ci attempt $i of 3..."
+            if npm ci --prefer-offline --no-audit --no-fund; then
+              echo "npm ci succeeded on attempt $i"
+              exit 0
+            else
+              echo "npm ci failed on attempt $i"
+              if [ $i -lt 3 ]; then
+                echo "Waiting 15 seconds before retry..."
+                sleep 15
+              fi
+            fi
+          done
+          
+          # Fallback to npm install if npm ci fails
+          echo "npm ci failed after 3 attempts, trying npm install as fallback..."
+          for i in 1 2; do
+            echo "npm install attempt $i of 2..."
+            if npm install --no-audit --no-fund; then
+              echo "npm install succeeded on attempt $i"
+              exit 0
+            else
+              echo "npm install failed on attempt $i"
+              if [ $i -lt 2 ]; then
+                echo "Waiting 20 seconds before retry..."
+                sleep 20
+              fi
+            fi
+          done
+          
+          echo "All installation methods failed"
+          exit 1
 
       # Build project
       - name: Build project
