@@ -3,7 +3,8 @@
     "rewrite": "/index.html",
     "exclude": [
       "/assets/*",
-      "/img/*",
+      "/img/*", 
+      "/src/*",
       "*.css",
       "*.js",
       "*.mjs", 
@@ -78,6 +79,18 @@
     },
     {
       "route": "/*.mjs",
+      "headers": {
+        "Content-Type": "application/javascript; charset=utf-8"
+      }
+    },
+    {
+      "route": "/src/*.tsx",
+      "headers": {
+        "Content-Type": "application/javascript; charset=utf-8"
+      }
+    },
+    {
+      "route": "/src/*.ts", 
       "headers": {
         "Content-Type": "application/javascript; charset=utf-8"
       }
