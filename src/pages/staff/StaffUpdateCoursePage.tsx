@@ -822,6 +822,7 @@ const StaffUpdateCoursePage: React.FC = () => {
                         value={formData.duration}
                         onChange={(e) => handleInputChange("duration", e.target.value)}
                         placeholder="Ví dụ: 40"
+                        max="100000"
                         className={`text-base py-3 bg-white/80 backdrop-blur-sm ${
                           fieldErrors.duration 
                             ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 

@@ -4,7 +4,6 @@ import {
   BarChart3,
   BookOpen,
   Plus,
-  Users,
   Menu,
   X,
   Home,
@@ -88,18 +87,18 @@ export const StaffNavigation: React.FC<StaffNavigationProps> = ({ children }) =>
     {
       to: '/staff/create-question',
       icon: <FileText className="h-5 w-5" />,
-      label: 'Tạo câu hỏi'
+      label: 'Create Question'
     },
     {
       to: '/staff/manager-feedback',
       icon: <FileText className="h-5 w-5" />,
       label: "My Requests"
-    },
-    {
-      to: '/staff/student-feedback',
-      icon: <Users className="h-5 w-5" />,
-      label: "Student's Feedback"
-    }
+     }//,
+    // {
+    //   to: '/staff/student-feedback',
+    //   icon: <Users className="h-5 w-5" />,
+    //   label: "Student's Feedback"
+    // }
   ];
 
   const isActive = (path: string) => location.pathname === path;

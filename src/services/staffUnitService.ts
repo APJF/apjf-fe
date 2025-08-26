@@ -95,6 +95,19 @@ export const StaffUnitService = {
       throw error
     }
   },
+
+  // Lấy danh sách exams của unit
+  getExamsByUnit: async (unitId: string): Promise<ApiResponse<any[]>> => {
+    try {
+      const response = await axios.get(`/units/${unitId}/exams`, {
+        headers: getAuthHeaders()
+      })
+      return response.data
+    } catch (error) {
+      console.error('Error fetching exams by unit:', error)
+      throw error
+    }
+  },
   
   // Xóa bài học
   deleteUnit: async (unitId: string): Promise<ApiResponse<{ message: string }>> => {

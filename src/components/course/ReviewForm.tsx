@@ -75,9 +75,13 @@ export default function ReviewForm({
           rows={3}
           value={comment}
           onChange={(e) => setComment(e.target.value)}
+          maxLength={255}
           className="w-full rounded-md border border-gray-300 p-2.5 text-sm focus:ring-1 focus:ring-rose-700 focus:border-transparent"
           placeholder={t('courseDetail.reviewPlaceholder')}
         />
+        <p className={`text-xs mt-1 ${comment.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+          {comment.length}/255 ký tự
+        </p>
       </div>
 
       {/* Stars + Submit: same row, tight spacing */}

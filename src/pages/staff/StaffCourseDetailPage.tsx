@@ -8,8 +8,11 @@ import { Badge } from '../../components/ui/Badge'
 import { StaffNavigation } from '../../components/layout/StaffNavigation'
 import { CourseService } from '../../services/courseService' // Sử dụng CourseService thay vì StaffCourseService
 import { StaffCourseService } from '../../services/staffCourseService'
+import { ReviewService } from '../../services/reviewService'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { ReviewModal } from '../../components/staff/ReviewModal'
 import type { Course, Chapter, CourseExam } from '../../types/course' // Sử dụng Course, Chapter và CourseExam types
+import type { Review } from '../../types/review'
 
 // Function to sort chapters by prerequisite order
 function sortChaptersByPrerequisite(chapters: Chapter[]): Chapter[] {
@@ -116,6 +119,7 @@ export const StaffCourseDetailPage: React.FC = () => {
   const [course, setCourse] = useState<Course | null>(null)
   const [chapters, setChapters] = useState<Chapter[]>([])
   const [exams, setExams] = useState<CourseExam[]>([])
+  const [reviews, setReviews] = useState<Review[]>([])
   const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set())
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -124,6 +128,14 @@ export const StaffCourseDetailPage: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false)
   const [isDeactivating, setIsDeactivating] = useState(false)
+  const [showReviewModal, setShowReviewModal] = useState(false)
+
+  // Hàm tính trung bình rating từ reviews
+  const calculateAverageRating = useCallback(() => {
+    if (reviews.length === 0) return 0
+    const total = reviews.reduce((sum, review) => sum + review.rating, 0)
+    return total / reviews.length
+  }, [reviews])
 
   const fetchCourseData = useCallback(async () => {
     if (!courseId) return
@@ -135,13 +147,17 @@ export const StaffCourseDetailPage: React.FC = () => {
       console.log('🔍 Fetching course data for ID:', courseId);
       
       // Sử dụng API giống như CourseDetailPage
-      const [courseRes, chaptersRes] = await Promise.all([
+      const [courseRes, chaptersRes, examsRes, reviewsRes] = await Promise.all([
         CourseService.getCourseDetail(courseId), // API mới: GET /api/course/{courseId}
-        CourseService.getChaptersByCourseId(courseId) // API mới: GET /api/chapters/course/{courseId}
+        CourseService.getChaptersByCourseId(courseId), // API mới: GET /api/chapters/course/{courseId}
+        CourseService.getExamsByCourseId(courseId), // API mới: GET /api/courses/{courseId}/exams
+        ReviewService.getReviewsByCourseId(courseId) // API mới: GET /api/reviews/{courseId}
       ]);
 
       console.log('📊 Course Response:', courseRes);
       console.log('📊 Chapters Response:', chaptersRes);
+      console.log('📊 Exams Response:', examsRes);
+      console.log('📊 Reviews Response:', reviewsRes);
 
       if (courseRes.success) {
         setCourse(courseRes.data);
@@ -168,18 +184,21 @@ export const StaffCourseDetailPage: React.FC = () => {
       }
 
       // Load exams for this course using new API
-      try {
-        const examsResponse = await CourseService.getExamsByCourseId(courseId);
-        if (examsResponse.success) {
-          setExams(examsResponse.data);
-          console.log('✅ Course exams loaded:', examsResponse.data);
-        } else {
-          console.error('❌ Course exams fetch failed:', examsResponse.message);
-          setExams([]);
-        }
-      } catch (examError) {
-        console.log('Course exams service error:', examError);
+      if (examsRes.success) {
+        setExams(examsRes.data);
+        console.log('✅ Course exams loaded:', examsRes.data);
+      } else {
+        console.error('❌ Course exams fetch failed:', examsRes.message);
         setExams([]);
+      }
+
+      // Load reviews for this course
+      if (reviewsRes.success) {
+        setReviews(reviewsRes.data);
+        console.log('✅ Course reviews loaded:', reviewsRes.data);
+      } else {
+        console.error('❌ Course reviews fetch failed:', reviewsRes.message);
+        setReviews([]);
       }
     } catch (error) {
       console.error('Error fetching course data:', error)
@@ -252,15 +271,24 @@ export const StaffCourseDetailPage: React.FC = () => {
 
     try {
       setIsDeactivating(true)
-      const result = await StaffCourseService.deactivateCourse(courseId)
+      // Sử dụng API PATCH /api/courses/{id}/deactivate
+      const token = localStorage.getItem('access_token')
+      const response = await fetch(`http://localhost:8080/api/courses/${courseId}/deactivate`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
       
-      if (result.success) {
+      if (response.ok) {
         setSuccessMessage('Đã tạm dừng hoạt động khóa học thành công!')
         setShowDeactivateDialog(false)
         // Refresh course data to show updated status
         await fetchCourseData()
       } else {
-        setError(result.message || 'Có lỗi xảy ra khi tạm dừng hoạt động khóa học')
+        const errorData = await response.json()
+        setError(errorData.message || 'Có lỗi xảy ra khi tạm dừng hoạt động khóa học')
       }
     } catch (error) {
       console.error('Error deactivating course:', error)
@@ -297,6 +325,28 @@ export const StaffCourseDetailPage: React.FC = () => {
       setIsDeactivating(false)
     }
   }
+
+  const handleDeleteReview = async (reviewId: number) => {
+    try {
+      const result = await ReviewService.deleteReview(reviewId)
+      
+      if (result.success) {
+        setSuccessMessage('Đánh giá đã được xóa thành công!')
+        // Refresh reviews data
+        const reviewsRes = await ReviewService.getReviewsByCourseId(courseId!)
+        if (reviewsRes.success) {
+          setReviews(reviewsRes.data)
+        }
+      } else {
+        setError(result.message || 'Có lỗi xảy ra khi xóa đánh giá')
+      }
+    } catch (error) {
+      console.error('Error deleting review:', error)
+      setError('Có lỗi xảy ra khi xóa đánh giá')
+    }
+  }
+
+  const averageRating = calculateAverageRating()
 
   if (isLoading) {
     return (
@@ -438,8 +488,8 @@ export const StaffCourseDetailPage: React.FC = () => {
                     {course.title}
                   </h1>
                   
-                  <p className="text-gray-700 text-lg leading-relaxed mb-6">
-                    {course.description}
+                  <p className="text-white text-lg leading-relaxed mb-6">
+                    0
                   </p>
 
                   {/* Stats */}
@@ -454,9 +504,9 @@ export const StaffCourseDetailPage: React.FC = () => {
                     
                     <div className="text-center p-4 bg-purple-50 rounded-lg">
                       <div className="text-2xl font-bold text-purple-600 mb-1 flex items-center justify-center gap-1">
-                        {course.averageRating ? (
+                        {averageRating > 0 ? (
                           <>
-                            {course.averageRating.toFixed(1)}
+                            {averageRating.toFixed(1)}
                             <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
                           </>
                         ) : (
@@ -536,10 +586,10 @@ export const StaffCourseDetailPage: React.FC = () => {
                   <Button
                     variant="outline"
                     className="w-full"
-                    onClick={() => navigate(`/staff/course/${course.id}/reviews`)}
+                    onClick={() => setShowReviewModal(true)}
                   >
                     <Star className="h-4 w-4 mr-2" />
-                    Xem đánh giá ({course.averageRating ? `${course.averageRating.toFixed(1)}★` : "0★"})
+                    Xem đánh giá ({averageRating > 0 ? `${averageRating.toFixed(1)}★` : "0★"})
                   </Button>
                   
                   {course.status === 'ACTIVE' && (
@@ -585,96 +635,6 @@ export const StaffCourseDetailPage: React.FC = () => {
                 </CardContent>
               </Card>
 
-              {/* Exams List */}
-              <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-xl flex items-center gap-2">
-                      <FileText className="h-5 w-5 text-purple-600" />
-                      Bài kiểm tra ({exams.length})
-                    </CardTitle>
-                    <Button 
-                      className="bg-purple-600 hover:bg-purple-700 text-white"
-                      onClick={() => navigate('/staff/create-exam', { 
-                        state: { 
-                          scope: 'course', 
-                          scopeId: course.id, 
-                          scopeName: course.title 
-                        } 
-                      })}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Tạo bài kiểm tra
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className={`space-y-3 ${exams.length > 3 ? 'max-h-64 overflow-y-auto pr-2' : ''}`}>
-                    {exams.length > 0 ? (
-                      exams.map((exam) => (
-                        <div key={exam.examId} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <h4 className="font-semibold text-gray-900 mb-1">{exam.title}</h4>
-                              <p className="text-sm text-gray-600 mb-2">{exam.description}</p>
-                              <div className="flex items-center space-x-4 text-sm text-gray-500">
-                                <span className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {exam.duration} phút
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <BookOpen className="h-3 w-3" />
-                                  {exam.totalQuestions} câu hỏi
-                                </span>
-                                <Badge variant="outline" className="text-blue-600 border-blue-200">
-                                  {getExamTypeText(exam.type)}
-                                </Badge>
-                              </div>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => navigate(`/staff/exams/${exam.examId}/edit`, {
-                                  state: {
-                                    scope: 'course',
-                                    scopeId: course.id,
-                                    scopeName: course.title
-                                  }
-                                })}
-                              >
-                                <Edit className="h-4 w-4 mr-1" />
-                                Chỉnh sửa
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-8">
-                        <FileText className="h-12 w-12 mx-auto text-purple-300 mb-3" />
-                        <p className="text-purple-600 font-medium mb-1">Chưa có bài kiểm tra nào</p>
-                        <p className="text-sm text-purple-500 mb-4">
-                          Tạo bài kiểm tra đầu tiên cho khóa học này
-                        </p>
-                        <Button 
-                          className="bg-purple-600 hover:bg-purple-700 text-white"
-                          onClick={() => navigate('/staff/create-exam', { 
-                            state: { 
-                              scope: 'course', 
-                              scopeId: course.id, 
-                              scopeName: course.title 
-                            } 
-                          })}
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Tạo bài kiểm tra
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
 
               {/* Chapters List */}
               <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
@@ -784,9 +744,109 @@ export const StaffCourseDetailPage: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Exams List */}
+              <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-xl flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-purple-600" />
+                      Bài kiểm tra ({exams.length})
+                    </CardTitle>
+                    <Button 
+                      className="bg-purple-600 hover:bg-purple-700 text-white"
+                      onClick={() => navigate('/staff/create-exam', { 
+                        state: { 
+                          scope: 'course', 
+                          scopeId: course.id, 
+                          scopeName: course.title 
+                        } 
+                      })}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Tạo bài kiểm tra
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className={`space-y-3 ${exams.length > 3 ? 'max-h-64 overflow-y-auto pr-2' : ''}`}>
+                    {exams.length > 0 ? (
+                      exams.map((exam) => (
+                        <div key={exam.examId} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-gray-900 mb-1">{exam.title}</h4>
+                              <p className="text-sm text-gray-600 mb-2">{exam.description}</p>
+                              <div className="flex items-center space-x-4 text-sm text-gray-500">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {exam.duration} phút
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <BookOpen className="h-3 w-3" />
+                                  {exam.totalQuestions} câu hỏi
+                                </span>
+                                <Badge variant="outline" className="text-blue-600 border-blue-200">
+                                  {getExamTypeText(exam.type)}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => navigate(`/staff/exams/${exam.examId}/edit`, {
+                                  state: {
+                                    scope: 'course',
+                                    scopeId: course.id,
+                                    scopeName: course.title
+                                  }
+                                })}
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Chỉnh sửa
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <FileText className="h-12 w-12 mx-auto text-purple-300 mb-3" />
+                        <p className="text-purple-600 font-medium mb-1">Chưa có bài kiểm tra nào</p>
+                        <p className="text-sm text-purple-500 mb-4">
+                          Tạo bài kiểm tra đầu tiên cho khóa học này
+                        </p>
+                        <Button 
+                          className="bg-purple-600 hover:bg-purple-700 text-white"
+                          onClick={() => navigate('/staff/create-exam', { 
+                            state: { 
+                              scope: 'course', 
+                              scopeId: course.id, 
+                              scopeName: course.title 
+                            } 
+                          })}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Tạo bài kiểm tra
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
+
+        {/* Review Modal */}
+        <ReviewModal
+          isOpen={showReviewModal}
+          onClose={() => setShowReviewModal(false)}
+          reviews={reviews}
+          onDeleteReview={handleDeleteReview}
+          courseTitle={course.title}
+        />
 
         {/* Confirm Deactivate Dialog */}
         <ConfirmDialog

@@ -23,7 +23,9 @@ import {
   BookOpen,
   AlertCircle,
   Check,
-  X
+  X,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react'
 import { ApprovalRequestService } from '../../services/approvalRequestService'
 import { CourseService } from '../../services/courseService'
@@ -34,6 +36,23 @@ import type { ApprovalRequest } from '../../types/approvalRequest'
 import type { Course } from '../../types/course'
 import type { Chapter } from '../../types/chapter'
 import type { UnitDetail } from '../../types/unit'
+
+// Extended interfaces for nested requests
+interface ChapterWithRequests {
+  id: string
+  title: string
+  description?: string
+  courseId: string
+  latestRequest?: ApprovalRequest
+  units?: UnitWithRequest[]
+  expanded?: boolean
+}
+
+interface UnitWithRequest {
+  id: string
+  title: string
+  latestRequest?: ApprovalRequest
+}
 
 
 export function ManagerApprovalRequestsPage() {
@@ -54,6 +73,11 @@ export function ManagerApprovalRequestsPage() {
   const [currentTab, setCurrentTab] = useState("all")
   const [unitMaterials, setUnitMaterials] = useState<Material[]>([])
   const [isLoadingMaterials, setIsLoadingMaterials] = useState(false)
+  
+  // State for nested requests
+  const [courseChapters, setCourseChapters] = useState<ChapterWithRequests[]>([])
+  const [chapterUnits, setChapterUnits] = useState<UnitWithRequest[]>([])
+  const [isLoadingNestedRequests, setIsLoadingNestedRequests] = useState(false)
  
   // State để lưu thông tin chi tiết
   const [targetDetails, setTargetDetails] = useState<{
@@ -89,6 +113,110 @@ export function ManagerApprovalRequestsPage() {
     }
   }
 
+
+  // Fetch nested requests for course details
+  const fetchCourseNestedRequests = async (courseId: string) => {
+    try {
+      setIsLoadingNestedRequests(true)
+      
+      // Get chapters in course
+      const chaptersResponse = await CourseService.getChaptersByCourseId(courseId)
+      if (!chaptersResponse.success) {
+        throw new Error('Failed to fetch chapters')
+      }
+
+      const chapters = chaptersResponse.data
+      const chaptersWithRequests: ChapterWithRequests[] = []
+
+      // For each chapter, get latest request and units
+      for (const chapter of chapters) {
+        const chapterWithRequests: ChapterWithRequests = {
+          id: chapter.id,
+          title: chapter.title,
+          description: chapter.description || undefined,
+          courseId: chapter.courseId,
+          expanded: false
+        }
+
+        // Find latest request for this chapter
+        const chapterRequests = requests.filter(req => 
+          req.targetType === 'CHAPTER' && req.targetId === chapter.id.toString()
+        ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        
+        if (chapterRequests.length > 0) {
+          chapterWithRequests.latestRequest = chapterRequests[0]
+        }
+
+        // Get units in chapter
+        try {
+          const unitsResponse = await CourseService.getUnitsByChapterId(chapter.id.toString())
+          if (unitsResponse.success) {
+            const unitsWithRequests: UnitWithRequest[] = []
+            
+            for (const unit of unitsResponse.data) {
+              const unitRequests = requests.filter(req => 
+                req.targetType === 'UNIT' && req.targetId === unit.id.toString()
+              ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+              
+              unitsWithRequests.push({
+                id: unit.id.toString(),
+                title: unit.title,
+                latestRequest: unitRequests.length > 0 ? unitRequests[0] : undefined
+              })
+            }
+            
+            chapterWithRequests.units = unitsWithRequests
+          }
+        } catch (error) {
+          console.error(`Error fetching units for chapter ${chapter.id}:`, error)
+          chapterWithRequests.units = []
+        }
+
+        chaptersWithRequests.push(chapterWithRequests)
+      }
+
+      setCourseChapters(chaptersWithRequests)
+    } catch (error) {
+      console.error('Error fetching course nested requests:', error)
+      showToast('error', 'Không thể tải danh sách chapter và unit')
+    } finally {
+      setIsLoadingNestedRequests(false)
+    }
+  }
+
+  // Fetch nested requests for chapter details
+  const fetchChapterNestedRequests = async (chapterId: string) => {
+    try {
+      setIsLoadingNestedRequests(true)
+      
+      // Get units in chapter
+      const unitsResponse = await CourseService.getUnitsByChapterId(chapterId)
+      if (!unitsResponse.success) {
+        throw new Error('Failed to fetch units')
+      }
+
+      const unitsWithRequests: UnitWithRequest[] = []
+      
+      for (const unit of unitsResponse.data) {
+        const unitRequests = requests.filter(req => 
+          req.targetType === 'UNIT' && req.targetId === unit.id.toString()
+        ).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        
+        unitsWithRequests.push({
+          id: unit.id.toString(),
+          title: unit.title,
+          latestRequest: unitRequests.length > 0 ? unitRequests[0] : undefined
+        })
+      }
+
+      setChapterUnits(unitsWithRequests)
+    } catch (error) {
+      console.error('Error fetching chapter nested requests:', error)
+      showToast('error', 'Không thể tải danh sách unit')
+    } finally {
+      setIsLoadingNestedRequests(false)
+    }
+  }
 
   // Fetch target details based on targetType and targetId
   const fetchTargetDetails = async (targetType: string, targetId: string) => {
@@ -439,8 +567,19 @@ export function ManagerApprovalRequestsPage() {
     setSelectedRequest(request)
     setIsDetailDialogOpen(true)
    
+    // Reset previous data
+    setCourseChapters([])
+    setChapterUnits([])
+   
     // Fetch target details based on targetType and targetId
     await fetchTargetDetails(request.targetType, request.targetId)
+    
+    // Fetch nested requests based on target type
+    if (request.targetType === 'COURSE') {
+      await fetchCourseNestedRequests(request.targetId)
+    } else if (request.targetType === 'CHAPTER') {
+      await fetchChapterNestedRequests(request.targetId)
+    }
   }
 
 
@@ -448,6 +587,55 @@ export function ManagerApprovalRequestsPage() {
     setRejectingRequest(request)
     setRejectFeedback("")
     setIsRejectDialogOpen(true)
+  }
+
+  // Helper functions for nested requests
+  const toggleChapterExpand = (chapterId: string) => {
+    setCourseChapters(prev => prev.map(chapter => 
+      chapter.id.toString() === chapterId 
+        ? { ...chapter, expanded: !chapter.expanded }
+        : chapter
+    ))
+  }
+
+  const handleNestedRequestAction = async (request: ApprovalRequest, action: 'approve' | 'reject', feedback?: string) => {
+    try {
+      setIsActionLoading(true)
+      
+      if (action === 'approve') {
+        await ApprovalRequestService.approveRequest(request.id, feedback)
+        showToast('success', 'Yêu cầu đã được phê duyệt thành công!')
+      } else if (action === 'reject' && feedback) {
+        await ApprovalRequestService.rejectRequest(request.id, feedback)
+        showToast('success', 'Yêu cầu đã được từ chối')
+      }
+
+      // Update the request in global state
+      setRequests(prev => prev.map(req =>
+        req.id === request.id
+          ? { 
+              ...req, 
+              decision: action === 'approve' ? "APPROVED" : "REJECTED",
+              feedback: feedback || req.feedback,
+              reviewedAt: new Date().toISOString(),
+              reviewedBy: user?.username || 'Manager'
+            }
+          : req
+      ))
+
+      // Update nested data based on target type
+      if (selectedRequest?.targetType === 'COURSE') {
+        await fetchCourseNestedRequests(selectedRequest.targetId)
+      } else if (selectedRequest?.targetType === 'CHAPTER') {
+        await fetchChapterNestedRequests(selectedRequest.targetId)
+      }
+
+    } catch (error) {
+      console.error(`Error ${action}ing nested request:`, error)
+      showToast('error', `Có lỗi xảy ra khi ${action === 'approve' ? 'phê duyệt' : 'từ chối'} yêu cầu`)
+    } finally {
+      setIsActionLoading(false)
+    }
   }
 
 
@@ -700,11 +888,10 @@ export function ManagerApprovalRequestsPage() {
                 <div className="grid grid-cols-12 gap-4 px-6 py-4 text-sm font-medium">
                   <div className="col-span-1">STT</div>
                   <div className="col-span-2">ID / Loại</div>
-                  <div className="col-span-2">Tiêu đề</div>
-                  <div className="col-span-1">Hành động</div>
+                  <div className="col-span-2">Hành động</div>
                   <div className="col-span-2">Người tạo</div>
                   <div className="col-span-2">Thời gian</div>
-                  <div className="col-span-1">Trạng thái</div>
+                  <div className="col-span-2">Trạng thái</div>
                   <div className="col-span-1">Chi tiết</div>
                 </div>
               </div>
@@ -753,12 +940,8 @@ export function ManagerApprovalRequestsPage() {
                           </div>
                         </div>
                       </div>
+                      
                       <div className="col-span-2">
-                        <div className="text-sm font-medium text-blue-900 line-clamp-2">
-                          {item.targetTitle}
-                        </div>
-                      </div>
-                      <div className="col-span-1">
                         <Badge
                           variant="outline"
                           className="text-xs border-purple-300 text-purple-700"
@@ -785,7 +968,7 @@ export function ManagerApprovalRequestsPage() {
                           )}
                         </div>
                       </div>
-                      <div className="col-span-1">
+                      <div className="col-span-2">
                         <div className="flex items-center gap-2">
                           {getDecisionIcon(item.decision)}
                           <Badge className={`${getDecisionColor(item.decision)} text-xs font-medium`}>
@@ -1157,6 +1340,269 @@ export function ManagerApprovalRequestsPage() {
                     )}
 
 
+                    {/* Course Chapters and Units Requests */}
+                    {selectedRequest.targetType === 'COURSE' && (
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                          <Layers className="h-5 w-5" />
+                          Danh sách Chapter và Unit
+                        </h4>
+                        
+                        {isLoadingNestedRequests ? (
+                          <div className="flex items-center justify-center py-8">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                            <span className="ml-3 text-gray-600">Đang tải danh sách...</span>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {courseChapters.length > 0 ? (
+                              courseChapters.map((chapter) => (
+                                <div key={chapter.id} className="border border-gray-200 rounded-lg overflow-hidden">
+                                  {/* Chapter Header */}
+                                  <div className="bg-gray-50 p-4">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-3 flex-1">
+                                        <button
+                                          onClick={() => toggleChapterExpand(chapter.id)}
+                                          className="text-gray-500 hover:text-gray-700"
+                                        >
+                                          {chapter.expanded ? (
+                                            <ChevronDown className="h-4 w-4" />
+                                          ) : (
+                                            <ChevronRight className="h-4 w-4" />
+                                          )}
+                                        </button>
+                                        <Layers className="h-4 w-4 text-purple-600" />
+                                        <div>
+                                          <h5 className="font-medium text-gray-900">{chapter.title}</h5>
+                                          <p className="text-xs text-gray-500">Chapter ID: {chapter.id}</p>
+                                        </div>
+                                      </div>
+                                      
+                                      <div className="flex items-center gap-2">
+                                        {chapter.latestRequest ? (
+                                          <>
+                                            <Badge className={getDecisionColor(chapter.latestRequest.decision)}>
+                                              {getDecisionText(chapter.latestRequest.decision)}
+                                            </Badge>
+                                            {chapter.latestRequest.decision === "PENDING" && (
+                                              <div className="flex gap-1">
+                                                <Button
+                                                  size="sm"
+                                                  variant="ghost"
+                                                  onClick={() => handleNestedRequestAction(chapter.latestRequest!, 'approve')}
+                                                  disabled={isActionLoading}
+                                                  className="h-7 w-7 p-0 hover:bg-green-100 text-green-600"
+                                                  title="Phê duyệt"
+                                                >
+                                                  <Check className="h-3 w-3" />
+                                                </Button>
+                                                <Button
+                                                  size="sm"
+                                                  variant="ghost"
+                                                  onClick={() => {
+                                                    setRejectingRequest(chapter.latestRequest!)
+                                                    setIsRejectDialogOpen(true)
+                                                  }}
+                                                  disabled={isActionLoading}
+                                                  className="h-7 w-7 p-0 hover:bg-red-100 text-red-600"
+                                                  title="Từ chối"
+                                                >
+                                                  <X className="h-3 w-3" />
+                                                </Button>
+                                              </div>
+                                            )}
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              onClick={() => handleRowClick(chapter.latestRequest!)}
+                                              className="h-7 w-7 p-0 hover:bg-blue-100 text-blue-600"
+                                              title="Xem chi tiết"
+                                            >
+                                              <Eye className="h-3 w-3" />
+                                            </Button>
+                                          </>
+                                        ) : (
+                                          <span className="text-xs text-gray-400">Không có request</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Units List (when expanded) */}
+                                  {chapter.expanded && chapter.units && (
+                                    <div className="bg-white">
+                                      {chapter.units.length > 0 ? (
+                                        chapter.units.map((unit) => (
+                                          <div key={unit.id} className="border-t border-gray-100 p-3 pl-12">
+                                            <div className="flex items-center justify-between">
+                                              <div className="flex items-center gap-2">
+                                                <FileText className="h-3 w-3 text-blue-600" />
+                                                <div>
+                                                  <span className="text-sm font-medium text-gray-900">{unit.title}</span>
+                                                  <p className="text-xs text-gray-500">Unit ID: {unit.id}</p>
+                                                </div>
+                                              </div>
+                                              
+                                              <div className="flex items-center gap-2">
+                                                {unit.latestRequest ? (
+                                                  <>
+                                                    <Badge className={getDecisionColor(unit.latestRequest.decision)}>
+                                                      {getDecisionText(unit.latestRequest.decision)}
+                                                    </Badge>
+                                                    {unit.latestRequest.decision === "PENDING" && (
+                                                      <div className="flex gap-1">
+                                                        <Button
+                                                          size="sm"
+                                                          variant="ghost"
+                                                          onClick={() => handleNestedRequestAction(unit.latestRequest!, 'approve')}
+                                                          disabled={isActionLoading}
+                                                          className="h-6 w-6 p-0 hover:bg-green-100 text-green-600"
+                                                          title="Phê duyệt"
+                                                        >
+                                                          <Check className="h-3 w-3" />
+                                                        </Button>
+                                                        <Button
+                                                          size="sm"
+                                                          variant="ghost"
+                                                          onClick={() => {
+                                                            setRejectingRequest(unit.latestRequest!)
+                                                            setIsRejectDialogOpen(true)
+                                                          }}
+                                                          disabled={isActionLoading}
+                                                          className="h-6 w-6 p-0 hover:bg-red-100 text-red-600"
+                                                          title="Từ chối"
+                                                        >
+                                                          <X className="h-3 w-3" />
+                                                        </Button>
+                                                      </div>
+                                                    )}
+                                                    <Button
+                                                      size="sm"
+                                                      variant="ghost"
+                                                      onClick={() => handleRowClick(unit.latestRequest!)}
+                                                      className="h-6 w-6 p-0 hover:bg-blue-100 text-blue-600"
+                                                      title="Xem chi tiết"
+                                                    >
+                                                      <Eye className="h-3 w-3" />
+                                                    </Button>
+                                                  </>
+                                                ) : (
+                                                  <span className="text-xs text-gray-400">Không có request</span>
+                                                )}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ))
+                                      ) : (
+                                        <div className="border-t border-gray-100 p-4 pl-12 text-center text-sm text-gray-500">
+                                          Chưa có unit nào trong chapter này
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              ))
+                            ) : (
+                              <div className="text-center py-8 text-gray-500">
+                                <Layers className="h-12 w-12 mx-auto mb-4 opacity-40" />
+                                <p>Không có chapter nào trong course này</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Chapter Units Requests */}
+                    {selectedRequest.targetType === 'CHAPTER' && (
+                      <div>
+                        <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                          <FileText className="h-5 w-5" />
+                          Danh sách Unit trong Chapter
+                        </h4>
+                        
+                        {isLoadingNestedRequests ? (
+                          <div className="flex items-center justify-center py-8">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                            <span className="ml-3 text-gray-600">Đang tải danh sách unit...</span>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {chapterUnits.length > 0 ? (
+                              chapterUnits.map((unit) => (
+                                <div key={unit.id} className="border border-gray-200 rounded-lg p-4">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                      <FileText className="h-4 w-4 text-blue-600" />
+                                      <div>
+                                        <h5 className="font-medium text-gray-900">{unit.title}</h5>
+                                        <p className="text-xs text-gray-500">Unit ID: {unit.id}</p>
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-2">
+                                      {unit.latestRequest ? (
+                                        <>
+                                          <Badge className={getDecisionColor(unit.latestRequest.decision)}>
+                                            {getDecisionText(unit.latestRequest.decision)}
+                                          </Badge>
+                                          {unit.latestRequest.decision === "PENDING" && (
+                                            <div className="flex gap-1">
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => handleNestedRequestAction(unit.latestRequest!, 'approve')}
+                                                disabled={isActionLoading}
+                                                className="h-7 w-7 p-0 hover:bg-green-100 text-green-600"
+                                                title="Phê duyệt"
+                                              >
+                                                <Check className="h-3 w-3" />
+                                              </Button>
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => {
+                                                  setRejectingRequest(unit.latestRequest!)
+                                                  setIsRejectDialogOpen(true)
+                                                }}
+                                                disabled={isActionLoading}
+                                                className="h-7 w-7 p-0 hover:bg-red-100 text-red-600"
+                                                title="Từ chối"
+                                              >
+                                                <X className="h-3 w-3" />
+                                              </Button>
+                                            </div>
+                                          )}
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => handleRowClick(unit.latestRequest!)}
+                                            className="h-7 w-7 p-0 hover:bg-blue-100 text-blue-600"
+                                            title="Xem chi tiết"
+                                          >
+                                            <Eye className="h-3 w-3" />
+                                          </Button>
+                                        </>
+                                      ) : (
+                                        <span className="text-xs text-gray-400">Không có request</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="text-center py-8 text-gray-500">
+                                <FileText className="h-12 w-12 mx-auto mb-4 opacity-40" />
+                                <p>Không có unit nào trong chapter này</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+
                     {selectedRequest.decision === "PENDING" && (
                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
                         <div className="flex items-start gap-3">
@@ -1263,8 +1709,12 @@ export function ManagerApprovalRequestsPage() {
                   value={rejectFeedback}
                   onChange={(e) => setRejectFeedback(e.target.value)}
                   rows={4}
+                  maxLength={255}
                   className="mb-4"
                 />
+                <p className={`text-xs mb-4 ${rejectFeedback.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+                  {rejectFeedback.length}/255 ký tự
+                </p>
                 <div className="flex gap-3">
                   <Button
                     variant="outline"
@@ -1279,7 +1729,23 @@ export function ManagerApprovalRequestsPage() {
                   </Button>
                   <Button
                     variant="destructive"
-                    onClick={() => handleReject(rejectingRequest.id, rejectFeedback)}
+                    onClick={() => {
+                      if (rejectingRequest) {
+                        // Check if this is a nested request action
+                        const isNestedRequest = 
+                          (selectedRequest?.targetType === 'COURSE' && 
+                           courseChapters.some(ch => ch.latestRequest?.id === rejectingRequest.id || 
+                                                     ch.units?.some(u => u.latestRequest?.id === rejectingRequest.id))) ||
+                          (selectedRequest?.targetType === 'CHAPTER' && 
+                           chapterUnits.some(u => u.latestRequest?.id === rejectingRequest.id))
+                        
+                        if (isNestedRequest) {
+                          handleNestedRequestAction(rejectingRequest, 'reject', rejectFeedback)
+                        } else {
+                          handleReject(rejectingRequest.id, rejectFeedback)
+                        }
+                      }
+                    }}
                     disabled={!rejectFeedback.trim() || isActionLoading}
                     className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 border-0"
                   >
