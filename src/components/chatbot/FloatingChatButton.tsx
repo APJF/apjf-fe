@@ -3,6 +3,7 @@ import { X, Send, Plus, MoreVertical, Edit2, Trash2, ChevronDown, ChevronLeft, C
 import type { FloatingChatSession, AISessionType, FloatingMessage } from '../../types/floatingChat';
 import { chatbotService, getCurrentUserId, type ChatSession } from '../../services/chatbotService';
 import { useChat } from '../../hooks/useChat';
+import { parseMessageWithLinks } from '../../utils/messageUtils';
 
 interface FloatingChatButtonProps {
   isOpen: boolean;
@@ -824,7 +825,7 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
                     {message.id.includes('temp-typing') ? (
                       <TypingIndicator />
                     ) : (
-                      <p>{message.content}</p>
+                      <div>{parseMessageWithLinks(message.content, message.role === 'user')}</div>
                     )}
                     <p className={`text-xs mt-1 ${
                       message.role === 'user' ? 'text-red-100' : 'text-gray-500'

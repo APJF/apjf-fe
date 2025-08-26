@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, BookOpen, Star } from 'lucide-react';
+import { Clock, BookOpen, Star, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { Course } from '../../types/course';
 import { useLanguage } from '../../contexts/LanguageContext';
@@ -78,12 +78,18 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course }) => {
         {/* Course Info */}
         <div className="flex items-center gap-4 mb-4 text-sm text-gray-500">
           <div className="flex items-center gap-1">
+            <Star className="w-4 h-4 text-yellow-500" />
+            <span>{course.averageRating ? course.averageRating.toFixed(1) : '4.8'}</span>
+          </div>
+          {course.totalEnrolled !== undefined && (
+            <div className="flex items-center gap-1">
+              <Users className="w-4 h-4" />
+              <span>{course.totalEnrolled}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-1">
             <Clock className="w-4 h-4" />
             <span>{formatDuration(course.duration)}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Star className="w-4 h-4 text-yellow-500" />
-            <span>4.8</span>
           </div>
         </div>
 

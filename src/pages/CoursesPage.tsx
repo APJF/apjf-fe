@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
-import { Search, Star, Clock, BookOpen, AlertCircle } from "lucide-react"
+import { Search, Star, Clock, BookOpen, AlertCircle, Users } from "lucide-react"
 import PaginationButton from "../components/ui/PaginationButton"
 import type { Course } from '../types/course'
 import type { Topic } from '../types/topic'
@@ -21,6 +21,7 @@ interface ProcessedCourse {
   topic: string
   level: "N5" | "N4" | "N3" | "N2" | "N1"
   description: string
+  totalEnrolled?: number // Add enrollment count
 }
 
 // Helper function to round rating to nearest 0.5
@@ -206,9 +207,17 @@ const CourseCard: React.FC<{ course: ProcessedCourse; allCourses: Course[] }> = 
         <p className="text-gray-600 text-sm mb-4 line-clamp-2">{course.title}</p>
         <div className="flex items-center justify-between">
           <StarDisplay rating={course.rating} />
-          <div className="flex items-center gap-1 text-gray-500">
-            <Clock className="w-4 h-4" />
-            <span className="text-sm">{course.duration}h</span>
+          <div className="flex items-center gap-3 text-gray-500">
+            {course.totalEnrolled !== undefined && (
+              <div className="flex items-center gap-1">
+                <Users className="w-4 h-4" />
+                <span className="text-sm">{course.totalEnrolled}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-1">
+              <Clock className="w-4 h-4" />
+              <span className="text-sm">{course.duration}h</span>
+            </div>
           </div>
         </div>
 
@@ -318,7 +327,8 @@ export default function CoursesPage() {
       price: 0, // All courses are free
       topic: course.topics?.[0]?.name || "Không có topic", // Lấy topic đầu tiên từ API
       level: course.level,
-      description: course.description || ""
+      description: course.description || "",
+      totalEnrolled: course.totalEnrolled // Add enrollment count from API
     }))
   }, [allCourses])
 

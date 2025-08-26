@@ -23,9 +23,10 @@ export interface Course {
   averageRating?: number;
   rating?: number; // thêm field này để tương thích
   isEnrolled?: boolean; // field mới từ API course detail
+  totalEnrolled?: number; // field mới từ API - số lượng enrollment
   exams: Exam[];
   chapters?: Chapter[];
-  enrollmentCount?: number; // thêm field này để tương thích
+  enrollmentCount?: number; // thêm field này để tương thích (deprecated, dùng totalEnrolled)
 }
 
 // API Response for Course Detail

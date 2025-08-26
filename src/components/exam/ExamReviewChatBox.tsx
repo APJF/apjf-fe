@@ -20,6 +20,12 @@ export function ExamReviewChatBox({ userId, examResultId }: ExamReviewChatBoxPro
   const handleSend = async () => {
     if (!input.trim() || loading) return;
     setLoading(true);
+    
+    // Debug logging
+    console.log('🔍 ExamReviewChatBox - Environment check:');
+    console.log('VITE_AI_URL:', import.meta.env.VITE_AI_URL);
+    console.log('aiApi.defaults.baseURL:', aiApi.defaults.baseURL);
+    
     // Hiển thị tin nhắn user ngay lập tức và icon typing cho AI
     setMessages((prev) => [
       ...prev,
@@ -29,6 +35,7 @@ export function ExamReviewChatBox({ userId, examResultId }: ExamReviewChatBoxPro
     setInput("");
     try {
       if (!sessionId) {
+        console.log('🚀 Creating new session with aiApi...');
         const res = await aiApi.post("/sessions", {
           user_id: userId,
           session_type: "reviewer",
@@ -42,6 +49,7 @@ export function ExamReviewChatBox({ userId, examResultId }: ExamReviewChatBoxPro
           { sender: "ai", text: data.ai_first_response }
         ]);
       } else {
+        console.log('💬 Sending message to existing session...');
         const res = await aiApi.post("/messages", {
           session_id: sessionId,
           user_input: input,
@@ -53,6 +61,7 @@ export function ExamReviewChatBox({ userId, examResultId }: ExamReviewChatBoxPro
         ]);
       }
     } catch (err: unknown) {
+      console.error('❌ ExamReviewChatBox error:', err);
       setMessages((prev) => [
         ...prev.slice(0, -1),
         { sender: "ai", text: "Có lỗi khi gửi tin nhắn." }
