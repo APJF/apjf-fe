@@ -79,7 +79,13 @@ jobs:
 
       # Build project
       - name: Build project
-        run: npm run build
+        run: |
+          echo "Building with Vite..."
+          npm run build
+          echo "Build completed. Checking dist folder..."
+          ls -la dist/
+          echo "Checking main entry file..."
+          ls -la dist/assets/js/ | head -5
         env:
           VITE_API_BASE_URL: https://webapp-apjf-be-d5dpgucvaqddexb9.southeastasia-01.azurewebsites.net/api
           VITE_AI_URL: https://webapp-apjf-rag-f6c8ffb8djd6c6b9.southeastasia-01.azurewebsites.net/api
