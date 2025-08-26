@@ -2,12 +2,26 @@
   "navigationFallback": {
     "rewrite": "/index.html",
     "exclude": [
-      "/assets/*",
-      "/*.css",
-      "/*.js",
+      "/assets/**",
+      "/img/**",
+      "*.css",
+      "*.js",
+      "*.mjs", 
+      "*.json",
+      "*.wasm",
+      "*.svg",
+      "*.png",
+      "*.jpg",
+      "*.jpeg",
+      "*.gif",
+      "*.ico",
+      "*.webp",
       "/favicon.ico",
-      "/robots.txt",
-      "/sitemap.xml"
+      "/robots.txt", 
+      "/sitemap.xml",
+      "/vite.svg",
+      "/pdf.worker.min.js",
+      "/web.config"
     ]
   },
   "mimeTypes": {
@@ -33,14 +47,20 @@
     {
       "route": "/assets/js/*",
       "headers": {
-        "Content-Type": "application/javascript",
+        "Content-Type": "application/javascript; charset=utf-8",
         "Cache-Control": "public, max-age=31536000, immutable"
       }
     },
     {
       "route": "/assets/css/*",
       "headers": {
-        "Content-Type": "text/css",
+        "Content-Type": "text/css; charset=utf-8",
+        "Cache-Control": "public, max-age=31536000, immutable"
+      }
+    },
+    {
+      "route": "/assets/images/*",
+      "headers": {
         "Cache-Control": "public, max-age=31536000, immutable"
       }
     },
@@ -48,6 +68,18 @@
       "route": "/assets/*",
       "headers": {
         "Cache-Control": "public, max-age=31536000, immutable"
+      }
+    },
+    {
+      "route": "/*.js",
+      "headers": {
+        "Content-Type": "application/javascript; charset=utf-8"
+      }
+    },
+    {
+      "route": "/*.mjs",
+      "headers": {
+        "Content-Type": "application/javascript; charset=utf-8"
       }
     }
   ]
