@@ -1,20 +1,14 @@
-import { createContext, useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import type { ReactNode } from 'react';
-
-interface ChatContextType {
-  isFloatingChatOpen: boolean;
-  setIsFloatingChatOpen: (isOpen: boolean) => void;
-  toggleFloatingChat: () => void;
-}
-
-export const ChatContext = createContext<ChatContextType | undefined>(undefined);
+import { ChatContext } from './ChatContextDefinition';
 
 interface ChatProviderProps {
-  children: ReactNode;
+  readonly children: ReactNode;
 }
 
 export function ChatProvider({ children }: ChatProviderProps) {
   const [isFloatingChatOpen, setIsFloatingChatOpen] = useState(false);
+  const [currentMaterialId, setCurrentMaterialId] = useState<string | null>(null);
 
   const toggleFloatingChat = useCallback(() => {
     setIsFloatingChatOpen(!isFloatingChatOpen);
@@ -23,8 +17,10 @@ export function ChatProvider({ children }: ChatProviderProps) {
   const value = useMemo(() => ({
     isFloatingChatOpen,
     setIsFloatingChatOpen,
-    toggleFloatingChat
-  }), [isFloatingChatOpen, toggleFloatingChat]);
+    toggleFloatingChat,
+    currentMaterialId,
+    setCurrentMaterialId
+  }), [isFloatingChatOpen, toggleFloatingChat, currentMaterialId]);
 
   return (
     <ChatContext.Provider value={value}>
@@ -32,3 +28,6 @@ export function ChatProvider({ children }: ChatProviderProps) {
     </ChatContext.Provider>
   );
 }
+
+// Re-export context for convenience
+export { ChatContext } from './ChatContextDefinition';
