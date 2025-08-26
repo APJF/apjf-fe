@@ -5,9 +5,11 @@ import { useAuth } from '../../hooks/useAuth';
 import { authService } from '../../services/authService';
 
 export function GlobalFloatingChat() {
-  const { isFloatingChatOpen, toggleFloatingChat } = useChat();
   const location = useLocation();
   const { user } = useAuth();
+  
+  // Use chat context
+  const { isFloatingChatOpen, toggleFloatingChat } = useChat();
 
   // Pages where chat should be hidden
   const hiddenOnPages = [

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Send, Plus, MoreVertical, Edit2, Trash2, ChevronDown, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
 import type { FloatingChatSession, AISessionType, FloatingMessage } from '../../types/floatingChat';
 import { chatbotService, getCurrentUserId, type ChatSession } from '../../services/chatbotService';
+import { useChat } from '../../hooks/useChat';
 
 interface FloatingChatButtonProps {
   isOpen: boolean;
@@ -40,6 +41,14 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
   const [isCreatingNewSession, setIsCreatingNewSession] = useState(false);
   const hasLoadedSessionsRef = useRef(false); // Track if sessions have been loaded
   const currentUserIdRef = useRef(getCurrentUserId()); // Track current user ID
+
+  // Get current material ID from chat context for learning sessions
+  const { currentMaterialId } = useChat();
+
+  // Debug log current material ID
+  useEffect(() => {
+    console.log('🔍 FloatingChatButton - currentMaterialId changed:', currentMaterialId);
+  }, [currentMaterialId]);
 
   const activeSession = sessions.find(s => s.id === activeSessionId);
   const currentUserId = getCurrentUserId();
@@ -373,7 +382,7 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
         setIsCreatingNewSession(false);
         console.log('🎭 Created temporary session with typing indicator');
         
-        // 3. Build context for reviewer AI type
+        // 3. Build context for reviewer AI type and learning AI type
         const context: Record<string, number | string> = {};
         
         // Check if we're on exam result review page
@@ -392,6 +401,15 @@ export function FloatingChatButton({ isOpen, onToggle }: Readonly<FloatingChatBu
             console.log('✅ Found exam_result_id from URL:', examResultId);
           } else {
             console.log('⚠️ Reviewer AI selected but no exam_result_id found in URL');
+          }
+        } else if (currentSessionType === 'learning') {
+          console.log('🔍 Learning AI type selected, checking for material_id...');
+          
+          if (currentMaterialId) {
+            context.material_id = currentMaterialId;
+            console.log('✅ Found material_id from context:', currentMaterialId);
+          } else {
+            console.log('⚠️ Learning AI selected but no material_id found in context');
           }
         }
         

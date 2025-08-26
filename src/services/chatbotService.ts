@@ -21,6 +21,7 @@ export interface CreateSessionRequest {
   first_message: string;
   context?: {
     exam_result_id?: number;
+    material_id?: string;
   };
 }
 

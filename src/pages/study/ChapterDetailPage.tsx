@@ -22,6 +22,7 @@ import { getChapterById, getUnitsByChapterId, getMaterialsByUnitId } from '../..
 import type { Material, MaterialType } from '../../types/material'
 import { Breadcrumb, type BreadcrumbItem } from '../../components/ui/Breadcrumb'
 import { useLanguage } from '../../contexts/LanguageContext'
+import { useChat } from '../../hooks/useChat'
 
 // Updated types based on API
 interface ChapterDetail {
@@ -90,6 +91,7 @@ const materialTypeIcons: Record<MaterialType, typeof FileText> = {
 
 export default function ChapterDetailPage() {
   const { t } = useLanguage()
+  const { setCurrentMaterialId } = useChat()
   const { courseId, chapterId } = useParams<{ courseId: string; chapterId: string }>()
   
   // State management - All hooks must be at the top
@@ -176,10 +178,19 @@ export default function ChapterDetailPage() {
   // Initialize selected material when units data loads
   useEffect(() => {
     if (unitsData.length > 0 && unitsData[0].materials && unitsData[0].materials.length > 0) {
-      setSelectedMaterial(unitsData[0].materials[0])
+      const firstMaterial = unitsData[0].materials[0]
+      setSelectedMaterial(firstMaterial)
+      setCurrentMaterialId(firstMaterial.id) // Set material ID for chat context
       setOpenUnits([unitsData[0].id])
     }
-  }, [unitsData])
+  }, [unitsData, setCurrentMaterialId])
+
+  // Clean up material context when component unmounts
+  useEffect(() => {
+    return () => {
+      setCurrentMaterialId(null)
+    }
+  }, [setCurrentMaterialId])
 
   // Loading state
   if (loading) {
@@ -213,6 +224,7 @@ export default function ChapterDetailPage() {
 
   const handleMaterialSelect = (material: Material) => {
     setSelectedMaterial(material)
+    setCurrentMaterialId(material.id) // Set material ID for chat context
   }
 
   // Calculate progress
@@ -303,7 +315,10 @@ export default function ChapterDetailPage() {
                       size="sm"
                       onClick={() => {
                         const prev = getPrevMaterial()
-                        if (prev) setSelectedMaterial(prev)
+                        if (prev) {
+                          setSelectedMaterial(prev)
+                          setCurrentMaterialId(prev.id) // Set material ID for chat context
+                        }
                       }}
                       disabled={!getPrevMaterial()}
                       className="border-gray-300 text-gray-600 hover:bg-gray-50 h-9 px-4 text-sm font-medium transition-all duration-200 disabled:opacity-50"
@@ -328,7 +343,10 @@ export default function ChapterDetailPage() {
                       size="sm"
                       onClick={() => {
                         const next = getNextMaterial()
-                        if (next) setSelectedMaterial(next)
+                        if (next) {
+                          setSelectedMaterial(next)
+                          setCurrentMaterialId(next.id) // Set material ID for chat context
+                        }
                       }}
                       disabled={!getNextMaterial()}
                       className="border-gray-300 text-gray-600 hover:bg-gray-50 h-9 px-4 text-sm font-medium transition-all duration-200 disabled:opacity-50"
