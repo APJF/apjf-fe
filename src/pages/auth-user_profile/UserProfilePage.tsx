@@ -356,8 +356,12 @@ const GeneralTab = ({ profile, onProfileUpdate }: { profile: UserProfile, onProf
             className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm" 
             value={formData.username}
             onChange={handleInputChange}
+            maxLength={255}
             disabled={isLoading}
           />
+          <p className={`text-xs mt-1 ${formData.username.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+            {formData.username.length}/255 ký tự
+          </p>
         </div>
         <div className="mb-4">
           <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">Email</label>
@@ -368,8 +372,12 @@ const GeneralTab = ({ profile, onProfileUpdate }: { profile: UserProfile, onProf
             className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm" 
             value={formData.email}
             onChange={handleInputChange}
+            maxLength={255}
             disabled={isLoading}
           />
+          <p className={`text-xs mt-1 ${formData.email.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+            {formData.email.length}/255 ký tự
+          </p>
         </div>
         <div className="mb-4">
           <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
@@ -380,8 +388,12 @@ const GeneralTab = ({ profile, onProfileUpdate }: { profile: UserProfile, onProf
             className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm" 
             value={formData.phone}
             onChange={handleInputChange}
+            maxLength={255}
             disabled={isLoading}
           />
+          <p className={`text-xs mt-1 ${(formData.phone?.length || 0) > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+            {formData.phone?.length || 0}/255 ký tự
+          </p>
         </div>
         <div className="flex gap-2 mt-6">
           <button 
@@ -419,13 +431,23 @@ const InfoTab = () => (
     <div>
         <div className="mb-4">
             <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-2">Bio</label>
-            <textarea id="bio" rows={5} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm">
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris nunc arcu, dignissim sit amet sollicitudin iaculis, vehicula id urna. Sed luctus urna nunc. Donec fermentum, magna sit amet rutrum pretium, turpis dolor molestie diam, ut lacinia diam risus eleifend sapien. Curabitur ac nibh nulla. Maecenas nec augue placerat, viverra tellus non, pulvinar risus.
-            </textarea>
+            <textarea 
+                id="bio" 
+                rows={5} 
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm"
+                maxLength={255}
+                defaultValue="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris nunc arcu, dignissim sit amet sollicitudin iaculis, vehicula id urna. Sed luctus urna nunc. Donec fermentum, magna sit amet rutrum pretium, turpis dolor molestie diam, ut lacinia diam risus eleifend sapien. Curabitur ac nibh nulla. Maecenas nec augue placerat, viverra tellus non, pulvinar risus."
+            />
         </div>
         <div className="mb-4">
             <label htmlFor="birthday" className="block text-sm font-medium text-gray-700 mb-2">Birthday</label>
-            <input id="birthday" type="text" className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm" defaultValue="May 3, 1995" />
+            <input 
+                id="birthday" 
+                type="text" 
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm" 
+                defaultValue="May 3, 1995"
+                maxLength={255}
+            />
         </div>
         <div className="mb-4">
             <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-2">Country</label>
@@ -441,11 +463,22 @@ const InfoTab = () => (
         <h6 className="text-lg font-medium mb-4">Contacts</h6>
         <div className="mb-4">
             <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-            <input id="phone" type="text" className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm" defaultValue="+0 (123) 456 7891" />
+            <input 
+                id="phone" 
+                type="text" 
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm" 
+                defaultValue="+0 (123) 456 7891"
+                maxLength={255}
+            />
         </div>
         <div className="mb-4">
             <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-2">Website</label>
-            <input id="website" type="text" className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm" />
+            <input 
+                id="website" 
+                type="text" 
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm"
+                maxLength={255}
+            />
         </div>
     </div>
 );
@@ -454,23 +487,51 @@ const SocialLinksTab = () => (
     <div>
         <div className="mb-4">
             <label htmlFor="twitter" className="block text-sm font-medium text-gray-700 mb-2">Twitter</label>
-            <input id="twitter" type="text" className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm" defaultValue="https://twitter.com/user" />
+            <input 
+                id="twitter" 
+                type="text" 
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm" 
+                defaultValue="https://twitter.com/user"
+                maxLength={255}
+            />
         </div>
         <div className="mb-4">
             <label htmlFor="facebook" className="block text-sm font-medium text-gray-700 mb-2">Facebook</label>
-            <input id="facebook" type="text" className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm" defaultValue="https://www.facebook.com/user" />
+            <input 
+                id="facebook" 
+                type="text" 
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm" 
+                defaultValue="https://www.facebook.com/user"
+                maxLength={255}
+            />
         </div>
         <div className="mb-4">
             <label htmlFor="google-plus" className="block text-sm font-medium text-gray-700 mb-2">Google+</label>
-            <input id="google-plus" type="text" className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm" />
+            <input 
+                id="google-plus" 
+                type="text" 
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm"
+                maxLength={255}
+            />
         </div>
         <div className="mb-4">
             <label htmlFor="linkedin" className="block text-sm font-medium text-gray-700 mb-2">LinkedIn</label>
-            <input id="linkedin" type="text" className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm" />
+            <input 
+                id="linkedin" 
+                type="text" 
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm"
+                maxLength={255}
+            />
         </div>
         <div className="mb-4">
             <label htmlFor="instagram" className="block text-sm font-medium text-gray-700 mb-2">Instagram</label>
-            <input id="instagram" type="text" className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm" defaultValue="https://www.instagram.com/user" />
+            <input 
+                id="instagram" 
+                type="text" 
+                className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500 sm:text-sm" 
+                defaultValue="https://www.instagram.com/user"
+                maxLength={255}
+            />
         </div>
     </div>
 );

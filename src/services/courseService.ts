@@ -39,7 +39,12 @@ export class CourseService {
 
   // Get exams by course ID (new API)
   static async getExamsByCourseId(courseId: string): Promise<CourseExamsApiResponse> {
-    const response = await api.get(`/courses/${courseId}/exams`);
+    const token = localStorage.getItem('access_token')
+    const response = await api.get(`/courses/${courseId}/exams`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
     return response.data;
   }
 
@@ -114,6 +119,17 @@ export class CourseService {
   // Get units by chapter ID (new API)
   static async getUnitsByChapterId(chapterId: string): Promise<UnitsApiResponse> {
     const response = await api.get(`/chapters/${chapterId}/units`);
+    return response.data;
+  }
+
+  // Get exams by chapter ID (new API)
+  static async getExamsByChapterId(chapterId: string): Promise<CourseExamsApiResponse> {
+    const token = localStorage.getItem('access_token')
+    const response = await api.get(`/chapters/${chapterId}/exams`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
     return response.data;
   }
 

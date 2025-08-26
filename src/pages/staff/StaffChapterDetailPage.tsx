@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Ca
 import { Badge } from '../../components/ui/Badge'
 import { StaffNavigation } from '../../components/layout/StaffNavigation'
 import { StaffChapterService } from '../../services/staffChapterService'
+import { StaffCourseService } from '../../services/staffCourseService'
 import { CourseService } from '../../services/courseService'
 import api from '../../api/axios'
 import type { Course, Chapter } from '../../types/course'
@@ -96,7 +97,7 @@ export const StaffChapterDetailPage: React.FC = () => {
   const location = useLocation()
   const locationState = location.state as LocationState || {}
 
-  const [course] = useState<StaffCourseDetail | null>(locationState.course || null)
+  const [course, setCourse] = useState<StaffCourseDetail | null>(locationState.course || null)
   const [chapter, setChapter] = useState<ChapterDetail | null>(locationState.chapter || null)
   const [isLoading, setIsLoading] = useState(!locationState.chapter)
   const [error, setError] = useState<string | null>(null)
@@ -109,9 +110,14 @@ export const StaffChapterDetailPage: React.FC = () => {
     setError(null)
 
     try {
-      // Fetch chapter details
-      const chapterResponse = await StaffChapterService.getChapterDetail(chapterId)
+      // Fetch chapter details and exams in parallel
+      const [chapterResponse, examsResponse] = await Promise.all([
+        StaffChapterService.getChapterDetail(chapterId),
+        CourseService.getExamsByChapterId(chapterId)
+      ])
+      
       console.log('🔍 Chapter response:', chapterResponse)
+      console.log('🔍 Exams response:', examsResponse)
       
       // Fetch units using the correct API endpoint  
       let unitsData: Array<{ id: string; title: string; description: string | null; status: string; prerequisiteUnitId: string | null }> = []
@@ -136,9 +142,18 @@ export const StaffChapterDetailPage: React.FC = () => {
           console.error('Both units API calls failed:', { unitsError, directError })
         }
       }
+
+      // Get exams data
+      let examsData: Array<any> = []
+      if (examsResponse.success && examsResponse.data) {
+        examsData = examsResponse.data
+        console.log('✅ Chapter exams loaded:', examsData)
+      } else {
+        console.error('❌ Chapter exams fetch failed:', examsResponse.message)
+      }
       
       if (chapterResponse.success && chapterResponse.data) {
-        // Create ChapterDetail with units
+        // Create ChapterDetail with units and exams
         const chapterData: ChapterDetail = {
           ...chapterResponse.data,
           description: chapterResponse.data.description || '',
@@ -149,12 +164,27 @@ export const StaffChapterDetailPage: React.FC = () => {
               status: (unit.status === 'REJECTED' ? 'INACTIVE' : unit.status) as 'INACTIVE' | 'ACTIVE' | 'ARCHIVED',
               chapterId: chapterResponse.data.id,
               exams: []
-            }))) : []
+            }))) : [],
+          exams: examsData
         }
         
-        console.log('📦 Final chapter data with units:', chapterData)
+        console.log('📦 Final chapter data with units and exams:', chapterData)
         console.log('📊 Units count:', chapterData.units?.length || 0)
+        console.log('📊 Exams count:', chapterData.exams?.length || 0)
         setChapter(chapterData)
+
+        // Fetch course info if not available
+        if (!course && courseId) {
+          try {
+            const courseResponse = await StaffCourseService.getCourseDetail(courseId)
+            if (courseResponse.success && courseResponse.data) {
+              setCourse(courseResponse.data)
+            }
+          } catch (courseError) {
+            console.error('Error fetching course data:', courseError)
+            // Don't fail the whole operation if course fetch fails
+          }
+        }
       } else {
         setError("Không tìm thấy thông tin chương")
       }
@@ -224,26 +254,23 @@ export const StaffChapterDetailPage: React.FC = () => {
     try {
       setIsLoading(true)
       
-      // Tạo payload với tất cả thông tin cũ nhưng status chuyển thành INACTIVE
-      const updatePayload = {
-        id: chapter.id,
-        title: chapter.title,
-        description: chapter.description || '',
-        status: 'INACTIVE' as const,
-        courseId: courseId!,
-        prerequisiteChapterId: chapter.prerequisiteChapterId,
-        exams: chapter.exams || []
-      }
+      // Sử dụng API PATCH /api/chapters/{id}/deactivate
+      const token = localStorage.getItem('access_token')
+      const response = await fetch(`http://localhost:8080/api/chapters/${chapterId}/deactivate`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      })
       
-      console.log('🔄 Deactivating chapter with payload:', updatePayload)
-      const result = await StaffChapterService.updateChapter(chapterId, updatePayload)
-      
-      if (result.success) {
+      if (response.ok) {
         setSuccessMessage('Đã hủy kích hoạt chương thành công!')
         // Refresh chapter data to show updated status
         await fetchChapterData()
       } else {
-        setError(result.message || 'Có lỗi xảy ra khi hủy kích hoạt chương')
+        const errorData = await response.json()
+        setError(errorData.message || 'Có lỗi xảy ra khi hủy kích hoạt chương')
       }
     } catch (error) {
       console.error('Error deactivating chapter:', error)
@@ -474,20 +501,6 @@ export const StaffChapterDetailPage: React.FC = () => {
                     <Edit className="h-4 w-4 mr-2" />
                     Chỉnh sửa chương
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    className="w-full text-purple-600 border-purple-300 hover:bg-purple-50"
-                    onClick={() => navigate('/staff/create-exam', { 
-                      state: { 
-                        scope: 'chapter', 
-                        scopeId: chapter.id, 
-                        scopeName: chapter.title 
-                      } 
-                    })}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Tạo bài kiểm tra
-                  </Button>
                   
                   {chapter.status === 'ACTIVE' && (
                     <Button
@@ -673,7 +686,7 @@ export const StaffChapterDetailPage: React.FC = () => {
                                   {index + 1}
                                 </div>
                                 <h4 className="font-semibold text-purple-900 text-lg">{exam.title}</h4>
-                                {getStatusBadge(exam.status || 'INACTIVE')}
+                                
                               </div>
                               <p className="text-purple-700 text-sm mb-2 ml-11">{exam.description}</p>
                               <div className="text-xs text-purple-500 ml-11">
@@ -686,11 +699,23 @@ export const StaffChapterDetailPage: React.FC = () => {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => navigate(`/staff/exams/${exam.id}`)}
+                                onClick={() => navigate(`/staff/exams/${exam.id}/edit`, {
+                                  state: {
+                                    scope: 'chapter',
+                                    scopeId: chapter.id,
+                                    scopeName: chapter.title,
+                                    courseId: courseId,
+                                    courseName: course?.title || '',
+                                    chapterId: chapter.id,
+                                    chapterName: chapter.title,
+                                    returnUrl: `/staff/courses/${courseId}/chapters/${chapter.id}`,
+                                    returnState: { course, chapter }
+                                  }
+                                })}
                                 className="text-purple-600 border-purple-300 hover:bg-purple-50"
                               >
-                                <Eye className="h-4 w-4 mr-1" />
-                                Xem chi tiết
+                                <Edit className="h-4 w-4 mr-1" />
+                                Chỉnh sửa
                               </Button>
                             </div>
                           </div>

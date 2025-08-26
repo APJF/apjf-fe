@@ -446,7 +446,7 @@ export function StaffManagerFeedbackPage() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-blue-400" />
                   <Input
-                    placeholder="Tìm kiếm yêu cầu..."
+                    placeholder="Tìm kiếm theo ID"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10 border-blue-300 focus:border-blue-500 focus:ring-blue-500 bg-white/80 backdrop-blur-sm"
@@ -545,12 +545,11 @@ export function StaffManagerFeedbackPage() {
                 <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white">
                   <div className="grid grid-cols-12 gap-4 px-6 py-4 text-sm font-medium">
                     <div className="col-span-1">STT</div>
-                    <div className="col-span-2">ID / Loại</div>
-                    <div className="col-span-3">Tiêu đề</div>
+                    <div className="col-span-3">ID</div>
                     <div className="col-span-2">Thời gian</div>
                     <div className="col-span-2">Người duyệt</div>
-                    <div className="col-span-1">Trạng thái</div>
-                    <div className="col-span-1">Chi tiết</div>
+                    <div className="col-span-2">Trạng thái</div>
+                    <div className="col-span-2">Chi tiết</div>
                   </div>
                 </div>
 
@@ -570,7 +569,7 @@ export function StaffManagerFeedbackPage() {
                       </div>
 
                       {/* ID / Loại */}
-                      <div className="col-span-2 flex items-center gap-2">
+                      <div className="col-span-3 flex items-center gap-2">
                         <div className="flex-shrink-0">
                           {getTargetTypeIcon(request.targetType)}
                         </div>
@@ -585,16 +584,7 @@ export function StaffManagerFeedbackPage() {
                       </div>
 
                       {/* Tiêu đề */}
-                      <div className="col-span-3 flex items-center">
-                        <div className="min-w-0 flex-1">
-                          <div className="text-sm font-medium text-gray-900 truncate">
-                            {request.targetTitle || 'Không có tiêu đề'}
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            Tạo bởi: {request.createdBy}
-                          </div>
-                        </div>
-                      </div>
+                      
 
                       {/* Thời gian */}
                       <div className="col-span-2 flex items-center">
@@ -627,7 +617,7 @@ export function StaffManagerFeedbackPage() {
                       </div>
 
                       {/* Trạng thái */}
-                      <div className="col-span-1 flex items-center">
+                      <div className="col-span-2 flex items-center">
                         <Badge className={`flex items-center gap-1 ${getDecisionColor(request.decision)}`}>
                           {getDecisionIcon(request.decision)}
                           <span className="hidden sm:inline">{getDecisionText(request.decision)}</span>
@@ -635,7 +625,7 @@ export function StaffManagerFeedbackPage() {
                       </div>
 
                       {/* Chi tiết */}
-                      <div className="col-span-1 flex items-center">
+                      <div className="col-span-2 flex items-center">
                         <Button 
                           size="sm" 
                           variant="outline" 
@@ -719,46 +709,7 @@ export function StaffManagerFeedbackPage() {
           )}
 
           {/* Pagination */}
-          {!isLoading && totalPages > 1 && (
-            <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm">
-              <div className="p-6">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-gray-600">
-                    Hiển thị {startIndex + 1}-{Math.min(endIndex, filteredData.length)} của {filteredData.length} kết quả
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                      disabled={currentPage === 1}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Trước
-                    </Button>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                      <Button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        variant={currentPage === page ? "default" : "outline"}
-                        size="sm"
-                        className="min-w-[2.5rem]"
-                      >
-                        {page}
-                      </Button>
-                    ))}
-                    <Button
-                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                      disabled={currentPage === totalPages}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Sau
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          )}
+          
         </div>
 
         {/* Detail Dialog */}

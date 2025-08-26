@@ -19,7 +19,7 @@ export interface Authority {
 
 export interface UpdateAuthoritiesRequest {
   userId: number
-  authorityIds: string[]
+  authorityIds: number[]
 }
 
 export interface UpdateUserStatusRequest {

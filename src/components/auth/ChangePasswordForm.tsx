@@ -158,6 +158,7 @@ export function ChangePasswordForm() {
                 placeholder="Nhập mật khẩu hiện tại"
                 value={formData.oldPassword}
                 onChange={handleInputChange}
+                maxLength={255}
                 className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition-colors"
               />
               <button
@@ -185,6 +186,7 @@ export function ChangePasswordForm() {
                 placeholder="Nhập mật khẩu mới"
                 value={formData.newPassword}
                 onChange={handleInputChange}
+                maxLength={255}
                 className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition-colors"
               />
               <button
@@ -212,6 +214,7 @@ export function ChangePasswordForm() {
                 placeholder="Nhập lại mật khẩu mới"
                 value={confirmPassword}
                 onChange={handleInputChange}
+                maxLength={255}
                 className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent transition-colors"
               />
               <button

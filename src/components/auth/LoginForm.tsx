@@ -202,6 +202,7 @@ export function LoginForm() {
                     value={formData.email}
                     onChange={handleInputChange}
                     className="w-full pl-11 pr-4 h-11 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                    maxLength={255}
                     disabled={isLoading}
                   />
                 </div>
@@ -222,6 +223,7 @@ export function LoginForm() {
                     value={formData.password}
                     onChange={handleInputChange}
                     className="w-full pl-11 pr-11 h-11 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                    maxLength={255}
                     disabled={isLoading}
                   />
                   <button

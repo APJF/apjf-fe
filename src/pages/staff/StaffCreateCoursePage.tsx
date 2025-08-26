@@ -14,6 +14,7 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect'
 import type { CreateCourseRequest } from '../../types/course'
 import { useAuth } from '../../hooks/useAuth'
 import api from '../../api/axios'
+import { getInputValidationProps, getCharacterCounterProps, getInputLimit } from '../../utils/inputValidation'
 
 const StaffCreateCoursePage: React.FC = () => {
   const navigate = useNavigate()
@@ -396,6 +397,7 @@ const StaffCreateCoursePage: React.FC = () => {
                     value={formData.id}
                     onChange={(e) => handleInputChange('id', e.target.value)}
                     className={`h-9 ${fieldErrors.id ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                    maxLength={40}
                     required
                   />
                   {fieldErrors.id ? (
@@ -403,9 +405,14 @@ const StaffCreateCoursePage: React.FC = () => {
                       ⚠️ {fieldErrors.id}
                     </p>
                   ) : (
-                    <p className="text-blue-600 text-xs mt-1">
-                      💡 Mã khóa học không được chứa dấu cách. Sử dụng dấu gạch ngang (-) hoặc underscore (_)
-                    </p>
+                    <div className="flex justify-between items-center">
+                      <p className="text-blue-600 text-xs mt-1">
+                        💡 Mã khóa học không được chứa dấu cách. Sử dụng dấu gạch ngang (-) hoặc underscore (_)
+                      </p>
+                      <p className={`text-xs mt-1 ${formData.id.length > 32 ? 'text-red-600' : 'text-gray-500'}`}>
+                        {formData.id.length}/40 ký tự
+                      </p>
+                    </div>
                   )}
                 </div>
 
@@ -419,11 +426,16 @@ const StaffCreateCoursePage: React.FC = () => {
                     value={formData.title}
                     onChange={(e) => handleInputChange('title', e.target.value)}
                     className={`h-9 ${fieldErrors.title ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                    maxLength={255}
                     required
                   />
-                  {fieldErrors.title && (
+                  {fieldErrors.title ? (
                     <p className="text-red-600 text-xs mt-1">
                       ⚠️ {fieldErrors.title}
+                    </p>
+                  ) : (
+                    <p className={`text-xs mt-1 ${formData.title.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+                      {formData.title.length}/255 ký tự
                     </p>
                   )}
                 </div>
@@ -507,11 +519,16 @@ const StaffCreateCoursePage: React.FC = () => {
                   value={formData.description}
                   onChange={(e) => handleInputChange('description', e.target.value)}
                   className={`h-20 resize-none focus:border-black focus:ring-black ${fieldErrors.description ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                  maxLength={255}
                   required
                 />
-                {fieldErrors.description && (
+                {fieldErrors.description ? (
                   <p className="text-red-600 text-xs mt-1">
                     ⚠️ {fieldErrors.description}
+                  </p>
+                ) : (
+                  <p className={`text-xs mt-1 ${formData.description.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+                    {formData.description.length}/255 ký tự
                   </p>
                 )}
               </div>
@@ -527,7 +544,11 @@ const StaffCreateCoursePage: React.FC = () => {
                   value={formData.requirement}
                   onChange={(e) => handleInputChange('requirement', e.target.value)}
                   className="h-16 resize-none focus:border-black focus:ring-black"
+                  maxLength={255}
                 />
+                <p className={`text-xs mt-1 ${formData.requirement.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+                  {formData.requirement.length}/255 ký tự
+                </p>
               </div>
 
               {/* Image Upload - Compact */}

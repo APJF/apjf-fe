@@ -597,6 +597,7 @@ const StaffUpdateChapterPage: React.FC = () => {
                         value={formData.title}
                         onChange={(e) => handleInputChange("title", e.target.value)}
                         placeholder="Ví dụ: Hiragana cơ bản"
+                        maxLength={255}
                         className={`text-base py-3 bg-white/80 backdrop-blur-sm ${
                           fieldErrors.title 
                             ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 
@@ -609,9 +610,14 @@ const StaffUpdateChapterPage: React.FC = () => {
                             ⚠️ {fieldErrors.title}
                           </p>
                         ) : (
-                          <p className="text-blue-600 text-xs mt-1">
-                            💡 Nhập tên chương học dễ hiểu và rõ ràng
-                          </p>
+                          <div className="flex justify-between">
+                            <p className="text-blue-600 text-xs mt-1">
+                              💡 Nhập tên chương học dễ hiểu và rõ ràng
+                            </p>
+                            <p className={`text-xs mt-1 ${formData.title.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+                              {formData.title.length}/255 ký tự
+                            </p>
+                          </div>
                         )}
                     </div>
 
@@ -629,6 +635,7 @@ const StaffUpdateChapterPage: React.FC = () => {
                         onChange={(e) => handleInputChange("description", e.target.value)}
                         placeholder="Mô tả chi tiết về nội dung và mục tiêu của chương học..."
                         rows={4}
+                        maxLength={255}
                         className={`resize-none text-base bg-white/80 backdrop-blur-sm ${
                           fieldErrors.description 
                             ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 
@@ -641,9 +648,14 @@ const StaffUpdateChapterPage: React.FC = () => {
                           ⚠️ {fieldErrors.description}
                         </p>
                       ) : (
-                        <p className="text-blue-600 text-xs mt-1">
-                          💡 Mô tả rõ ràng nội dung và mục tiêu học tập của chương
-                        </p>
+                        <div className="flex justify-between">
+                          <p className="text-blue-600 text-xs mt-1">
+                            💡 Mô tả rõ ràng nội dung và mục tiêu học tập của chương
+                          </p>
+                          <p className={`text-xs mt-1 ${formData.description.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+                            {formData.description.length}/255 ký tự
+                          </p>
+                        </div>
                       )}
                     </div>
                   </CardContent>

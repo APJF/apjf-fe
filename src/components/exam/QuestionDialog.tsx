@@ -213,9 +213,16 @@ const QuestionDialog: React.FC<QuestionDialogProps> = ({
                 onChange={(e) => handleInputChange('question', e.target.value)}
                 placeholder="Nhập nội dung câu hỏi"
                 rows={3}
+                maxLength={255}
                 className={errors.question ? 'border-red-500' : ''}
               />
-              {errors.question && <p className="text-red-500 text-sm mt-1">{errors.question}</p>}
+              {errors.question ? (
+                <p className="text-red-500 text-sm mt-1">{errors.question}</p>
+              ) : (
+                <p className={`text-xs mt-1 ${formData.question.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+                  {formData.question.length}/255 ký tự
+                </p>
+              )}
             </div>
 
             {/* Question Options - Multiple Choice */}
@@ -236,7 +243,11 @@ const QuestionDialog: React.FC<QuestionDialogProps> = ({
                           value={option.content}
                           onChange={(e) => handleOptionChange(index, 'content', e.target.value)}
                           placeholder={`Lựa chọn ${String.fromCharCode(65 + index)}`}
+                          maxLength={255}
                         />
+                        <p className={`text-xs mt-1 ${option.content.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+                          {option.content.length}/255 ký tự
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -285,9 +296,16 @@ const QuestionDialog: React.FC<QuestionDialogProps> = ({
                   onChange={(e) => handleInputChange('correctAnswer', e.target.value)}
                   placeholder="Nhập câu trả lời mẫu"
                   rows={3}
+                  maxLength={255}
                   className={errors.correctAnswer ? 'border-red-500' : ''}
                 />
-                {errors.correctAnswer && <p className="text-red-500 text-sm mt-1">{errors.correctAnswer}</p>}
+                {errors.correctAnswer ? (
+                  <p className="text-red-500 text-sm mt-1">{errors.correctAnswer}</p>
+                ) : (
+                  <p className={`text-xs mt-1 ${(formData.correctAnswer?.length || 0) > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+                    {formData.correctAnswer?.length || 0}/255 ký tự
+                  </p>
+                )}
               </div>
             )}
 
@@ -299,6 +317,7 @@ const QuestionDialog: React.FC<QuestionDialogProps> = ({
                   id="points"
                   type="number"
                   min="1"
+                  max="100000"
                   value={formData.points}
                   onChange={(e) => handleInputChange('points', parseInt(e.target.value))}
                   className={errors.points ? 'border-red-500' : ''}
@@ -346,7 +365,11 @@ const QuestionDialog: React.FC<QuestionDialogProps> = ({
                 onChange={(e) => handleInputChange('explanation', e.target.value)}
                 placeholder="Giải thích đáp án hoặc cách giải"
                 rows={3}
+                maxLength={255}
               />
+              <p className={`text-xs mt-1 ${(formData.explanation?.length || 0) > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+                {formData.explanation?.length || 0}/255 ký tự
+              </p>
             </div>
           </div>
 

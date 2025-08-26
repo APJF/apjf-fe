@@ -10,9 +10,23 @@ import { StaffUnitService, type UnitDetail } from '../../services/staffUnitServi
 import { StaffCourseService } from '../../services/staffCourseService'
 import { StaffChapterService } from '../../services/staffChapterService'
 import { MaterialService, type Material } from '../../services/materialService'
-import { StaffExamService } from '../../services/staffExamService'
 import type { StaffCourseDetail, ChapterDetail } from '../../types/staffCourse'
-import type { ExamSummary } from '../../types/exam'
+
+// Type for exam response from unit exams API
+interface UnitExam {
+  id: string
+  title: string
+  description: string
+  duration: number
+  type: string
+  examScopeType: string
+  gradingMethod: string
+  courseId: string | null
+  chapterId: string | null
+  unitId: string
+  createdAt: string
+  totalQuestions: number
+}
 
 interface LocationState {
   unit?: UnitDetail
@@ -38,7 +52,7 @@ export const StaffUnitDetailPage: React.FC = () => {
   const [chapter, setChapter] = useState<ChapterDetail | null>(locationState.chapter || null)
   const [course, setCourse] = useState<StaffCourseDetail | null>(locationState.course || null)
   const [materials, setMaterials] = useState<Material[]>([])
-  const [exams, setExams] = useState<ExamSummary[]>([])
+  const [exams, setExams] = useState<UnitExam[]>([])
   const [isLoading, setIsLoading] = useState(!unit || !chapter || !course)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(
@@ -49,6 +63,10 @@ export const StaffUnitDetailPage: React.FC = () => {
     if (!courseId || !chapterId || !unitId) {
       setError("ID khóa học, chương hoặc bài học không hợp lệ")
       setIsLoading(false)
+      // Điều hướng về course list nếu thiếu thông tin cần thiết
+      setTimeout(() => {
+        navigate('/staff/courses')
+      }, 2000)
       return
     }
 
@@ -94,8 +112,12 @@ export const StaffUnitDetailPage: React.FC = () => {
     if (!unitId) return
 
     try {
-      const examsData = await StaffExamService.getExamsByScope('unit', unitId)
-      setExams(examsData)
+      const response = await StaffUnitService.getExamsByUnit(unitId)
+      if (response.success && response.data) {
+        setExams(response.data)
+      } else {
+        setExams([])
+      }
     } catch (error) {
       console.error('Error fetching exams:', error)
       setExams([])
@@ -103,17 +125,26 @@ export const StaffUnitDetailPage: React.FC = () => {
   }
 
   const fetchUnitData = async () => {
-    if (!courseId || !chapterId || !unitId) return
+    if (!courseId || !chapterId || !unitId) {
+      console.error('Missing required IDs:', { courseId, chapterId, unitId })
+      setError("ID khóa học, chương hoặc bài học không hợp lệ")
+      setIsLoading(false)
+      // Điều hướng về course list nếu thiếu thông tin cần thiết
+      setTimeout(() => {
+        navigate('/staff/courses')
+      }, 2000)
+      return
+    }
 
     setIsLoading(true)
     setError(null)
 
     try {
       // Fetch unit detail, materials, và exams in parallel
-      const [unitResponse, materialsResponse, examsData] = await Promise.all([
+      const [unitResponse, materialsResponse, examsResponse] = await Promise.all([
         StaffUnitService.getUnitDetail(unitId),
         MaterialService.getMaterialsByUnit(unitId),
-        StaffExamService.getExamsByScope('unit', unitId)
+        StaffUnitService.getExamsByUnit(unitId)
       ])
 
       if (unitResponse.success && unitResponse.data) {
@@ -136,40 +167,71 @@ export const StaffUnitDetailPage: React.FC = () => {
         setMaterials(sortedMaterials)
       }
 
-      // Set exams data
-      setExams(examsData)
+      // Set exams data from new API
+      if (examsResponse.success && examsResponse.data) {
+        setExams(examsResponse.data)
+      } else {
+        setExams([])
+      }
 
       // If we don't have course/chapter info, fetch them
       if (!course || !chapter) {        
-        const [courseData, chapterData] = await Promise.all([
-          StaffCourseService.getCourseDetail(courseId),
-          StaffChapterService.getChapterDetail(chapterId)
-        ])
+        try {
+          const [courseData, chapterData] = await Promise.all([
+            StaffCourseService.getCourseDetail(courseId),
+            StaffChapterService.getChapterDetail(chapterId)
+          ])
 
-        if (courseData.success) {
-          const courseDetail: StaffCourseDetail = {
-            ...courseData.data,
-            description: courseData.data.description || '',
-            requirement: courseData.data.requirement || '',
-            chapters: [],
-            enrollmentCount: 0,
-            rating: courseData.data.averageRating || 0
+          if (courseData.success) {
+            const courseDetail: StaffCourseDetail = {
+              ...courseData.data,
+              description: courseData.data.description || '',
+              requirement: courseData.data.requirement || '',
+              chapters: [],
+              enrollmentCount: 0,
+              rating: courseData.data.averageRating || 0
+            }
+            setCourse(courseDetail)
+          } else {
+            console.error('Failed to fetch course:', courseData.message)
+            // Nếu không lấy được thông tin course, điều hướng về course list
+            setTimeout(() => {
+              navigate('/staff/courses')
+            }, 2000)
+            return
           }
-          setCourse(courseDetail)
-        }
-        
-        if (chapterData.success) {
-          const chapterDetail: ChapterDetail = {
-            ...chapterData.data,
-            description: chapterData.data.description || '',
-            units: []
+          
+          if (chapterData.success) {
+            const chapterDetail: ChapterDetail = {
+              ...chapterData.data,
+              description: chapterData.data.description || '',
+              units: []
+            }
+            setChapter(chapterDetail)
+          } else {
+            console.error('Failed to fetch chapter:', chapterData.message)
+            // Nếu không lấy được thông tin chapter, điều hướng về course list
+            setTimeout(() => {
+              navigate('/staff/courses')
+            }, 2000)
+            return
           }
-          setChapter(chapterDetail)
+        } catch (fetchError) {
+          console.error('Error fetching course/chapter data:', fetchError)
+          setError("Không thể tải thông tin khóa học và chương. Đang chuyển hướng về danh sách khóa học...")
+          setTimeout(() => {
+            navigate('/staff/courses')
+          }, 2000)
+          return
         }
       }
     } catch (error) {
       console.error('Error fetching unit data:', error)
-      setError("Không thể tải thông tin bài học. Vui lòng thử lại.")
+      setError("Không thể tải thông tin bài học. Đang chuyển hướng về danh sách khóa học...")
+      // Điều hướng về course list khi gặp lỗi
+      setTimeout(() => {
+        navigate('/staff/courses')
+      }, 3000)
     } finally {
       setIsLoading(false)
     }
@@ -181,6 +243,7 @@ export const StaffUnitDetailPage: React.FC = () => {
         state: { course, chapter }
       })
     } else {
+      // Nếu không có thông tin course và chapter, quay về course list
       navigate('/staff/courses')
     }
   }
@@ -205,18 +268,8 @@ export const StaffUnitDetailPage: React.FC = () => {
     try {
       setIsLoading(true)
       
-      // Sử dụng API update với data hiện tại, chỉ thay đổi status thành INACTIVE
-      const updateData = {
-        id: unit.id,
-        title: unit.title,
-        description: unit.description || '',
-        status: 'INACTIVE' as const,
-        chapterId: unit.chapterId || chapterId || '',
-        prerequisiteUnitId: unit.prerequisiteUnitId || null,
-        examIds: []
-      }
-
-      const result = await StaffUnitService.updateUnit(unitId, updateData)
+      // Sử dụng API deactivate thay vì update
+      const result = await StaffUnitService.deactivateUnit(unitId)
       
       if (result.success) {
         setSuccessMessage('Đã tạm dừng hoạt động bài học thành công!')
@@ -394,8 +447,8 @@ export const StaffUnitDetailPage: React.FC = () => {
                 <Button onClick={() => fetchUnitData()} size="sm">
                   Thử lại
                 </Button>
-                <Button variant="outline" onClick={handleBackToChapter} size="sm">
-                  Quay lại chương
+                <Button variant="outline" onClick={() => navigate('/staff/courses')} size="sm">
+                  Quay lại danh sách khóa học
                 </Button>
               </div>
             </div>
@@ -411,9 +464,10 @@ export const StaffUnitDetailPage: React.FC = () => {
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center">
           <div className="text-center">
             <AlertCircle className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-            <p className="text-xl text-gray-600">Không tìm thấy thông tin bài học</p>
-            <Button onClick={handleBackToChapter} className="mt-4">
-              Quay lại chương
+            <p className="text-xl text-gray-600 mb-2">Không tìm thấy thông tin bài học</p>
+            <p className="text-sm text-gray-500 mb-6">Đang chuyển hướng về danh sách khóa học...</p>
+            <Button onClick={() => navigate('/staff/courses')} className="mt-4">
+              Quay lại danh sách khóa học
             </Button>
           </div>
         </div>
@@ -790,11 +844,79 @@ export const StaffUnitDetailPage: React.FC = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {/* Hard-coded exam display commented out per request. */}
                   <div className="space-y-4">
-                    <div className="text-center py-8">
-                      <p className="text-sm text-gray-500">Danh sách bài kiểm tra tạm ẩn — sẽ hiển thị khi dữ liệu được kết nối từ API.</p>
-                    </div>
+                    {exams.length > 0 ? (
+                      exams.map((exam, idx) => (
+                        <div 
+                          key={`${exam.id}-${idx}`} 
+                          className="p-4 rounded-lg border hover:shadow-md transition-all bg-purple-50 border-purple-100"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center">
+                                <AlertCircle className="h-6 w-6 text-white" />
+                              </div>
+                              <div>
+                                <div className="font-semibold text-purple-900 text-lg">{exam.title}</div>
+                                <div className="text-purple-700 text-sm mb-2">{exam.description}</div>
+                                <div className="flex items-center gap-4 text-sm text-purple-600">
+                                  <div>Mã bài kiểm tra: {exam.id}</div>
+                                  <div>Thời gian: {exam.duration} phút</div>
+                                  <div>Số câu hỏi: {exam.totalQuestions || 0}</div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => navigate(`/staff/exams/${exam.id}/edit`, {
+                                  state: {
+                                    scope: 'unit',
+                                    scopeId: unit.id,
+                                    scopeName: unit.title,
+                                    courseId: courseId,
+                                    courseName: course?.title || '',
+                                    chapterId: chapterId,
+                                    chapterName: chapter?.title || '',
+                                    unitId: unit.id,
+                                    unitName: unit.title,
+                                    returnUrl: `/staff/courses/${courseId}/chapters/${chapterId}/units/${unit.id}`,
+                                    returnState: { course, chapter, unit }
+                                  }
+                                })}
+                                className="text-purple-600 border-purple-300 hover:bg-purple-50"
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Chỉnh sửa
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-12">
+                        <AlertCircle className="h-16 w-16 mx-auto text-purple-300 mb-4" />
+                        <p className="text-purple-600 font-medium mb-2">Chưa có bài kiểm tra nào</p>
+                        <p className="text-sm text-purple-500 mb-6">
+                          Thêm bài kiểm tra đầu tiên cho bài học này
+                        </p>
+                        <Button 
+                          variant="outline"
+                          className="text-purple-600 border-purple-300 hover:bg-purple-50"
+                          onClick={() => navigate('/staff/create-exam', { 
+                            state: { 
+                              scope: 'unit', 
+                              scopeId: unit.id, 
+                              scopeName: unit.title 
+                            } 
+                          })}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Tạo bài kiểm tra
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>

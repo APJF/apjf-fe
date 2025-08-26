@@ -2,13 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   TrendingUp,
-  Users,
   BookOpen,
-  DollarSign,
-  Award,
-  Calendar,
-  MessageSquare,
-  Settings,
   Menu,
   X,
   Home,
@@ -114,42 +108,42 @@ export const ManagerNavigation: React.FC<ManagerNavigationProps> = ({
       icon: <TrendingUp className="h-5 w-5" />,
       to: '/manager/dashboard'
     },
-    {
-      id: 'users',
-      label: 'Quản lý người dùng',
-      icon: <Users className="h-5 w-5" />
-    },
+    // {
+    //   id: 'users',
+    //   label: 'Quản lý người dùng',
+    //   icon: <Users className="h-5 w-5" />
+    // },
     {
       id: 'approval-requests',
       label: 'Phê duyệt yêu cầu',
       icon: <BookOpen className="h-5 w-5" />,
       to: '/manager/approval-requests'
-    },
-    {
-      id: 'revenue',
-      label: 'Doanh thu',
-      icon: <DollarSign className="h-5 w-5" />
-    },
-    {
-      id: 'instructors',
-      label: 'Giảng viên',
-      icon: <Award className="h-5 w-5" />
-    },
-    {
-      id: 'schedule',
-      label: 'Lịch trình',
-      icon: <Calendar className="h-5 w-5" />
-    },
-    {
-      id: 'feedback',
-      label: 'Phản hồi',
-      icon: <MessageSquare className="h-5 w-5" />
-    },
-    {
-      id: 'settings',
-      label: 'Cài đặt',
-      icon: <Settings className="h-5 w-5" />
-    }
+    }//,
+    // {
+    //   id: 'revenue',
+    //   label: 'Doanh thu',
+    //   icon: <DollarSign className="h-5 w-5" />
+    // },
+    // {
+    //   id: 'instructors',
+    //   label: 'Giảng viên',
+    //   icon: <Award className="h-5 w-5" />
+    // },
+    // {
+    //   id: 'schedule',
+    //   label: 'Lịch trình',
+    //   icon: <Calendar className="h-5 w-5" />
+    // },
+    // {
+    //   id: 'feedback',
+    //   label: 'Phản hồi',
+    //   icon: <MessageSquare className="h-5 w-5" />
+    // },
+    // {
+    //   id: 'settings',
+    //   label: 'Cài đặt',
+    //   icon: <Settings className="h-5 w-5" />
+    // }
   ];
 
   const isActive = (itemId: string) => {
