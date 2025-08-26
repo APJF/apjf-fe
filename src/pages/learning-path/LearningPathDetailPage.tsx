@@ -401,52 +401,36 @@ const LearningPathDetailPage = () => {
                     .map((course) => (
                       <div 
                         key={course.courseId} 
-                        className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow bg-white"
+                        className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow bg-white relative min-h-[180px] flex flex-col"
                       >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 text-xs px-2 py-1">
-                                #{course.courseOrderNumber}
-                              </Badge>
-                              <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs px-2 py-1">
-                                {course.level}
-                              </Badge>
-                            </div>
-                            
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                              {course.title}
-                            </h3>
-                            
-                            <p className="text-sm text-gray-600 mb-3 leading-relaxed">
-                              {course.description}
-                            </p>
-                            
-                            <div className="flex items-center space-x-4 text-xs text-gray-500">
-                              <div className="flex items-center space-x-1">
-                                <Clock className="h-3 w-3" />
-                                <span>{course.duration} giờ</span>
-                              </div>
-                            </div>
+                        <div className="flex items-center space-x-2 mb-2">
+                          <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 text-xs px-2 py-1">
+                            #{course.courseOrderNumber}
+                          </Badge>
+                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs px-2 py-1">
+                            {course.level}
+                          </Badge>
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                          {course.title}
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-3 leading-relaxed">
+                          {course.description}
+                        </p>
+                        <div className="flex items-center space-x-4 text-xs text-gray-500 mb-8">
+                          <div className="flex items-center space-x-1">
+                            <Clock className="h-3 w-3" />
+                            <span>{course.duration} giờ</span>
                           </div>
-
-                          <div className="ml-4 flex flex-col space-y-2">
-                            <Button 
-                              size="sm" 
-                              className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1.5 text-xs"
-                              onClick={() => navigate(`/courses/${course.courseId}`)}
-                            >
-                              Xem chi tiết
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="px-3 py-1.5 text-xs"
-                              onClick={() => navigate(`/study/course/${course.courseId}`)}
-                            >
-                              Bắt đầu học
-                            </Button>
-                          </div>
+                        </div>
+                        <div className="absolute bottom-4 right-4">
+                          <Button 
+                            size="sm" 
+                            className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 text-xs shadow-md"
+                            onClick={() => navigate(`/courses/${course.courseId}`)}
+                          >
+                            Tiếp tục học
+                          </Button>
                         </div>
                       </div>
                     ))

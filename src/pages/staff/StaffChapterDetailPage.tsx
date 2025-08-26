@@ -253,24 +253,13 @@ export const StaffChapterDetailPage: React.FC = () => {
 
     try {
       setIsLoading(true)
-      
-      // Sử dụng API PATCH /api/chapters/{id}/deactivate
-      const token = localStorage.getItem('access_token')
-      const response = await fetch(`http://localhost:8080/api/chapters/${chapterId}/deactivate`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-      
-      if (response.ok) {
+      // Sử dụng service chuẩn axios
+      const result = await StaffChapterService.deactivateChapter(chapterId)
+      if (result.success) {
         setSuccessMessage('Đã hủy kích hoạt chương thành công!')
-        // Refresh chapter data to show updated status
         await fetchChapterData()
       } else {
-        const errorData = await response.json()
-        setError(errorData.message || 'Có lỗi xảy ra khi hủy kích hoạt chương')
+        setError(result.message || 'Có lỗi xảy ra khi hủy kích hoạt chương')
       }
     } catch (error) {
       console.error('Error deactivating chapter:', error)
