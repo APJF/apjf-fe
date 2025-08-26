@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, XCircle, MinusCircle, ChevronLeft, ChevronRight, Info, ArrowLeft } from "lucide-react";
+import { CheckCircle2, XCircle, MinusCircle, ChevronLeft, ChevronRight, Info } from "lucide-react";
 import type { ExamResult } from "../../types/exam";
 import { ExamReviewChatBox } from "./ExamReviewChatBox";
 import { useAuth } from "../../hooks/useAuth";
@@ -182,7 +182,6 @@ export function ExamReview({ examResult, onBack }: ExamReviewProps) {
   const total = data.length;
   const correctCount = useMemo(() => data.filter((q) => resolveState(q) === "correct").length, [data]);
   const wrongCount = useMemo(() => data.filter((q) => resolveState(q) === "wrong").length, [data]);
-  const unansweredCount = total - correctCount - wrongCount;
 
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [active, setActive] = useState(1);

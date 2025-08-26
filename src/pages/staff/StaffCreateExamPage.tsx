@@ -137,6 +137,10 @@ const StaffCreateExamPage: React.FC = () => {
   const [totalElements, setTotalElements] = useState(0)
 
   useEffect(() => {
+  setCurrentPage(0);
+}, [searchQuestionId, unitFilter]);
+
+  useEffect(() => {
     if (showSelectQuestionDialog) {
       loadUnitsForCourse() // Load units for filter
       const delayedFetch = setTimeout(() => {
@@ -230,9 +234,7 @@ const StaffCreateExamPage: React.FC = () => {
       setAvailableQuestions(safeQuestionsData)
       
       // Set pagination info from PagedQuestions
-      if (pagedData.number !== currentPage) {
-        setCurrentPage(pagedData.number || 0)
-      }
+      
       setTotalPages(pagedData.totalPages)
       setTotalElements(pagedData.totalElements)
     } catch (error) {
@@ -608,11 +610,17 @@ const StaffCreateExamPage: React.FC = () => {
             value={examState.examData.examId}
             onChange={(e) => handleInputChange('examId', e.target.value)}
             placeholder={`Ví dụ: ${state?.scopeId || 'scopeId'}-exam01, ${state?.scopeId || 'scopeId'}-exam02, ...`}
+            maxLength={60}
             required
           />
-          <p className="text-sm text-gray-500 mt-1">
-            Tạo exam theo nguyên tắc: courseId-chapterId(nếu có)-unitId(nếu có)-số thứ tự 
-          </p>
+          <div className="flex justify-between items-center">
+            <p className="text-sm text-gray-500 mt-1">
+              Tạo exam theo nguyên tắc: courseId-chapterId(nếu có)-unitId(nếu có)-số thứ tự 
+            </p>
+            <p className={`text-xs mt-1 ${examState.examData.examId.length > 32 ? 'text-red-600' : 'text-gray-500'}`}>
+              {examState.examData.examId.length}/60 ký tự
+            </p>
+          </div>
         </div>
 
         <div>
@@ -622,8 +630,12 @@ const StaffCreateExamPage: React.FC = () => {
             value={examState.examData.title}
             onChange={(e) => handleInputChange('title', e.target.value)}
             placeholder="Nhập tiêu đề exam"
+            maxLength={255}
             required
           />
+          <p className={`text-xs mt-1 ${examState.examData.title.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+            {examState.examData.title.length}/255 ký tự
+          </p>
         </div>
 
         <div>
@@ -634,8 +646,12 @@ const StaffCreateExamPage: React.FC = () => {
             onChange={(e) => handleInputChange('description', e.target.value)}
             placeholder="Mô tả về exam này"
             rows={3}
+            maxLength={255}
             required
           />
+          <p className={`text-xs mt-1 ${examState.examData.description.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+            {examState.examData.description.length}/255 ký tự
+          </p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -645,10 +661,14 @@ const StaffCreateExamPage: React.FC = () => {
               id="duration"
               type="number"
               min="1"
+              max="100000"
               value={examState.examData.duration}
               onChange={(e) => handleInputChange('duration', parseInt(e.target.value))}
               required
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Tối đa 100,000 phút
+            </p>
           </div>
 
           <div>
@@ -1320,11 +1340,16 @@ function NewQuestionDialog({
               value={formData.id}
               onChange={(e) => handleQuestionIdChange(e.target.value)}
               placeholder="Nhập ID câu hỏi"
+              maxLength={40}
               className={`bg-white/70 ${errors.questionId ? 'border-red-500' : ''}`}
               disabled={!!question} // Disable when editing
             />
-            {errors.questionId && (
+            {errors.questionId ? (
               <p className="text-red-500 text-sm mt-1">{errors.questionId}</p>
+            ) : (
+              <p className={`text-xs mt-1 ${formData.id.length > 32 ? 'text-red-600' : 'text-gray-500'}`}>
+                {formData.id.length}/40 ký tự
+              </p>
             )}
           </div>
 
@@ -1359,9 +1384,13 @@ function NewQuestionDialog({
               value={formData.content}
               onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
               rows={3}
+              maxLength={255}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white/70 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Nhập nội dung câu hỏi..."
             />
+            <p className={`text-xs mt-1 ${formData.content.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+              {formData.content.length}/255 ký tự
+            </p>
           </div>
 
           {/* Options (Fixed to MULTIPLE_CHOICE) */}
@@ -1394,8 +1423,12 @@ function NewQuestionDialog({
                     value={option.content}
                     onChange={(e) => updateOption(option.id, e.target.value)}
                     placeholder={`Lựa chọn ${index + 1}`}
+                    maxLength={255}
                     className="flex-1 bg-white/70"
                   />
+                  <p className={`text-xs ${option.content.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+                    {option.content.length}/255
+                  </p>
                   {formData.options.length > 2 && (
                     <Button
                       type="button"
@@ -1433,9 +1466,13 @@ function NewQuestionDialog({
               value={formData.explanation}
               onChange={(e) => setFormData(prev => ({ ...prev, explanation: e.target.value }))}
               rows={2}
+              maxLength={255}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white/70 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Nhập giải thích cho câu hỏi..."
             />
+            <p className={`text-xs mt-1 ${formData.explanation.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+              {formData.explanation.length}/255 ký tự
+            </p>
           </div>
         </div>
 

@@ -236,6 +236,7 @@ export function ResetPasswordForm() {
                     placeholder="Nhập mật khẩu mới"
                     value={formData.newPassword}
                     onChange={handleInputChange}
+                    maxLength={255}
                     className="w-full pl-11 pr-11 h-11 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
                     disabled={isLoading}
                   />
@@ -266,6 +267,7 @@ export function ResetPasswordForm() {
                     placeholder="Nhập lại mật khẩu mới"
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
+                    maxLength={255}
                     className="w-full pl-11 pr-11 h-11 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
                     disabled={isLoading}
                   />

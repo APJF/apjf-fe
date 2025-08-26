@@ -124,6 +124,11 @@ export function StaffCreateQuestion() {
     fetchUnits(); // Load units initially
   }, []);
 
+  // useEffect để reset currentPage về 0 khi search hoặc filter thay đổi
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [searchQuestionId, unitFilter]);
+  
   useEffect(() => {
     const delayedFetch = setTimeout(() => {
       fetchQuestions(currentPage, pageSize, searchQuestionId, unitFilter);
@@ -158,9 +163,7 @@ export function StaffCreateQuestion() {
       setQuestions(safeQuestionsData);
       
       // Set pagination info from PagedQuestions - chỉ cập nhật currentPage nếu khác với request
-      if (pagedData.number !== page) {
-        setCurrentPage(pagedData.number || 0);
-      }
+      
       setTotalPages(pagedData.totalPages);
       setTotalElements(pagedData.totalElements);
     } catch (error: any) {
@@ -376,7 +379,7 @@ export function StaffCreateQuestion() {
       // Combine options: use options from list (với isCorrect) nhưng ensure có đầy đủ fields
       const combinedOptions = question.options?.map((listOption, index) => ({
         id: listOption.id || `${question.id}-${index + 1}`,
-        content: listOption.content,
+        content: listOption.content || '',
         isCorrect: listOption.isCorrect // Lấy isCorrect từ list data
       })) || [];
       
@@ -389,12 +392,12 @@ export function StaffCreateQuestion() {
             const listMatch = question.options?.find(opt => opt.content === detailOption.content);
             combinedOptions.push({
               id: detailOption.id || `${question.id}-${combinedOptions.length + 1}`,
-              content: detailOption.content,
+              content: detailOption.content || '',
               isCorrect: listMatch?.isCorrect || false
             });
           } else {
             // Update content từ detail API nhưng giữ nguyên isCorrect từ list
-            existingOption.content = detailOption.content;
+            existingOption.content = detailOption.content || '';
           }
         });
       }
@@ -406,11 +409,11 @@ export function StaffCreateQuestion() {
       console.log('Safe unitIds from detail API:', safeUnitIds);
 
       setFormData({
-        id: fullQuestion.id || question.id,
-        content: fullQuestion.content || question.content,
+        id: fullQuestion.id || question.id || '',
+        content: fullQuestion.content || question.content || '',
         scope: fullQuestion.scope || question.scope,
         type: fullQuestion.type || question.type,
-        explanation: fullQuestion.explanation || question.explanation,
+        explanation: fullQuestion.explanation || question.explanation || '',
         options: combinedOptions,
         unitIds: safeUnitIds
       });
@@ -427,11 +430,11 @@ export function StaffCreateQuestion() {
         ...fullQuestion,
         options: combinedOptions,
         // Fallback values from list data
-        id: fullQuestion.id || question.id,
-        content: fullQuestion.content || question.content,
+        id: fullQuestion.id || question.id || '',
+        content: fullQuestion.content || question.content || '',
         scope: fullQuestion.scope || question.scope,
         type: fullQuestion.type || question.type,
-        explanation: fullQuestion.explanation || question.explanation
+        explanation: fullQuestion.explanation || question.explanation || ''
       };
       
       setEditingQuestion(combinedQuestion);
@@ -956,7 +959,11 @@ export function StaffCreateQuestion() {
                     onChange={(e) => handleQuestionIdChange(e.target.value)}
                     placeholder="Nhập ID câu hỏi"
                     className={`bg-white/70 ${errors.questionId ? 'border-red-500' : ''}`}
+                    maxLength={40}
                   />
+                  <div className={`text-xs mt-1 ${(formData.id || '').length >= 32 ? 'text-red-500' : 'text-gray-500'}`}>
+                    {(formData.id || '').length}/40 ký tự
+                  </div>
                   {errors.questionId && (
                     <p className="mt-1 text-sm text-red-600">{errors.questionId}</p>
                   )}
@@ -1003,7 +1010,11 @@ export function StaffCreateQuestion() {
                     rows={3}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white/70 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Nhập nội dung câu hỏi..."
+                    maxLength={255}
                   />
+                  <div className={`text-xs mt-1 ${(formData.content || '').length >= 200 ? 'text-red-500' : 'text-gray-500'}`}>
+                    {(formData.content || '').length}/255 ký tự
+                  </div>
                 </div>
 
                 {/* Multiple Choice Options */}
@@ -1041,7 +1052,11 @@ export function StaffCreateQuestion() {
                           value={option.content}
                           onChange={(e) => updateOption(option.id, e.target.value)}
                           className="flex-1 bg-white/70"
+                          maxLength={255}
                         />
+                        <div className={`text-xs ${(option.content || '').length >= 200 ? 'text-red-500' : 'text-gray-500'} whitespace-nowrap ml-2`}>
+                          {(option.content || '').length}/255
+                        </div>
                         {formData.options.length > 2 && (
                           <Button
                             type="button"
@@ -1080,7 +1095,11 @@ export function StaffCreateQuestion() {
                     rows={2}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white/70 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Giải thích đáp án cho học viên..."
+                    maxLength={255}
                   />
+                  <div className={`text-xs mt-1 ${(formData.explanation || '').length >= 200 ? 'text-red-500' : 'text-gray-500'}`}>
+                    {(formData.explanation || '').length}/255 ký tự
+                  </div>
                 </div>
               </div>
 

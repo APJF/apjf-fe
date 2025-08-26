@@ -107,6 +107,14 @@ interface LocationState {
   scope: 'course' | 'chapter' | 'unit'
   scopeId: string
   scopeName: string
+  courseId?: string
+  courseName?: string
+  chapterId?: string
+  chapterName?: string
+  unitId?: string
+  unitName?: string
+  returnUrl?: string
+  returnState?: any
 }
 
 export const StaffUpdateExamPage: React.FC = () => {
@@ -151,6 +159,10 @@ export const StaffUpdateExamPage: React.FC = () => {
     loadExamData()
     loadUnitsForCourse()
   }, [examId])
+
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [searchQuestionId, unitFilter]);
 
   useEffect(() => {
     if (showSelectQuestionDialog) {
@@ -245,9 +257,7 @@ export const StaffUpdateExamPage: React.FC = () => {
       setAvailableQuestions(safeQuestionsData)
       
       // Set pagination info from PagedQuestions
-      if (pagedData.number !== currentPage) {
-        setCurrentPage(pagedData.number || 0)
-      }
+      
       setTotalPages(pagedData.totalPages)
       setTotalElements(pagedData.totalElements)
     } catch (error) {
@@ -759,23 +769,43 @@ export const StaffUpdateExamPage: React.FC = () => {
   }
 
   const handleBackNavigation = () => {
+    // Ưu tiên sử dụng returnUrl nếu có
+    if (state?.returnUrl) {
+      navigate(state.returnUrl, { state: state.returnState })
+      return
+    }
+
+    // Fallback về logic cũ nhưng ưu tiên dùng state.courseId và state.chapterId
     if (state && state.scopeId) {
       // Navigate back to the specific detail page based on scope
       switch (state.scope) {
         case 'course':
           navigate(`/staff/courses/${state.scopeId}`)
           break
-        case 'chapter':
-          navigate(`/staff/courses/${examState.examData?.courseId}/chapters/${state.scopeId}`)
+        case 'chapter': {
+          const courseIdForChapter = state.courseId || examState.examData?.courseId
+          if (courseIdForChapter) {
+            navigate(`/staff/courses/${courseIdForChapter}/chapters/${state.scopeId}`)
+          } else {
+            navigate('/staff/courses')
+          }
           break
-        case 'unit':
-          navigate(`/staff/courses/${examState.examData?.courseId}/chapters/${examState.examData?.chapterId}/units/${state.scopeId}`)
+        }
+        case 'unit': {
+          const courseIdForUnit = state.courseId || examState.examData?.courseId
+          const chapterIdForUnit = state.chapterId || examState.examData?.chapterId
+          if (courseIdForUnit && chapterIdForUnit) {
+            navigate(`/staff/courses/${courseIdForUnit}/chapters/${chapterIdForUnit}/units/${state.scopeId}`)
+          } else {
+            navigate('/staff/courses')
+          }
           break
+        }
         default:
           navigate('/staff/courses')
       }
     } else {
-      navigate(-1) // Go back to previous page
+      navigate('/staff/courses') // Default fallback
     }
   }
 
@@ -861,8 +891,12 @@ export const StaffUpdateExamPage: React.FC = () => {
             value={examState.examData?.examId || ''}
             onChange={(e) => handleInputChange('examId', e.target.value)}
             placeholder={`Ví dụ: ${state?.scopeId || 'scopeId'}-exam01, ${state?.scopeId || 'scopeId'}-exam02, ...`}
+            maxLength={60}
             required
           />
+          <div className={`text-xs mt-1 ${(examState.examData?.examId || '').length >= 32 ? 'text-red-500' : 'text-gray-500'}`}>
+            {(examState.examData?.examId || '').length}/60 ký tự
+          </div>
           <p className="text-sm text-gray-500 mt-1">
             ID exam theo nguyên tắc: courseId-chapterId(nếu có)-unitId(nếu có)-số thứ tự 
           </p>
@@ -875,8 +909,12 @@ export const StaffUpdateExamPage: React.FC = () => {
             value={examState.examData?.title || ''}
             onChange={(e) => handleInputChange('title', e.target.value)}
             placeholder="Nhập tiêu đề exam"
+            maxLength={255}
             required
           />
+          <div className={`text-xs mt-1 ${(examState.examData?.title || '').length >= 200 ? 'text-red-500' : 'text-gray-500'}`}>
+            {(examState.examData?.title || '').length}/255 ký tự
+          </div>
         </div>
 
         <div>
@@ -887,8 +925,12 @@ export const StaffUpdateExamPage: React.FC = () => {
             onChange={(e) => handleInputChange('description', e.target.value)}
             placeholder="Mô tả về exam này"
             rows={3}
+            maxLength={255}
             required
           />
+          <div className={`text-xs mt-1 ${(examState.examData?.description || '').length >= 200 ? 'text-red-500' : 'text-gray-500'}`}>
+            {(examState.examData?.description || '').length}/255 ký tự
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -898,10 +940,14 @@ export const StaffUpdateExamPage: React.FC = () => {
               id="duration"
               type="number"
               min="1"
+              max="100000"
               value={examState.examData?.duration || 0}
               onChange={(e) => handleInputChange('duration', parseInt(e.target.value))}
               required
             />
+            <div className={`text-xs mt-1 ${(examState.examData?.duration || 0) >= 80000 ? 'text-red-500' : 'text-gray-500'}`}>
+              Tối đa: 100,000 phút
+            </div>
           </div>
 
           <div>
@@ -1619,8 +1665,12 @@ const NewQuestionDialog: React.FC<NewQuestionDialogProps> = ({
                   });
                 }}
                 placeholder="Nhập ID câu hỏi"
+                maxLength={40}
                 className="bg-white/70"
               />
+              <p className={`text-xs mt-1 ${formData.id.length > 32 ? 'text-red-600' : 'text-gray-500'}`}>
+                {formData.id.length}/40 ký tự
+              </p>
             </div>
             <div>
               <label htmlFor="questionType" className="block text-sm font-medium text-gray-700 mb-1">Loại câu hỏi</label>
@@ -1667,9 +1717,13 @@ const NewQuestionDialog: React.FC<NewQuestionDialogProps> = ({
               value={formData.content}
               onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
               rows={3}
+              maxLength={255}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white/70 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Nhập nội dung câu hỏi..."
             />
+            <p className={`text-xs mt-1 ${formData.content.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+              {formData.content.length}/255 ký tự
+            </p>
           </div>
 
           {/* Multiple Choice Options */}
@@ -1706,8 +1760,12 @@ const NewQuestionDialog: React.FC<NewQuestionDialogProps> = ({
                     placeholder={`Lựa chọn ${String.fromCharCode(65 + index)}`}
                     value={option.content}
                     onChange={(e) => updateOption(option.id, e.target.value)}
+                    maxLength={255}
                     className="flex-1 bg-white/70"
                   />
+                  <p className={`text-xs ${option.content.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+                    {option.content.length}/255
+                  </p>
                   {formData.options.length > 2 && (
                     <Button
                       type="button"
@@ -1744,9 +1802,13 @@ const NewQuestionDialog: React.FC<NewQuestionDialogProps> = ({
               value={formData.explanation}
               onChange={(e) => setFormData(prev => ({ ...prev, explanation: e.target.value }))}
               rows={2}
+              maxLength={255}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white/70 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Giải thích đáp án cho học viên..."
             />
+            <p className={`text-xs mt-1 ${formData.explanation.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+              {formData.explanation.length}/255 ký tự
+            </p>
           </div>
         </div>
 

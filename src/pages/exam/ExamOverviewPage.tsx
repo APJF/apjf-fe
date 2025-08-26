@@ -52,7 +52,7 @@ const sectionLabel: Record<Section, string> = {
 };
 
 // ---- Summary cards (Score shows pass/fail inline)
-function SummaryHighlight({ summary, threshold = 50 }: Readonly<{ summary: AIOverviewResponse["advice"]["summary"]; threshold?: number }>) {
+function SummaryHighlight({ summary, threshold = 60 }: Readonly<{ summary: AIOverviewResponse["advice"]["summary"]; threshold?: number }>) {
   const score = Math.round(summary.accuracy_percent);
   const pass = score >= threshold;
   return (
@@ -290,7 +290,7 @@ export default function ExamOverviewPage() {
     );
   }
 
-  const threshold = 50;
+  const threshold = 60;
 
   return (
     <div className="min-h-screen bg-slate-50">

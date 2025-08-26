@@ -171,6 +171,7 @@ export function ForgotPasswordForm() {
                     placeholder="Nhập địa chỉ email của bạn"
                     value={email}
                     onChange={handleInputChange}
+                    maxLength={255}
                     className="w-full pl-11 pr-4 h-11 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
                     disabled={isLoading}
                   />

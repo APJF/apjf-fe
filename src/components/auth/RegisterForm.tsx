@@ -193,6 +193,7 @@ export function RegisterForm() {
                     className={`w-full pl-11 pr-4 h-11 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors ${
                       errors.email ? "border-red-500" : "border-gray-300"
                     }`}
+                    maxLength={255}
                     disabled={isLoading}
                   />
                 </div>
@@ -221,6 +222,7 @@ export function RegisterForm() {
                     className={`w-full pl-11 pr-11 h-11 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors ${
                       errors.password ? "border-red-500" : "border-gray-300"
                     }`}
+                    maxLength={255}
                     disabled={isLoading}
                   />
                   <button
@@ -255,6 +257,7 @@ export function RegisterForm() {
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
                     className="w-full pl-11 pr-11 h-11 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-colors"
+                    maxLength={255}
                     disabled={isLoading}
                   />
                   <button

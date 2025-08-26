@@ -497,6 +497,7 @@ const StaffCreateChapterPage: React.FC = () => {
                         onChange={(e) => handleInputChange("id", e.target.value)}
                         placeholder="Ví dụ: CHAP01"
                         className={`border-blue-300 focus:border-blue-500 focus:ring-blue-500 text-base py-3 bg-white/80 backdrop-blur-sm ${fieldErrors.id ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                        maxLength={40}
                         required
                       />
                       {fieldErrors.id ? (
@@ -504,9 +505,14 @@ const StaffCreateChapterPage: React.FC = () => {
                           ⚠️ {fieldErrors.id}
                         </p>
                       ) : (
-                        <p className="text-blue-600 text-xs mt-1">
-                          💡 Mã chương không được chứa dấu cách. Sử dụng dấu gạch ngang (-) hoặc underscore (_)
-                        </p>
+                        <div className="flex justify-between items-center">
+                          <p className="text-blue-600 text-xs mt-1">
+                            💡 Mã chương không được chứa dấu cách. Sử dụng dấu gạch ngang (-) hoặc underscore (_)
+                          </p>
+                          <p className={`text-xs mt-1 ${formData.id.length > 32 ? 'text-red-600' : 'text-gray-500'}`}>
+                            {formData.id.length}/40 ký tự
+                          </p>
+                        </div>
                       )}
                     </div>
 
@@ -524,6 +530,7 @@ const StaffCreateChapterPage: React.FC = () => {
                         onChange={(e) => handleInputChange("title", e.target.value)}
                         placeholder="Ví dụ: Hiragana - Bảng chữ cái cơ bản"
                         className={`border-blue-300 focus:border-blue-500 focus:ring-blue-500 text-base py-3 bg-white/80 backdrop-blur-sm ${fieldErrors.title ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                        maxLength={255}
                         required
                       />
                       {fieldErrors.title ? (
@@ -531,7 +538,12 @@ const StaffCreateChapterPage: React.FC = () => {
                           ⚠️ {fieldErrors.title}
                         </p>
                       ) : (
-                        <p className="text-blue-600 text-xs">Nhập tên chương rõ ràng và dễ hiểu cho học viên</p>
+                        <div className="flex justify-between items-center">
+                          <p className="text-blue-600 text-xs">Nhập tên chương rõ ràng và dễ hiểu cho học viên</p>
+                          <p className={`text-xs ${formData.title.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+                            {formData.title.length}/255 ký tự
+                          </p>
+                        </div>
                       )}
                     </div>
 
@@ -553,6 +565,7 @@ const StaffCreateChapterPage: React.FC = () => {
                         placeholder="Mô tả chi tiết về nội dung và mục tiêu của chương học..."
                         rows={5}
                         className={`border-blue-300 focus:border-blue-500 focus:ring-blue-500 resize-none text-base bg-white/80 backdrop-blur-sm ${fieldErrors.description ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                        maxLength={255}
                         required
                       />
                       {fieldErrors.description ? (
@@ -560,9 +573,14 @@ const StaffCreateChapterPage: React.FC = () => {
                           ⚠️ {fieldErrors.description}
                         </p>
                       ) : (
-                        <p className="text-blue-600 text-xs">
-                          Mô tả nội dung, mục tiêu học tập và những gì học viên sẽ đạt được
-                        </p>
+                        <div className="flex justify-between items-center">
+                          <p className="text-blue-600 text-xs">
+                            Mô tả nội dung, mục tiêu học tập và những gì học viên sẽ đạt được
+                          </p>
+                          <p className={`text-xs ${formData.description.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+                            {formData.description.length}/255 ký tự
+                          </p>
+                        </div>
                       )}
                     </div>
 

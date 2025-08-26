@@ -9,7 +9,6 @@ import {
   Search,
   Eye,
   Edit,
-  Trash2,
   AlertCircle
 } from "lucide-react"
 import { CourseService } from "../../services/courseService"
@@ -269,15 +268,7 @@ export const CourseListTable: React.FC<CourseListTableProps> = ({
           >
             <Edit className="h-4 w-4" />
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            // onClick={() => handleDeleteCourse(course.id)}
-            className="h-8 w-8 p-0 hover:bg-red-100 hover:text-red-600"
-            title="Xóa"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          
         </div>
       </div>
     ))

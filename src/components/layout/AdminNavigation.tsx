@@ -1,14 +1,10 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Badge } from '../ui/Badge'
 import { cn, getAvatarText } from '../../lib/utils'
 import { 
   LayoutDashboard, 
   Users, 
-  Settings, 
   Shield, 
-  Activity, 
-  FileText, 
   Menu, 
   X, 
   LogOut, 
@@ -37,28 +33,28 @@ const navigationItems = [
     icon: Users,
     href: "/admin/accounts",
     description: "Manage user accounts and roles",
-  },
-  {
-    id: "activity",
-    label: "Activity Logs",
-    icon: Activity,
-    href: "/admin/activity",
-    description: "System activity and audit trail",
-  },
-  {
-    id: "reports",
-    label: "Reports",
-    icon: FileText,
-    href: "/admin/reports",
-    description: "Generate system reports",
-  },
-  {
-    id: "settings",
-    label: "System Settings",
-    icon: Settings,
-    href: "/admin/settings",
-    description: "Configure system settings",
-  },
+  }//,
+  // {
+  //   id: "activity",
+  //   label: "Activity Logs",
+  //   icon: Activity,
+  //   href: "/admin/activity",
+  //   description: "System activity and audit trail",
+  // },
+  // {
+  //   id: "reports",
+  //   label: "Reports",
+  //   icon: FileText,
+  //   href: "/admin/reports",
+  //   description: "Generate system reports",
+  // },
+  // {
+  //   id: "settings",
+  //   label: "System Settings",
+  //   icon: Settings,
+  //   href: "/admin/settings",
+  //   description: "Configure system settings",
+  // },
 ]
 
 const AdminNavigation: React.FC<AdminNavigationProps> = ({ children, currentPage }) => {
@@ -346,11 +342,9 @@ const AdminNavigation: React.FC<AdminNavigationProps> = ({ children, currentPage
                   </div>
                 </div>
 
+                {/* User Info - Right side */}
                 <div className="flex items-center space-x-4">
-                  <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
-                    System Online
-                  </Badge>
-                  <div className="text-sm text-gray-600">Last updated: {new Date().toLocaleTimeString()}</div>
+                  {/* Remove System Online badge and Last updated time */}
                 </div>
               </div>
             </div>

@@ -68,12 +68,12 @@ interface MaterialFileErrors {
 
 // Mapping skill types to material types
 const SKILL_TYPE_TO_MATERIAL_TYPE: Record<string, MaterialType> = {
-  'Nghe': 'LISTENING',
-  'Kanji': 'KANJI', 
-  'Đọc': 'READING',
-  'Viết': 'WRITING',
-  'Ngữ pháp': 'GRAMMAR',
-  'Từ vựng': 'VOCAB'
+  'LISTENING': 'LISTENING',
+  'KANJI': 'KANJI', 
+  'READING': 'READING',
+  'WRITING': 'WRITING',
+  'GRAMMAR': 'GRAMMAR',
+  'VOCAB': 'VOCAB'
 }
 
 const StaffUpdateUnitPage: React.FC = () => {
@@ -125,69 +125,161 @@ const StaffUpdateUnitPage: React.FC = () => {
     materialTitle: ''
   })
 
-  // Generate MaterialId function
-  const generateMaterialId = (skillType: MaterialType): string => {
-    if (!course?.id || !chapter?.id || !unit?.id || !skillType) {
-      return ''
-    }
 
-    const prefix = `${course.id}__${chapter.id}__${unit.id}__${skillType}__JA_VI__`
+
+  // Extract material ID from filename
+  const extractMaterialIdFromFilename = (filename: string): string => {
+    // Xóa extension và thay thế spaces bằng underscores
+    const nameWithoutExtension = filename.replace(/\.[^/.]+$/, '')
+    return nameWithoutExtension.replace(/\s+/g, '_')
+  }
+
+  // Validate material ID format
+  const validateMaterialIdFormat = (materialId: string): string => {
+    console.log('🔍 Validating material ID format:', materialId)
+    const pattern = /^[A-Z0-9]+__CHAPTER_\d+__UNIT_\d+__[A-Z]+__JA_VI__\d+$/
+    const isValid = pattern.test(materialId)
+    console.log('📋 Pattern test result:', isValid)
+    console.log('📋 Pattern used:', pattern.toString())
     
-    // Tìm tất cả materials có cùng skillType (bao gồm cả existing và new)
-    const allMaterialsWithSameSkill = materials.filter(m => {
-      // Kiểm tra materials đã tồn tại có cùng skillType
-      if (m.originalData && SKILL_TYPE_TO_MATERIAL_TYPE[m.skillType] === skillType) {
+    if (!isValid) {
+      const error = 'Tên file không đúng format. Phải theo mẫu: [MãKhóaHọc]__CHAPTER_[Số]__UNIT_[Số]__[KỹNăng]__JA_VI__[Số]'
+      console.log('❌ Format validation failed:', error)
+      return error
+    }
+    console.log('✅ Format validation passed')
+    return ''
+  }
+
+  // Check if material ID exists
+  const checkMaterialIdExists = async (materialId: string, currentMaterialId?: string): Promise<boolean> => {
+    try {
+      console.log('🔍 Checking if material ID exists:', materialId)
+      console.log('📋 Current material ID to skip:', currentMaterialId)
+      
+      // Skip check if this is the same material
+      if (currentMaterialId === materialId) {
+        console.log('⏭️ Skipping check - same material ID')
+        return false
+      }
+      
+      // Check in current materials list
+      const existsInCurrentList = materials.some(m => 
+        m.materialId === materialId && m.materialId !== currentMaterialId
+      )
+      
+      if (existsInCurrentList) {
+        console.log('❌ Material ID exists in current list')
         return true
       }
-      // Kiểm tra materials mới có cùng skillType  
-      if (m.isNew && SKILL_TYPE_TO_MATERIAL_TYPE[m.skillType] === skillType) {
+
+      // Check in database via API
+      console.log('🌐 Checking material ID in database via API...')
+      const response = await api.get(`/materials/${materialId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      console.log('📋 API response status:', response.status)
+      console.log('📋 API response data:', response.data)
+      
+      // If we get a successful response, the material exists
+      if (response.status === 200 && response.data) {
+        console.log('❌ Material ID exists in database')
         return true
       }
+      
+      console.log('✅ Material ID is available')
       return false
-    })
-    
-    // Tìm số thứ tự cao nhất đã được sử dụng
-    let maxNumber = 0
-    allMaterialsWithSameSkill.forEach(m => {
-      const materialId = m.materialId || m.originalData?.id || ''
-      if (materialId.startsWith(prefix)) {
-        const numberPart = materialId.substring(prefix.length)
-        const number = parseInt(numberPart, 10)
-        if (!isNaN(number) && number > maxNumber) {
-          maxNumber = number
+    } catch (error) {
+      console.log('🔍 API error checking material ID:', error)
+      
+      // If it's a 404, the material doesn't exist - that's good
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status: number } }
+        if (axiosError.response?.status === 404) {
+          console.log('✅ Material ID not found in database (404) - available for use')
+          return false
         }
       }
-    })
-    
-    const nextNumber = (maxNumber + 1).toString().padStart(4, '0')
-    return `${prefix}${nextNumber}`
+      
+      console.error('❌ Error checking material ID:', error)
+      // In case of error, assume it doesn't exist to avoid blocking
+      return false
+    }
   }
 
   // Handle file selection with validation
-  const handleMaterialFileSelect = (frontendId: string, file: File | null) => {
+  const handleMaterialFileSelect = async (frontendId: string, file: File | null) => {
     if (file) {
-      // Kiểm tra kích thước file (5MB = 5 * 1024 * 1024 bytes)
-      const maxSize = 5 * 1024 * 1024
-      if (file.size > maxSize) {
-        const errorMessage = `File "${file.name}" có kích thước ${(file.size / (1024 * 1024)).toFixed(1)}MB. Vui lòng chọn file dưới 5MB.`
-        showToast('error', errorMessage)
-        
-        // Set lỗi cho material này
+      // Kiểm tra loại file
+      const allowedTypes = ['application/pdf', 'audio/mpeg', 'audio/mp3']
+      const isValidType = allowedTypes.includes(file.type) || file.name.toLowerCase().endsWith('.pdf') || file.name.toLowerCase().endsWith('.mp3')
+      
+      if (!isValidType) {
+        const errorMessage = 'Chỉ chấp nhận file PDF hoặc MP3'
         setMaterialFileErrors(prev => ({
           ...prev,
           [frontendId]: errorMessage
         }))
-        
-        // Không cập nhật selectedFile nếu file quá lớn
         return
-      } else {
-        // Clear lỗi nếu file hợp lệ
-        setMaterialFileErrors(prev => {
-          const newErrors = { ...prev }
-          delete newErrors[frontendId]
-          return newErrors
-        })
       }
+
+      // Kiểm tra kích thước file (5MB = 5 * 1024 * 1024 bytes)
+      const maxSize = 5 * 1024 * 1024
+      if (file.size > maxSize) {
+        const errorMessage = `File "${file.name}" có kích thước ${(file.size / (1024 * 1024)).toFixed(1)}MB. Vui lòng chọn file dưới 5MB.`
+        setMaterialFileErrors(prev => ({
+          ...prev,
+          [frontendId]: errorMessage
+        }))
+        return
+      }
+
+      // Extract material ID from filename
+      const materialId = extractMaterialIdFromFilename(file.name)
+      
+      // Validate format
+      const formatError = validateMaterialIdFormat(materialId)
+      if (formatError) {
+        setMaterialFileErrors(prev => ({
+          ...prev,
+          [frontendId]: formatError
+        }))
+        return
+      }
+
+      // Check if material ID exists
+      const material = materials.find(m => m.id === frontendId)
+      const currentMaterialId = material?.originalData?.id || material?.materialId
+      const exists = await checkMaterialIdExists(materialId, currentMaterialId)
+      
+      if (exists) {
+        const errorMessage = `Material ID "${materialId}" đã tồn tại. Vui lòng đổi tên file.`
+        setMaterialFileErrors(prev => ({
+          ...prev,
+          [frontendId]: errorMessage
+        }))
+        return
+      }
+
+      // Clear lỗi nếu file hợp lệ
+      setMaterialFileErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors[frontendId]
+        return newErrors
+      })
+
+      // Update material with new material ID
+      setMaterials(prev =>
+        prev.map(m => 
+          m.id === frontendId 
+            ? { ...m, selectedFile: file, materialId: materialId, isUpdated: !m.isNew }
+            : m
+        )
+      )
     } else {
       // Clear lỗi khi không chọn file
       setMaterialFileErrors(prev => {
@@ -195,8 +287,8 @@ const StaffUpdateUnitPage: React.FC = () => {
         delete newErrors[frontendId]
         return newErrors
       })
+      updateMaterialFile(frontendId, file)
     }
-    updateMaterialFile(frontendId, file)
   }
 
   useEffect(() => {
@@ -289,14 +381,14 @@ const StaffUpdateUnitPage: React.FC = () => {
 
   const getSkillTypeFromMaterialType = (materialType: MaterialType): string => {
     const mapping: Record<MaterialType, string> = {
-      'LISTENING': 'Nghe',
-      'KANJI': 'Kanji',
-      'READING': 'Đọc', 
-      'WRITING': 'Viết',
-      'GRAMMAR': 'Ngữ pháp',
-      'VOCAB': 'Từ vựng'
+      'LISTENING': 'LISTENING',
+      'KANJI': 'KANJI',
+      'READING': 'READING', 
+      'WRITING': 'WRITING',
+      'GRAMMAR': 'GRAMMAR',
+      'VOCAB': 'VOCAB'
     }
-    return mapping[materialType] || 'Ngữ pháp'
+    return mapping[materialType] || 'GRAMMAR'
   }
 
   const fetchAvailableUnits = async () => {
@@ -554,13 +646,12 @@ const StaffUpdateUnitPage: React.FC = () => {
           }
           
           const materialType = SKILL_TYPE_TO_MATERIAL_TYPE[newSkillType]
-          const newMaterialId = materialType ? generateMaterialId(materialType) : ''
           
+          // Material ID sẽ được tạo từ tên file khi chọn file, không tự động tạo ở đây
           return { 
             ...m, 
             skillType: newSkillType,
             type: materialType,
-            materialId: newMaterialId,
             isUpdated: false // Vẫn là material mới
           }
         }
@@ -1196,6 +1287,7 @@ const StaffUpdateUnitPage: React.FC = () => {
                           value={formData.title}
                           onChange={(e) => handleInputChange("title", e.target.value)}
                           placeholder="Ví dụ: Ngữ pháp về Hiragana"
+                          maxLength={255}
                           className={`text-base py-3 bg-white/80 backdrop-blur-sm ${
                             fieldErrors.title 
                               ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 
@@ -1208,9 +1300,14 @@ const StaffUpdateUnitPage: React.FC = () => {
                             ⚠️ {fieldErrors.title}
                           </p>
                         ) : (
-                          <p className="text-green-600 text-xs mt-1">
-                            💡 Nhập tên bài học dễ hiểu và rõ ràng
-                          </p>
+                          <div className="flex justify-between">
+                            <p className="text-green-600 text-xs mt-1">
+                              💡 Nhập tên bài học dễ hiểu và rõ ràng
+                            </p>
+                            <p className={`text-xs mt-1 ${formData.title.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+                              {formData.title.length}/255 ký tự
+                            </p>
+                          </div>
                         )}
                       </div>
 
@@ -1227,6 +1324,7 @@ const StaffUpdateUnitPage: React.FC = () => {
                         onChange={(e) => handleInputChange("description", e.target.value)}
                         placeholder="Mô tả chi tiết về nội dung bài học..."
                         rows={4}
+                        maxLength={255}
                         className={`resize-none text-base bg-white/80 backdrop-blur-sm ${
                           fieldErrors.description 
                             ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 
@@ -1239,9 +1337,14 @@ const StaffUpdateUnitPage: React.FC = () => {
                           ⚠️ {fieldErrors.description}
                         </p>
                       ) : (
-                        <p className="text-green-600 text-xs mt-1">
-                          💡 Mô tả rõ ràng nội dung và mục tiêu học tập của bài học
-                        </p>
+                        <div className="flex justify-between">
+                          <p className="text-green-600 text-xs mt-1">
+                            💡 Mô tả rõ ràng nội dung và mục tiêu học tập của bài học
+                          </p>
+                          <p className={`text-xs mt-1 ${formData.description.length > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+                            {formData.description.length}/255 ký tự
+                          </p>
+                        </div>
                       )}
                     </div>
                   </CardContent>
@@ -1303,6 +1406,11 @@ const StaffUpdateUnitPage: React.FC = () => {
                                   {material.isNew && <span className="text-green-600 text-xs ml-2">(Mới)</span>}
                                   {material.isUpdated && <span className="text-orange-600 text-xs ml-2">(Đã sửa)</span>}
                                 </h3>
+                                {materialFileErrors[material.id] && (
+                                  <p className="text-red-600 text-xs mt-1">
+                                    ⚠️ {materialFileErrors[material.id]}
+                                  </p>
+                                )}
                               </div>
                             </button>
                             
@@ -1333,16 +1441,19 @@ const StaffUpdateUnitPage: React.FC = () => {
                               <div className="space-y-2">
                                 <Label className="text-purple-800 font-medium">
                                   Material ID <span className="text-red-500">*</span>
-                                  <span className="text-xs text-gray-500 font-normal ml-2">(Tự động tạo)</span>
+                                  <span className="text-xs text-gray-500 font-normal ml-2">(Từ tên file)</span>
                                 </Label>
                                 <Input
                                   value={material.materialId || ''}
                                   readOnly
-                                  placeholder={material.materialId ? undefined : "Material ID sẽ được tạo tự động khi chọn phân loại kỹ năng"}
+                                  placeholder={material.materialId ? undefined : "Material ID sẽ được tạo từ tên file khi bạn chọn file"}
                                   className="bg-gray-100 text-gray-600 cursor-not-allowed"
                                 />
                                 <p className="text-purple-600 text-xs">
-                                  💡 Material ID được tạo tự động theo format: [Mã khóa học]__[Mã chương]__[Mã bài học]__[Kỹ năng]__JA_VI__[Số thứ tự]
+                                  💡 Material ID được tạo từ tên file. Hãy đặt tên file theo format: [Mã Khóa Học]__CHAPTER_[Số thứ tự]__UNIT_[Số thứ tự]__[Kỹ Năng]__JA_VI__[Số thứ tự]
+                                </p>
+                                <p className="text-purple-600 text-xs">
+                                  💡 Ví dụ: JPD113__CHAPTER_01__UNIT_01__KANJI__JA_VI__0001.pdf
                                 </p>
                               </div>
 
@@ -1392,9 +1503,13 @@ const StaffUpdateUnitPage: React.FC = () => {
                                         }
                                       }}
                                       placeholder="Nhập script tiếng Nhật"
+                                      maxLength={255}
                                       className="border-purple-300 focus:border-purple-500 focus:ring-purple-500 min-h-[100px]"
                                       rows={4}
                                     />
+                                    <p className={`text-xs mt-1 ${(material.script?.length || 0) > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+                                      {material.script?.length || 0}/255 ký tự
+                                    </p>
                                   </div>
                                   <div className="space-y-2">
                                     <Label className="text-purple-800 font-medium">
@@ -1408,9 +1523,13 @@ const StaffUpdateUnitPage: React.FC = () => {
                                         }
                                       }}
                                       placeholder="Nhập bản dịch tiếng Việt"
+                                      maxLength={255}
                                       className="border-purple-300 focus:border-purple-500 focus:ring-purple-500 min-h-[100px]"
                                       rows={4}
                                     />
+                                    <p className={`text-xs mt-1 ${(material.translation?.length || 0) > 200 ? 'text-red-600' : 'text-gray-500'}`}>
+                                      {material.translation?.length || 0}/255 ký tự
+                                    </p>
                                   </div>
                                 </div>
                               )}
@@ -1430,6 +1549,7 @@ const StaffUpdateUnitPage: React.FC = () => {
 
                                 <input
                                   type="file"
+                                  accept=".pdf,.mp3,audio/mpeg,application/pdf"
                                   onChange={(e) => {
                                     const file = e.target.files?.[0] || null;
                                     if (material.id) {
@@ -1455,7 +1575,7 @@ const StaffUpdateUnitPage: React.FC = () => {
                                   </p>
                                 ) : (
                                   <p className="text-purple-600 text-xs">
-                                    💡 Tài liệu phải dưới 5MB
+                                    💡 Chỉ chấp nhận file PDF hoặc MP3, dưới 5MB. Tên file phải theo format: [MãKhóaHọc]__CHAPTER_[Số]__UNIT_[Số]__[KỹNăng]__JA_VI__[Số]
                                   </p>
                                 )}
                               </div>
