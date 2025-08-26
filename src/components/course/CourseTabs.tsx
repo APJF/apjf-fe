@@ -278,7 +278,7 @@ export default function CourseTabs({
   }
 
   const handleExamClick = (examId: string) => {
-    navigate(`/exam/${examId}/prepare`)
+    navigate(`/exam/${examId}/detail`)
   }
 
   const visibleReviews = useMemo(() => {
@@ -334,11 +334,11 @@ export default function CourseTabs({
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6">
-      <Tabs defaultValue="chapters" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="flex flex-wrap items-center gap-2">
+          <TabsTrigger value="overview">{t('courseDetail.overview')}</TabsTrigger>
           <TabsTrigger value="chapters">{t('courseDetail.chapters')}</TabsTrigger>
           <TabsTrigger value="exams">{t('courseDetail.exams')}</TabsTrigger>
-          <TabsTrigger value="overview">{t('courseDetail.overview')}</TabsTrigger>
           <TabsTrigger value="reviews">{t('courseDetail.reviews')}</TabsTrigger>
         </TabsList>
 

@@ -324,7 +324,13 @@ const refreshTokenIfNeeded = async (): Promise<string | null> => {
   const accessToken = localStorage.getItem('access_token');
   const refreshToken = localStorage.getItem('refresh_token');
   
-  if (!accessToken || !refreshToken) {
+  // Validate tokens exist and are not corrupted
+  if (!accessToken || !refreshToken || 
+      accessToken.trim() === '' || refreshToken.trim() === '' ||
+      accessToken === 'null' || refreshToken === 'null' ||
+      accessToken === 'undefined' || refreshToken === 'undefined') {
+    console.log('DEBUG: Invalid or missing tokens, clearing storage');
+    localStorage.clear();
     return null;
   }
   
@@ -337,7 +343,7 @@ const refreshTokenIfNeeded = async (): Promise<string | null> => {
   try {
     const refreshResponse = await axios.post(
       `${getApiBaseUrl()}/auth/refresh-token`,
-      { refresh_token: refreshToken },
+      { refresh_token: refreshToken.trim() },
       { 
         headers: { 'Content-Type': 'application/json' },
         timeout: 10000
@@ -347,21 +353,35 @@ const refreshTokenIfNeeded = async (): Promise<string | null> => {
     const data = refreshResponse.data;
     if (data?.success && data?.data?.access_token) {
       const newAccessToken = data.data.access_token;
+      
+      // Validate new token before saving
+      if (!newAccessToken || newAccessToken.trim() === '') {
+        console.error('DEBUG: Invalid new access token received');
+        return null;
+      }
+      
       localStorage.setItem('access_token', newAccessToken);
       
-      if (data.data.refresh_token) {
+      if (data.data.refresh_token && data.data.refresh_token.trim() !== '') {
         localStorage.setItem('refresh_token', data.data.refresh_token);
       }
       
       console.log('DEBUG: Proactive token refresh successful');
       return newAccessToken;
+    } else {
+      console.error('DEBUG: Invalid refresh response:', data);
+      return null;
     }
-  } catch (error) {
+  } catch (error: any) {
     console.warn('DEBUG: Proactive token refresh failed:', error);
+    
+    // If refresh token is invalid, clear storage but don't redirect during exam
+    if (error?.response?.status === 400 || error?.response?.status === 401) {
+      console.log('DEBUG: Refresh token invalid, clearing storage');
+      localStorage.clear();
+    }
     return null;
   }
-  
-  return null;
 };
 
 export default api;

@@ -71,12 +71,39 @@ class AuthService {
    */
   async ensureValidTokenForCriticalOperation(): Promise<boolean> {
     try {
+      console.log('🔍 Checking token validity for critical operation...');
+      
+      // Check if we have basic tokens
+      const accessToken = localStorage.getItem('access_token');
+      const refreshToken = localStorage.getItem('refresh_token');
+      
+      if (!accessToken || !refreshToken) {
+        console.log('❌ Missing tokens for critical operation');
+        return false;
+      }
+      
+      // Validate token format
+      if (accessToken.trim() === '' || refreshToken.trim() === '' || 
+          accessToken === 'null' || refreshToken === 'null') {
+        console.log('❌ Invalid token format, clearing storage');
+        localStorage.clear();
+        return false;
+      }
+      
       // If token expires in next 5 minutes, refresh it now
       if (this.tokenExpiresInMinutes(5)) {
         console.log('🔄 Refreshing token for critical operation');
         const result = await this.refreshToken();
-        return result.success;
+        if (result.success) {
+          console.log('✅ Token refreshed successfully for critical operation');
+          return true;
+        } else {
+          console.error('❌ Token refresh failed:', result.message);
+          return false;
+        }
       }
+      
+      console.log('✅ Token is valid for critical operation');
       return true;
     } catch (error) {
       console.error('❌ Failed to ensure valid token:', error);
@@ -351,36 +378,64 @@ class AuthService {
    */
   async refreshToken(): Promise<AuthResponse> {
     const refresh_token = localStorage.getItem("refresh_token")
-    if (!refresh_token) {
+    
+    // Validate refresh token before sending
+    if (!refresh_token || refresh_token.trim() === '' || refresh_token === 'null' || refresh_token === 'undefined') {
+      console.error('❌ Invalid refresh token:', { refresh_token });
+      // Clear corrupted tokens and redirect to login
+      localStorage.clear();
+      window.location.href = '/login';
       return {
         success: false,
-        message: "No refresh token available",
+        message: "Invalid refresh token",
         timestamp: Date.now()
       }
     }
+    
     try {
+      console.log('🔄 Sending refresh request with token:', refresh_token?.substring(0, 20) + '...');
       const response = await api.post('/auth/refresh-token', { 
-        refresh_token: refresh_token
+        refresh_token: refresh_token.trim()
       })
       
       if (response.data.success && response.data.data) {
         const { access_token, refresh_token: newRefreshToken } = response.data.data
         
+        // Validate new tokens before saving
+        if (!access_token || access_token.trim() === '') {
+          console.error('❌ Invalid access token received');
+          throw new Error('Invalid access token received');
+        }
+        
         // Update tokens
         localStorage.setItem("access_token", access_token)
-        if (newRefreshToken) {
+        if (newRefreshToken && newRefreshToken.trim() !== '') {
           localStorage.setItem("refresh_token", newRefreshToken)
         }
         
+        console.log('✅ Token refresh successful');
         // Reschedule next proactive refresh
         this.scheduleTokenRefresh();
       }
       return response.data;
-    } catch (error) {
-      console.error('Error in refreshToken:', error);
+    } catch (error: unknown) {
+      console.error('❌ Error in refreshToken:', error);
+      
+      const axiosError = error as { response?: { status?: number; data?: { message?: string } } };
+      // If refresh token is invalid, clear storage and redirect
+      if (axiosError?.response?.status === 400 || axiosError?.response?.status === 401) {
+        console.log('🔄 Refresh token invalid, clearing storage');
+        localStorage.clear();
+        // Don't redirect immediately during exam - let the exam page handle it
+        if (!window.location.pathname.includes('/exam/')) {
+          window.location.href = '/login';
+        }
+      }
+      
       return {
         success: false,
-        message: 'Failed to refresh token'
+        message: axiosError?.response?.data?.message || 'Failed to refresh token',
+        timestamp: Date.now()
       };
     }
   }

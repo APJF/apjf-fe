@@ -8,14 +8,14 @@ import HomePage from "../pages/HomePage";
 import CoursesPage from "../pages/CoursesPage";
 import CourseDetailPage from "../pages/study/CourseDetailPage";
 import ChapterDetailPage from "../pages/study/ChapterDetailPage";
-import LearningPathPage from "../pages/learning_path/LearningPathPage";
-import LearningPathDetailPage from "../pages/learning_path/LearningPathDetailPage";
-import LoginPage from "../pages/auth-user_profile/LoginPage";
-import RegisterPage from "../pages/auth-user_profile/RegisterPage";
-import ForgotPasswordPage from "../pages/auth-user_profile/ForgotPasswordPage";
-import ResetPasswordPage from "../pages/auth-user_profile/ResetPasswordPage";
-import { VerifyOtpPage } from "../pages/auth-user_profile/VerifyOtpPage";
-import UserProfilePage from "../pages/auth-user_profile/UserProfilePage";
+import LearningPathPage from "../pages/learning-path/LearningPathPage";
+import LearningPathDetailPage from "../pages/learning-path/LearningPathDetailPage";
+import LoginPage from "../pages/auth/LoginPage";
+import RegisterPage from "../pages/auth/RegisterPage";
+import ForgotPasswordPage from "../pages/auth/ForgotPasswordPage";
+import ResetPasswordPage from "../pages/auth/ResetPasswordPage";
+import { VerifyOtpPage } from "../pages/auth/VerifyOtpPage";
+import UserProfilePage from "../pages/auth/UserProfilePage";
 import ManagerDashboardPage from "../pages/manager/ManagerDashboardPage";
 import StaffDashboardPage from "../pages/staff/StaffDashboardPage";
 import StaffCoursesPage from "../pages/staff/StaffCoursesPage";
@@ -35,7 +35,7 @@ import { StaffManagerFeedbackPage } from "../pages/staff/StaffManagerFeedbackPag
 import { StaffCreateQuestion } from "../pages/staff/StaffCreateQuestion";
 import ManagerApprovalRequestsPage from "../pages/manager/ManagerApprovalRequestsPage";
 import ExamDetailPage from '../pages/exam/ExamDetailPage';
-import { ExamDoingPage } from '../pages/exam/ExamDoingPage';
+import { ExamTakingPage } from '../pages/exam/ExamTakingPage';
 import ExamOverviewPage from '../pages/exam/ExamOverviewPage';
 import { ExamReviewPage } from '../pages/exam/ExamReviewPage';
 import ForumPage from "../pages/ForumPage";
@@ -304,12 +304,12 @@ const router = createBrowserRouter([
     ),
   },
   {
-    path: '/exam/:examId/prepare',
+    path: '/exam/:examId/detail',
     element: <Layout><ExamDetailPage /></Layout>,
   },
   {
     path: '/exam/:examId/take',
-    element: <ExamDoingPage />, // No layout for exam taking page to avoid distractions
+    element: <ExamTakingPage />, // No layout for exam taking page to avoid distractions
   },
   {
     path: '/exam/:examId/overview',

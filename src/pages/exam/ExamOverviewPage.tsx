@@ -246,7 +246,7 @@ export default function ExamOverviewPage() {
   };
 
   const handleRetake = () => {
-    navigate(`/exam/${examId}/prepare`);
+  navigate(`/exam/${examId}/detail`);
   };
 
   if (loading) {
