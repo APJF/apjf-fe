@@ -14,7 +14,6 @@ import { SearchableSelect } from '../../components/ui/SearchableSelect'
 import type { CreateCourseRequest } from '../../types/course'
 import { useAuth } from '../../hooks/useAuth'
 import api from '../../api/axios'
-import { getInputValidationProps, getCharacterCounterProps, getInputLimit } from '../../utils/inputValidation'
 
 const StaffCreateCoursePage: React.FC = () => {
   const navigate = useNavigate()
