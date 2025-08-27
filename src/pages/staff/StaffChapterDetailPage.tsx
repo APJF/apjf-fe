@@ -5,6 +5,7 @@ import { AlertCircle, BookOpen, ArrowLeft, Plus, Edit, Eye, XCircle, CheckCircle
 import { Button } from '../../components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { StaffNavigation } from '../../components/layout/StaffNavigation'
 import { StaffChapterService } from '../../services/staffChapterService'
 import { StaffCourseService } from '../../services/staffCourseService'
@@ -103,6 +104,8 @@ export const StaffChapterDetailPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(!locationState.chapter)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(locationState.message || null)
+  const [showDeactivateDialog, setShowDeactivateDialog] = useState(false)
+  const [isDeactivating, setIsDeactivating] = useState(false)
 
   const fetchChapterData = useCallback(async () => {
     if (!chapterId) return
@@ -246,18 +249,13 @@ export const StaffChapterDetailPage: React.FC = () => {
   const handleDeactivateChapter = async () => {
     if (!chapterId || !chapter) return
 
-    const confirmDeactivate = window.confirm(
-      `Bạn có chắc chắn muốn hủy kích hoạt chương "${chapter.title}"?\n\nHành động này sẽ khiến chương không còn hiển thị cho người dùng.`
-    )
-
-    if (!confirmDeactivate) return
-
     try {
-      setIsLoading(true)
+      setIsDeactivating(true)
       // Sử dụng service chuẩn axios
       const result = await StaffChapterService.deactivateChapter(chapterId)
       if (result.success) {
         setSuccessMessage('Đã hủy kích hoạt chương thành công!')
+        setShowDeactivateDialog(false)
         await fetchChapterData()
       } else {
         setError(result.message || 'Có lỗi xảy ra khi hủy kích hoạt chương')
@@ -266,7 +264,7 @@ export const StaffChapterDetailPage: React.FC = () => {
       console.error('Error deactivating chapter:', error)
       setError('Có lỗi xảy ra khi hủy kích hoạt chương')
     } finally {
-      setIsLoading(false)
+      setIsDeactivating(false)
     }
   }
 
@@ -496,7 +494,7 @@ export const StaffChapterDetailPage: React.FC = () => {
                     <Button
                       variant="outline"
                       className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
-                      onClick={handleDeactivateChapter}
+                      onClick={() => setShowDeactivateDialog(true)}
                       disabled={isLoading}
                     >
                       <XCircle className="h-4 w-4 mr-2" />
@@ -739,6 +737,19 @@ export const StaffChapterDetailPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Confirm Deactivate Dialog */}
+        <ConfirmDialog
+          isOpen={showDeactivateDialog}
+          onClose={() => setShowDeactivateDialog(false)}
+          onConfirm={handleDeactivateChapter}
+          title="Hủy kích hoạt chương"
+          description={`Bạn có chắc chắn muốn hủy kích hoạt chương "${chapter?.title}"?\n\nHành động này sẽ khiến chương không còn hiển thị cho người dùng.`}
+          confirmText="Hủy kích hoạt"
+          cancelText="Hủy"
+          variant="danger"
+          isLoading={isDeactivating}
+        />
       </div>
     </StaffNavigation>
   )

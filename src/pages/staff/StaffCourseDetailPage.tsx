@@ -516,12 +516,12 @@ export const StaffCourseDetailPage: React.FC = () => {
                       <div className="text-sm text-purple-500 font-medium">Đánh giá</div>
                     </div>
                     
-                    <div className="text-center p-4 bg-orange-50 rounded-lg">
+                    {/* <div className="text-center p-4 bg-orange-50 rounded-lg">
                       <div className="text-2xl font-bold text-orange-600 mb-1">
                         0
                       </div>
                       <div className="text-sm text-orange-500 font-medium">Học viên</div>
-                    </div>
+                    </div> */}
                   </div>
                 </div>
               </div>
@@ -678,7 +678,7 @@ export const StaffCourseDetailPage: React.FC = () => {
                                 <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-sm font-medium flex-shrink-0">
                                   {index + 1}
                                 </div>
-                                <Button
+                                {/* <Button
                                   variant="ghost"
                                   size="sm"
                                   className="p-1"
@@ -692,7 +692,7 @@ export const StaffCourseDetailPage: React.FC = () => {
                                   ) : (
                                     <ChevronRight className="h-4 w-4" />
                                   )}
-                                </Button>
+                                </Button> */}
                                 <div>
                                   <div className="flex items-center gap-2 mb-1">
                                     <h3 className="font-semibold text-gray-900 text-lg">

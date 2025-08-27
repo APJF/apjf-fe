@@ -72,27 +72,27 @@ export const StaffNavigation: React.FC<StaffNavigationProps> = ({ children }) =>
     {
       to: '/staff/dashboard',
       icon: <BarChart3 className="h-5 w-5" />,
-      label: 'Dashboard'
+      label: 'Trang tổng quan'
     },
     {
       to: '/staff/courses',
       icon: <BookOpen className="h-5 w-5" />,
-      label: 'Courses'
+      label: 'Quản lý khóa học'
     },
     {
       to: '/staff/create-course',
       icon: <Plus className="h-5 w-5" />,
-      label: 'Create Course'
+      label: 'Tạo khóa học'
     },
     {
       to: '/staff/create-question',
       icon: <FileText className="h-5 w-5" />,
-      label: 'Create Question'
+      label: 'Quản lý câu hỏi'
     },
     {
       to: '/staff/manager-feedback',
       icon: <FileText className="h-5 w-5" />,
-      label: "My Requests"
+      label: "Quản lý yêu cầu"
      }//,
     // {
     //   to: '/staff/student-feedback',
@@ -127,8 +127,8 @@ export const StaffNavigation: React.FC<StaffNavigationProps> = ({ children }) =>
                   <BarChart3 className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-bold text-gray-900">Staff Panel</h1>
-                  <p className="text-xs text-gray-500">管理パネル</p>
+                  <h1 className="text-lg font-bold text-gray-900">Bảng điều khiển</h1>
+                  <p className="text-xs text-gray-500">Quản lý tài liệu học</p>
                 </div>
               </div>
             )}
@@ -197,7 +197,7 @@ export const StaffNavigation: React.FC<StaffNavigationProps> = ({ children }) =>
               title={isCollapsed ? "Trang chủ" : undefined}
             >
               <Home className="h-4 w-4" />
-              {!isCollapsed && <span className="font-medium">Homepage</span>}
+              {!isCollapsed && <span className="font-medium">Trang chủ</span>}
             </button>
             <button
               onClick={handleLogout}
@@ -205,7 +205,7 @@ export const StaffNavigation: React.FC<StaffNavigationProps> = ({ children }) =>
               title={isCollapsed ? "Đăng xuất" : undefined}
             >
               <LogOut className="h-4 w-4" />
-              {!isCollapsed && <span className="font-medium">Sign Out</span>}
+              {!isCollapsed && <span className="font-medium">Đăng xuất</span>}
             </button>
 
             

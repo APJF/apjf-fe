@@ -684,7 +684,7 @@ export function ManagerApprovalRequestsPage() {
                   <FileText className="h-8 w-8 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-blue-900">Manager Approval</h1>
+                  <h1 className="text-3xl font-bold text-blue-900">Phê duyệt yêu cầu</h1>
                   <p className="text-blue-600 font-medium mt-1">
                     Quản lý và phê duyệt các yêu cầu của nhân viên
                   </p>
@@ -769,7 +769,7 @@ export function ManagerApprovalRequestsPage() {
 
 
           {/* Tabs */}
-          <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm mb-8">
+          {/* <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm mb-8">
             <div className="p-6">
               <div className="flex items-center gap-4 mb-6">
                 <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-2 rounded-lg">
@@ -805,7 +805,7 @@ export function ManagerApprovalRequestsPage() {
                 ))}
               </div>
             </div>
-          </Card>
+          </Card> */}
 
 
           {/* Filters */}

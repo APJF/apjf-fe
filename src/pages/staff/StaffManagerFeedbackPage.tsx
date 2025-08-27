@@ -353,7 +353,7 @@ export function StaffManagerFeedbackPage() {
                   <MessageCircle className="h-8 w-8 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-blue-900">My Requests</h1>
+                  <h1 className="text-3xl font-bold text-blue-900">Quản lý yêu cầu</h1>
                   <p className="text-blue-600 font-medium mt-1">
                     Xem các phản hồi và trạng thái yêu cầu của bạn
                   </p>
@@ -790,16 +790,13 @@ export function StaffManagerFeedbackPage() {
                   </div>
 
                   <div>
-                    <h3 className="font-semibold text-gray-900 mb-3">Target Info</h3>
+                    {/* <h3 className="font-semibold text-gray-900 mb-3">ID: {selectedRequest.targetId}</h3> */}
                     <div className="space-y-3">
                       <div>
-                        <span className="text-sm text-gray-600">Target ID:</span>
-                        <p className="text-sm font-medium">{selectedRequest.targetId}</p>
+                        {/* <span className="text-sm text-gray-600">Target ID:</span> */}
+                        <p className="text-sm font-medium">ID: {selectedRequest.targetId}</p>
                       </div>
-                      <div>
-                        <span className="text-sm text-gray-600">Target Title:</span>
-                        <p className="text-sm font-medium">{selectedRequest.targetTitle || 'Không có tiêu đề'}</p>
-                      </div>
+                      
                     </div>
                   </div>
                 </div>

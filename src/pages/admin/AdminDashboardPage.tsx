@@ -83,7 +83,7 @@ export const AdminDashboardPage: React.FC = () => {
         setStats({
           // Use total from allUsers.length if it's more accurate than API stats
           // This includes both enabled and disabled users
-          totalUsers: Math.max(statsResponse.totalUser, usersData.length) + 1,
+          totalUsers: Math.max(statsResponse.totalUser, usersData.length),
           newUsersThisMonth,
           newUsersLastMonth,
           registrationGrowthRate: parseFloat(growthRate.toFixed(1))
@@ -259,8 +259,8 @@ export const AdminDashboardPage: React.FC = () => {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="text-gray-600 mt-2">Tổng quan về người dùng và thống kê hệ thống</p>
+          <h1 className="text-3xl font-bold text-gray-900">Trang Tổng Quan Admin</h1>
+          <p className="text-gray-600 mt-2">Tổng quan về người dùng</p>
         </div>
 
         {/* Stats Cards */}

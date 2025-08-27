@@ -712,7 +712,7 @@ const StaffUpdateCoursePage: React.FC = () => {
                       {/* Level */}
                       <div className="space-y-3">
                         <Label htmlFor="level" className="text-blue-800 font-semibold text-base flex items-center gap-2">
-                          Mức độ <span className="text-red-500">*</span>
+                          Trình độ <span className="text-red-500">*</span>
                           <div className="bg-green-100 p-1 rounded-full">
                             <BookOpen className="h-3 w-3 text-green-600" />
                           </div>
@@ -728,7 +728,7 @@ const StaffUpdateCoursePage: React.FC = () => {
                           }`}
                           required
                         >
-                          <option value="">Chọn mức độ</option>
+                          <option value="">Chọn trình độ</option>
                           {levels.map((level) => (
                             <option key={level.value} value={level.value}>
                               {level.label}

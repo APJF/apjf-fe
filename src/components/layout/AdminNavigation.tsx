@@ -22,17 +22,17 @@ interface AdminNavigationProps {
 const navigationItems = [
   {
     id: "dashboard",
-    label: "Dashboard",
+    label: "Trang tổng quan",
     icon: LayoutDashboard,
     href: "/admin/dashboard",
-    description: "Overview and statistics",
+    description: "",
   },
   {
     id: "accounts",
-    label: "Account Management",
+    label: "Quản lý tài khoản",
     icon: Users,
     href: "/admin/accounts",
-    description: "Manage user accounts and roles",
+    description: "",
   }//,
   // {
   //   id: "activity",
@@ -90,8 +90,8 @@ const AdminNavigation: React.FC<AdminNavigationProps> = ({ children, currentPage
                   <Shield className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-bold text-gray-900">Admin Panel</h1>
-                  <p className="text-xs text-gray-500">System Management</p>
+                  <h1 className="text-lg font-bold text-gray-900">Bảng điều khiển</h1>
+                  <p className="text-xs text-gray-500">Quản lý hệ thống</p>
                 </div>
               </div>
             )}
@@ -176,7 +176,7 @@ const AdminNavigation: React.FC<AdminNavigationProps> = ({ children, currentPage
               title={isCollapsed ? "Trang chủ" : undefined}
             >
               <Home className="h-4 w-4" />
-              {!isCollapsed && <span className="font-medium">Homepage</span>}
+              {!isCollapsed && <span className="font-medium">Trang chủ</span>}
             </button>
             <button
               onClick={handleLogout}
@@ -184,7 +184,7 @@ const AdminNavigation: React.FC<AdminNavigationProps> = ({ children, currentPage
               title={isCollapsed ? "Đăng xuất" : undefined}
             >
               <LogOut className="h-4 w-4" />
-              {!isCollapsed && <span className="font-medium">Sign Out</span>}
+              {!isCollapsed && <span className="font-medium">Đăng xuất</span>}
             </button>
 
             
