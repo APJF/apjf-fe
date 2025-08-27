@@ -32,7 +32,7 @@ export function PlannerChatBox({ userId }: PlannerChatBoxProps) {
     
     try {
       if (!sessionId) {
-        const res = await aiApi.post("/sessions", {
+        const res = await aiApi.post("/sessions/", {
           user_id: userId,
           session_type: "planner",
           first_message: currentInput,
@@ -45,7 +45,7 @@ export function PlannerChatBox({ userId }: PlannerChatBoxProps) {
           { sender: "ai", text: data.ai_first_response }
         ]);
       } else {
-        const res = await aiApi.post("/messages", {
+        const res = await aiApi.post("/messages/", {
           session_id: sessionId,
           user_input: currentInput,
         });
