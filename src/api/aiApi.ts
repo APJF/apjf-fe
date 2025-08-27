@@ -3,7 +3,16 @@ import { refreshToken } from '../services/authService';
 
 // Get AI API base URL from environment variable
 const getAIApiUrl = (): string => {
-  return import.meta.env.VITE_AI_URL || 'http://localhost:8000/api';
+  let baseUrl = import.meta.env.VITE_AI_URL || 'http://localhost:8000/api';
+  
+  // Production fix: Force HTTPS if running on HTTPS site to avoid mixed content
+  if (window.location.protocol === 'https:' && baseUrl.startsWith('http://')) {
+    baseUrl = baseUrl.replace('http://', 'https://');
+    console.log('🔒 Production: Converted HTTP to HTTPS for AI API:', baseUrl);
+  }
+  
+  console.log('🌐 AI API Base URL:', baseUrl);
+  return baseUrl;
 };
 
 // Create AI API instance for port 8000 with /api prefix
