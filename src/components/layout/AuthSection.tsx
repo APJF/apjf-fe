@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, LogOut, Settings, BookOpen, ChevronDown, History, Shield, Users, Crown } from 'lucide-react';
+import { User, LogOut, ChevronDown, History, Shield, Users, Crown } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { getAvatarText } from '../../lib/utils';
 
@@ -36,6 +36,24 @@ export const AuthSection: React.FC = () => {
     );
   }, [user?.roles]);
 
+  // Function để format và hiển thị roles theo yêu cầu
+  const getDisplayRoles = useCallback(() => {
+    if (!user?.roles || user.roles.length === 0) return '';
+    
+    // Lọc ra các role đặc biệt (không phải USER)
+    const specialRoles = user.roles.filter(role => 
+      role && !role.includes('USER') && ['ROLE_ADMIN', 'ROLE_MANAGER', 'ROLE_STAFF'].includes(role)
+    );
+    
+    // Nếu có role đặc biệt, chỉ hiển thị chúng (không hiển thị USER)
+    if (specialRoles.length > 0) {
+      return specialRoles.map(role => role.replace('ROLE_', '')).join(', ');
+    }
+    
+    // Nếu chỉ có role USER hoặc không có role đặc biệt nào, hiển thị USER
+    return 'USER';
+  }, [user?.roles]);
+
   // Debug log để kiểm tra user data và reset avatar error khi user thay đổi
   useEffect(() => {
     // Reset avatar error states when user changes
@@ -49,7 +67,7 @@ export const AuthSection: React.FC = () => {
       console.log('AuthSection: hasManagerRole:', hasManagerRole());
       console.log('AuthSection: hasAdminRole:', hasAdminRole());
     }
-  }, [user, hasStaffRole, hasManagerRole, hasAdminRole]); // Track user changes including avatar
+  }, [user, hasStaffRole, hasManagerRole, hasAdminRole, getDisplayRoles]); // Track user changes including avatar
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -142,9 +160,7 @@ export const AuthSection: React.FC = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{user?.username || 'User'}</p>
-                  {user?.roles && user.roles.length > 0 && (
-                    <p className="text-xs text-gray-500 truncate">{user.roles.join(', ')}</p>
-                  )}
+                  <p className="text-xs text-gray-500 truncate">{getDisplayRoles()}</p>
                 </div>
               </div>
             </div>
@@ -160,14 +176,7 @@ export const AuthSection: React.FC = () => {
                 Hồ sơ cá nhân
               </Link>
 
-              <Link
-                to="/courses"
-                className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
-                onClick={() => setIsDropdownOpen(false)}
-              >
-                <BookOpen className="w-4 h-4" />
-                Khóa học của tôi
-              </Link>
+
 
               <Link
                 to="/exam-history"
@@ -214,14 +223,7 @@ export const AuthSection: React.FC = () => {
                 </Link>
               )}
 
-              <Link
-                to="/settings"
-                className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
-                onClick={() => setIsDropdownOpen(false)}
-              >
-                <Settings className="w-4 h-4" />
-                Cài đặt
-              </Link>
+
             </div>
 
             {/* Logout */}

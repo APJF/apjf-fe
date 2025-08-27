@@ -3,11 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react"
 import { 
   User, 
-  Lock,
-  Info,
-  Link,
-  Wifi,
-  Bell
+  Lock
 } from "lucide-react"
 import authService from "../../services/authService"
 import { useToast } from "../../hooks/useToast"
@@ -166,17 +162,17 @@ export default function UserProfilePage() {
 
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
-      <h4 className="text-2xl font-bold py-3 mb-4">Account settings</h4>
+      <h4 className="text-2xl font-bold py-3 mb-4">Hồ sơ cá nhân</h4>
       <div className="bg-white shadow-lg rounded-lg overflow-hidden">
         <div className="flex">
           <div className="w-1/4 border-r">
             <div className="py-4">
-              <AccountSettingItem icon={<User size={20} />} text="General" active={activeTab === "general"} onClick={() => setActiveTab("general")} />
-              <AccountSettingItem icon={<Lock size={20} />} text="Change password" active={activeTab === "password"} onClick={() => setActiveTab("password")} />
-              <AccountSettingItem icon={<Info size={20} />} text="Info" active={activeTab === "info"} onClick={() => setActiveTab("info")} />
+              <AccountSettingItem icon={<User size={20} />} text="Tổng quan" active={activeTab === "general"} onClick={() => setActiveTab("general")} />
+              <AccountSettingItem icon={<Lock size={20} />} text="Đổi mật khẩu" active={activeTab === "password"} onClick={() => setActiveTab("password")} />
+              {/* <AccountSettingItem icon={<Info size={20} />} text="Info" active={activeTab === "info"} onClick={() => setActiveTab("info")} />
               <AccountSettingItem icon={<Link size={20} />} text="Social links" active={activeTab === "social"} onClick={() => setActiveTab("social")} />
               <AccountSettingItem icon={<Wifi size={20} />} text="Connections" active={activeTab === "connections"} onClick={() => setActiveTab("connections")} />
-              <AccountSettingItem icon={<Bell size={20} />} text="Notifications" active={activeTab === "notifications"} onClick={() => setActiveTab("notifications")} />
+              <AccountSettingItem icon={<Bell size={20} />} text="Notifications" active={activeTab === "notifications"} onClick={() => setActiveTab("notifications")} /> */}
             </div>
           </div>
           <div className="w-3/4">
@@ -324,7 +320,7 @@ const GeneralTab = ({ profile, onProfileUpdate }: { profile: UserProfile, onProf
         />
         <div className="ml-6">
           <label htmlFor="avatar-upload" className={`px-4 py-2 border border-red-600 text-red-600 rounded-lg cursor-pointer hover:bg-red-50 ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-            {isLoading ? 'Đang upload...' : 'Upload new photo'}
+            {isLoading ? 'Đang tải lên...' : 'Tải lên ảnh mới'}
             <input 
               id="avatar-upload" 
               type="file" 
@@ -340,15 +336,15 @@ const GeneralTab = ({ profile, onProfileUpdate }: { profile: UserProfile, onProf
             onClick={() => setFormData(prev => ({ ...prev, avatar: '' }))}
             disabled={isLoading}
           >
-            Reset
+            Về ảnh mặc định
           </button>
-          <div className="text-sm text-gray-500 mt-2">Allowed JPG, GIF or PNG. Max size of 5MB</div>
+          <div className="text-sm text-gray-500 mt-2">Chỉ cho phép định dạng JPG, GIF, PNG. Kích thước tối đa là 5MB</div>
         </div>
       </div>
       <hr className="my-6" />
       <div>
         <div className="mb-4">
-          <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">Username</label>
+          <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">Tên người dùng</label>
           <input 
             id="username" 
             name="username"
@@ -384,7 +380,7 @@ const GeneralTab = ({ profile, onProfileUpdate }: { profile: UserProfile, onProf
 
         </div>
         <div className="mb-4">
-          <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+          <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">Số điện thoại</label>
           <input 
             id="phone" 
             name="phone"
@@ -407,7 +403,7 @@ const GeneralTab = ({ profile, onProfileUpdate }: { profile: UserProfile, onProf
             disabled={isLoading}
             className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? 'Đang lưu...' : 'Save Changes'}
+            {isLoading ? 'Đang lưu...' : 'Lưu thay đổi'}
           </button>
           <button 
             onClick={() => setFormData({
@@ -419,7 +415,7 @@ const GeneralTab = ({ profile, onProfileUpdate }: { profile: UserProfile, onProf
             disabled={isLoading}
             className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Cancel
+            Hủy
           </button>
         </div>
       </div>
