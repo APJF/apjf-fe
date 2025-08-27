@@ -956,7 +956,7 @@ const StaffUpdateCoursePage: React.FC = () => {
                           <Upload className="h-12 w-12 text-blue-400 mx-auto" />
                           <div>
                             <p className="text-sm font-medium text-blue-700">Tải lên ảnh khóa học</p>
-                            <p className="text-xs text-blue-500 mt-1">PNG, JPG, GIF tối đa 800KB</p>
+                            <p className="text-xs text-blue-500 mt-1">PNG, JPG, GIF tối đa 5MB</p>
                           </div>
                           <div className="flex items-center justify-center">
                             <label htmlFor="file-upload" className="cursor-pointer">

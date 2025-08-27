@@ -525,8 +525,13 @@ export function ExamHistoryPage() {
                         <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
                           <History className="h-5 w-5 text-purple-600" />
                           Lịch sử các lần thực hiện ({allAttempts.length} lần)
+                          {allAttempts.length > 5 && (
+                            <span className="text-xs text-gray-500 font-normal bg-gray-200 px-2 py-1 rounded-full">
+                              Cuộn xuống để xem thêm
+                            </span>
+                          )}
                         </h4>
-                        <div className="space-y-3">
+                        <div className={`space-y-3 ${allAttempts.length > 5 ? 'max-h-80 overflow-y-auto' : ''}`}>
                           {allAttempts.map((attempt, index) => {
                             const attemptStatus = getStatusDisplay(attempt.status)
                             const AttemptIcon = attemptStatus.icon
