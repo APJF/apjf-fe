@@ -1,0 +1,159 @@
+.compact-roadmap {
+  /* Giảm padding tổng thể */
+  margin-bottom: 0;
+}
+
+/* Compact header - giảm padding mạnh */
+.compact-roadmap .card-header,
+.compact-roadmap [data-card-header="true"] {
+  padding: 4px 8px !important;
+  min-height: unset !important;
+}
+
+/* Compact content - giảm padding mạnh */
+.compact-roadmap .card-content,
+.compact-roadmap [data-card-content="true"] {
+  padding: 4px 8px !important;
+  min-height: unset !important;
+}
+
+/* Giảm ảnh xuống 3/4 nhưng vẫn hiển thị đầy đủ 100% nội dung */
+.compact-roadmap img {
+  width: 75% !important; /* Giảm từ 100% xuống 75% */
+  height: auto !important; /* Giữ tỷ lệ gốc */
+  object-fit: contain !important; /* Hiển thị toàn bộ ảnh không cắt */
+  margin: 0 auto !important; /* Căn giữa ảnh */
+  display: block !important;
+}
+
+/* Tăng font size cho title to hơn trước */
+.compact-roadmap .text-2xl,
+.compact-roadmap h2 {
+  font-size: 1.25rem !important; /* 20px - to hơn trước (18px) */
+  line-height: 1.4 !important;
+  margin: 0 !important;
+}
+
+.compact-roadmap .text-lg,
+.compact-roadmap h3 {
+  font-size: 1rem !important; /* 16px - to hơn trước (14px) */
+  line-height: 1.3 !important;
+  margin: 0 !important;
+}
+
+/* Giảm padding cho các phần tử con xuống tối thiểu */
+.compact-roadmap .p-4 {
+  padding: 2px !important;
+}
+
+.compact-roadmap .p-6 {
+  padding: 3px !important;
+}
+
+.compact-roadmap .p-3 {
+  padding: 1px !important;
+}
+
+.compact-roadmap .p-2 {
+  padding: 1px !important;
+}
+
+/* Giảm margin tất cả xuống tối thiểu */
+.compact-roadmap .mb-4 {
+  margin-bottom: 2px !important;
+}
+
+.compact-roadmap .mb-6 {
+  margin-bottom: 3px !important;
+}
+
+.compact-roadmap .mt-6 {
+  margin-top: 2px !important;
+}
+
+.compact-roadmap .mb-2 {
+  margin-bottom: 1px !important;
+}
+
+.compact-roadmap .mt-2 {
+  margin-top: 1px !important;
+}
+
+.compact-roadmap .my-4 {
+  margin-top: 1px !important;
+  margin-bottom: 1px !important;
+}
+
+/* Giảm kích thước button xuống tối thiểu */
+.compact-roadmap button {
+  padding: 2px 4px !important;
+  font-size: 0.65rem !important;
+  min-height: unset !important;
+  height: auto !important;
+  line-height: 1.2 !important;
+}
+
+/* Giảm kích thước các stage markers */
+.compact-roadmap [class*="stage-marker"] {
+  width: 18px !important;
+  height: 18px !important;
+  font-size: 8px !important;
+}
+
+/* Compact progress bars */
+.compact-roadmap .progress-bar,
+.compact-roadmap [role="progressbar"] {
+  height: 2px !important;
+}
+
+/* Giảm spacing cho navigation xuống tối thiểu */
+.compact-roadmap .navigation-controls {
+  gap: 1px !important;
+  margin-top: 1px !important;
+}
+
+/* Giảm kích thước text và badge */
+.compact-roadmap .badge,
+.compact-roadmap .text-sm {
+  font-size: 0.6rem !important;
+  padding: 1px 2px !important;
+  line-height: 1.1 !important;
+}
+
+.compact-roadmap .text-xs {
+  font-size: 0.55rem !important;
+}
+
+/* Loại bỏ margin và padding không cần thiết */
+.compact-roadmap * {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+/* Compact các container */
+.compact-roadmap .card {
+  padding: 1px !important;
+  margin: 0 !important;
+}
+
+.compact-roadmap .flex {
+  gap: 1px !important;
+}
+
+.compact-roadmap .space-y-4 > * + * {
+  margin-top: 1px !important;
+}
+
+.compact-roadmap .space-y-2 > * + * {
+  margin-top: 1px !important;
+}
+
+/* Ẩn text mô tả dài để tiết kiệm space */
+.compact-roadmap .text-muted-foreground {
+  display: none !important;
+}
+
+/* Giảm chiều cao tối đa của container */
+.compact-roadmap .relative {
+  min-height: unset !important;
+}

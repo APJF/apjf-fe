@@ -10,6 +10,12 @@ import type { LearningPath } from "../../services/learningPathService";
 import api from "../../api/axios";
 import { Breadcrumb, type BreadcrumbItem } from '../../components/ui/Breadcrumb';
 import { JapanRoadmapView, type RoadmapStage } from '../../components/roadmap/JapanRoadmapView';
+import { PlannerChatBox } from '../../components/roadmap/PlannerChatBox';
+import { getCurrentUserId } from '../../services/chatbotService';
+
+// Import CSS cho compact roadmap
+import '../../components/roadmap/CompactRoadmap.css';
+
 import {
   BookOpen,
   Clock,
@@ -39,12 +45,12 @@ function CurrentLearningRoadmap({ activePath }: { readonly activePath: LearningP
   if (!activePath) {
     return (
       <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-2 border-blue-200">
-        <CardContent className="p-4 text-center">
-          <AlertCircle className="h-12 w-12 mx-auto mb-4 text-blue-500" />
-          <h2 className="text-lg font-bold text-gray-900 mb-2">Không có lộ trình đang học</h2>
-          <p className="text-sm text-gray-600 mb-4">
+        <CardContent className="p-3 text-center">
+          <AlertCircle className="h-8 w-8 mx-auto mb-3 text-blue-500" />
+          <h2 className="text-sm font-bold text-gray-900 mb-2">Không có lộ trình đang học</h2>
+          <p className="text-xs text-gray-600 mb-3">
             Bạn chưa đặt lộ trình nào thành "Đang học". 
-            Hãy chọn một lộ trình từ danh sách bên trái và bấm "Đặt lộ trình".
+            Hãy chọn một lộ trình từ danh sách bên trái.
           </p>
         </CardContent>
       </Card>
@@ -81,47 +87,35 @@ function CurrentLearningRoadmap({ activePath }: { readonly activePath: LearningP
       status: "locked",
       progress: 0,
     },
-    {
-      id: 5,
-      title: "Luyện nghe N5",
-      description: "Kỹ năng nghe hiểu",
-      status: "locked",
-      progress: 0,
-    },
-    {
-      id: 6,
-      title: "Đọc hiểu N5",
-      description: "Đọc và hiểu văn bản",
-      status: "locked",
-      progress: 0,
-    },
   ];
 
   return (
-    <JapanRoadmapView
-      stages={roadmapStages}
-      title="Lộ trình đang học"
-      subtitle={activePath.title}
-      theme="blue"
-      showHeader={true}
-      showNavigation={true}
-      showActionButtons={true}
-      headerInfo={{
-        targetLevel: activePath.targetLevel,
-        status: "Đang học",
-        duration: activePath.duration,
-        coursesCount: activePath.courses?.length || 0,
-      }}
-      onSecondaryAction={() => navigate(`/roadmap-detail/${activePath.id}`)}
-      onStageClick={(stageId: number) => {
-        console.log(`Clicked stage ${stageId}`);
-        // Handle stage click - navigate to detail page
-        navigate(`/roadmap-detail/${activePath.id}?stage=${stageId}`);
-      }}
-      primaryActionLabel="Tiếp tục học"
-      secondaryActionLabel="Chi tiết"
-      primaryActionIcon={<Flag className="h-3 w-3" />}
-    />
+    <div className="roadmap-compact">
+      <JapanRoadmapView
+        stages={roadmapStages}
+        title="Lộ trình đang học"
+        subtitle={activePath.title}
+        theme="blue"
+        showHeader={true}
+        showNavigation={false} // Ẩn navigation để tiết kiệm space
+        showActionButtons={true}
+        headerInfo={{
+          targetLevel: activePath.targetLevel,
+          status: "Đang học",
+          duration: activePath.duration,
+          coursesCount: activePath.courses?.length || 0,
+        }}
+        onSecondaryAction={() => navigate(`/roadmap-detail/${activePath.id}`)}
+        onStageClick={(stageId: number) => {
+          console.log(`Clicked stage ${stageId}`);
+          navigate(`/roadmap-detail/${activePath.id}?stage=${stageId}`);
+        }}
+        primaryActionLabel="Tiếp tục học"
+        secondaryActionLabel="Chi tiết"
+        primaryActionIcon={<Flag className="h-3 w-3" />}
+        className="compact-roadmap"
+      />
+    </div>
   );
 }
 
@@ -479,28 +473,19 @@ export function LearningPathPage() {
           <Breadcrumb items={breadcrumbItems} />
         </div>
 
-        {/* Page Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Lộ trình học tập</h1>
-            <p className="text-gray-600">Khám phá và theo dõi tiến độ học tập tiếng Nhật của bạn</p>
-          </div>
-          <Button
-            onClick={loadRoadmapData}
-            disabled={isLoading}
-            variant="outline"
-            className="flex items-center gap-2 bg-white hover:bg-gray-50 border-gray-300"
-          >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            Làm mới
-          </Button>
-        </div>
-
         {/* Main Layout: Left (List) - Right (Current Roadmap) */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-          {/* Left Side: Search + Learning Modules List */}
+          {/* Left Side: Header + Search + Learning Modules List */}
           <div className="lg:col-span-3">
-            {/* Search và Sort trên cùng một dòng */}
+            {/* Page Header - chỉ ở bên trái */}
+            <div className="mb-6">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Lộ trình học tập</h1>
+                <p className="text-gray-600">Khám phá và theo dõi tiến độ học tập tiếng Nhật của bạn</p>
+              </div>
+            </div>
+
+            {/* Search, Sort, và Refresh Button trên cùng một dòng */}
             <div className="flex gap-4 mb-6">
               <div className="flex-1">
                 <Input
@@ -518,6 +503,15 @@ export function LearningPathPage() {
                 <option value="newest">Mới nhất</option>
                 <option value="oldest">Cũ nhất</option>
               </select>
+              <Button
+                onClick={loadRoadmapData}
+                disabled={isLoading}
+                variant="outline"
+                className="flex items-center gap-2 bg-white hover:bg-gray-50 border-gray-300 h-11 px-4"
+              >
+                <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                Làm mới
+              </Button>
             </div>
 
             {/* Learning Modules */}
@@ -526,10 +520,18 @@ export function LearningPathPage() {
             </div>
           </div>
 
-          {/* Right Side: Current Learning Roadmap */}
+          {/* Right Side: Current Learning Roadmap + Planner ChatBox */}
           <div className="lg:col-span-2">
-            <div className="sticky top-6">
-              <CurrentLearningRoadmap activePath={activePath} />
+            <div className="flex flex-col sticky" style={{top: '24px', maxHeight: 'calc(100vh - 24px)'}}>
+              {/* Roadmap tăng không gian lên */}
+              <div style={{height: '420px', overflow: 'auto'}} className="flex-shrink-0">
+                <CurrentLearningRoadmap activePath={activePath} />
+              </div>
+              
+              {/* ChatBox giảm không gian xuống 4/5 */}
+              <div style={{height: 'calc((100vh - 420px - 48px) * 0.8)'}} className="flex-shrink-0 flex items-end">
+                <PlannerChatBox userId={getCurrentUserId() || ''} />
+              </div>
             </div>
           </div>
         </div>
