@@ -48,6 +48,24 @@ export interface ApiResponse {
   timestamp: number
 }
 
+export interface MonthlyUserStats {
+  month: string
+  totalEnabledUsers: number
+  totalUsers?: number // Include disabled users as well
+}
+
+export interface AdminStatsData {
+  totalUser: number
+  userMonth: MonthlyUserStats[]
+}
+
+export interface AdminStatsResponse {
+  success: boolean
+  message: string
+  data: AdminStatsData
+  timestamp: number
+}
+
 // Helper function to ensure token is included in headers
 const getAuthHeaders = () => {
   const token = localStorage.getItem('access_token')
@@ -89,5 +107,13 @@ export const AdminService = {
     await api.patch<ApiResponse>('/admin/status', data, {
       headers: getAuthHeaders()
     })
+  },
+
+  // Lấy thống kê người dùng
+  async getUserStats(): Promise<AdminStatsData> {
+    const response = await api.get<AdminStatsResponse>('/admin/stats', {
+      headers: getAuthHeaders()
+    })
+    return response.data.data
   }
 }

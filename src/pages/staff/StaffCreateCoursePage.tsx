@@ -142,9 +142,9 @@ const StaffCreateCoursePage: React.FC = () => {
   }
 
   const handleFileSelect = (file: File) => {
-    // Kiểm tra kích thước file (8MB limit)
-    if (file.size > 8 * 1024 * 1024) {
-      setError('Kích thước file không được vượt quá 8MB')
+    // Kiểm tra kích thước file (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Kích thước file không được vượt quá 5MB')
       window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
@@ -591,7 +591,7 @@ const StaffCreateCoursePage: React.FC = () => {
                       <Upload className="h-8 w-8 text-blue-400" />
                       <div className="text-center">
                         <p className="text-sm font-medium text-blue-700">Tải lên ảnh</p>
-                        <p className="text-xs text-blue-500">PNG, JPG (max 800KB)</p>
+                        <p className="text-xs text-blue-500">PNG, JPG (max 5MB)</p>
                       </div>
                       <div className="text-xs text-blue-600 hover:text-blue-700 font-medium">
                         Chọn file hoặc kéo thả

@@ -226,9 +226,9 @@ const GeneralTab = ({ profile, onProfileUpdate }: { profile: UserProfile, onProf
       return;
     }
 
-    // Validate file size (800KB)
-    if (file.size > 800 * 1024) {
-      showToast("error", "Kích thước file không được vượt quá 800KB");
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("error", "Kích thước file không được vượt quá 5MB");
       return;
     }
 
@@ -342,7 +342,7 @@ const GeneralTab = ({ profile, onProfileUpdate }: { profile: UserProfile, onProf
           >
             Reset
           </button>
-          <div className="text-sm text-gray-500 mt-2">Allowed JPG, GIF or PNG. Max size of 800K</div>
+          <div className="text-sm text-gray-500 mt-2">Allowed JPG, GIF or PNG. Max size of 5MB</div>
         </div>
       </div>
       <hr className="my-6" />

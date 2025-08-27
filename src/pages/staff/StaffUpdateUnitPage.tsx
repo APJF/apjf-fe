@@ -239,10 +239,10 @@ const StaffUpdateUnitPage: React.FC = () => {
       }
 
       // Extract material ID from filename
-      const materialId = extractMaterialIdFromFilename(file.name)
+      const newMaterialId = extractMaterialIdFromFilename(file.name)
       
       // Validate format
-      const formatError = validateMaterialIdFormat(materialId)
+      const formatError = validateMaterialIdFormat(newMaterialId)
       if (formatError) {
         setMaterialFileErrors(prev => ({
           ...prev,
@@ -251,13 +251,19 @@ const StaffUpdateUnitPage: React.FC = () => {
         return
       }
 
+      // Find current material to check if materialId is already set by user
+      const currentMaterial = materials.find(m => m.id === frontendId)
+      const shouldOverrideMaterialId = !currentMaterial?.materialId || currentMaterial.materialId === ''
+      
+      // If materialId is already set by user, use the existing one, otherwise use from filename
+      const finalMaterialId = shouldOverrideMaterialId ? newMaterialId : (currentMaterial?.materialId || newMaterialId)
+      
       // Check if material ID exists
-      const material = materials.find(m => m.id === frontendId)
-      const currentMaterialId = material?.originalData?.id || material?.materialId
-      const exists = await checkMaterialIdExists(materialId, currentMaterialId)
+      const currentMaterialId = currentMaterial?.originalData?.id || currentMaterial?.materialId || ''
+      const exists = await checkMaterialIdExists(finalMaterialId, currentMaterialId)
       
       if (exists) {
-        const errorMessage = `Material ID "${materialId}" đã tồn tại. Vui lòng đổi tên file.`
+        const errorMessage = `Material ID "${finalMaterialId}" đã tồn tại. ${shouldOverrideMaterialId ? 'Vui lòng đổi tên file.' : 'Vui lòng sửa Material ID.'}`
         setMaterialFileErrors(prev => ({
           ...prev,
           [frontendId]: errorMessage
@@ -272,11 +278,11 @@ const StaffUpdateUnitPage: React.FC = () => {
         return newErrors
       })
 
-      // Update material with new material ID
+      // Update material with file and materialId (only override if not already set)
       setMaterials(prev =>
         prev.map(m => 
           m.id === frontendId 
-            ? { ...m, selectedFile: file, materialId: materialId, isUpdated: !m.isNew }
+            ? { ...m, selectedFile: file, materialId: finalMaterialId, isUpdated: !m.isNew }
             : m
         )
       )
@@ -1441,19 +1447,27 @@ const StaffUpdateUnitPage: React.FC = () => {
                               <div className="space-y-2">
                                 <Label className="text-purple-800 font-medium">
                                   Material ID <span className="text-red-500">*</span>
-                                  <span className="text-xs text-gray-500 font-normal ml-2">(Từ tên file)</span>
+                                  <span className="text-xs text-gray-500 font-normal ml-2">(Có thể chỉnh sửa)</span>
                                 </Label>
                                 <Input
                                   value={material.materialId || ''}
-                                  readOnly
-                                  placeholder={material.materialId ? undefined : "Material ID sẽ được tạo từ tên file khi bạn chọn file"}
-                                  className="bg-gray-100 text-gray-600 cursor-not-allowed"
+                                  onChange={(e) => {
+                                    setMaterials(prev => prev.map(m => 
+                                      m.id === material.id ? { ...m, materialId: e.target.value } : m
+                                    ))
+                                  }}
+                                  placeholder="Nhập Material ID hoặc chọn file để tự động tạo"
+                                  className="bg-white text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                                  maxLength={60}
                                 />
+                                <div className={`text-xs mt-1 ${(material.materialId || '').length >= 32 ? 'text-red-500' : 'text-gray-500'}`}>
+                                  {(material.materialId || '').length}/60 ký tự
+                                </div>
                                 <p className="text-purple-600 text-xs">
-                                  💡 Material ID được tạo từ tên file. Hãy đặt tên file theo format: [Mã Khóa Học]__CHAPTER_[Số thứ tự]__UNIT_[Số thứ tự]__[Kỹ Năng]__JA_VI__[Số thứ tự]
+                                  💡 Bạn có thể nhập Material ID tùy ý hoặc chọn file để tự động tạo từ tên file
                                 </p>
                                 <p className="text-purple-600 text-xs">
-                                  💡 Ví dụ: JPD113__CHAPTER_01__UNIT_01__KANJI__JA_VI__0001.pdf
+                                  💡 Format khuyến nghị: [Mã Khóa Học]__CHAPTER_[Số]__UNIT_[Số]__[Kỹ Năng]__JA_VI__[Số]
                                 </p>
                               </div>
 
