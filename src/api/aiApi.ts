@@ -78,4 +78,19 @@ aiApi.interceptors.response.use(
   }
 );
 
+// Find recent session by parameters
+export const findSession = async (params: {
+  user_id: number;
+  session_type: 'LEARNING' | 'PLANNER' | 'QNA' | 'REVIEWER' | 'SPEAKING';
+  material_id?: string | null;
+  exam_result_id?: string | null;
+}): Promise<{ id: number; session_name: string; updated_at: string }> => {
+  console.log('🔍 Finding session with params:', params);
+  
+  const response = await aiApi.get('/sessions/find', { params });
+  console.log('✅ Found session:', response.data);
+  
+  return response.data;
+};
+
 export default aiApi;
