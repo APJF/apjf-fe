@@ -80,7 +80,7 @@ export function CommentSection({
                       </DropdownMenuItem>
                     ) : (
                       <DropdownMenuItem
-                        onClick={() => onReportComment(comment.id, "Nội dung không phù hợp")}
+                        onClick={() => onReportComment(comment.id, "")}
                         className="text-red-600 hover:text-red-700 hover:bg-red-50 focus:text-red-700 focus:bg-red-50"
                       >
                         <Flag className="h-3 w-3 mr-2" />
