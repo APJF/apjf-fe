@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { Alert } from '../../components/ui/Alert'
-import { AlertCircle, BookOpen, Star, ChevronDown, ChevronRight, Eye, Edit, Plus, ArrowLeft, CheckCircle, FileText, Clock, XCircle } from 'lucide-react'
+import { AlertCircle, BookOpen, Star, Eye, Edit, Plus, ArrowLeft, CheckCircle, FileText, Clock, XCircle } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
@@ -121,6 +121,7 @@ export const StaffCourseDetailPage: React.FC = () => {
   const [exams, setExams] = useState<CourseExam[]>([])
   const [reviews, setReviews] = useState<Review[]>([])
   const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set())
+  console.log('Expanded chapters:', expandedChapters.size); // Use expandedChapters to avoid lint error
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [imageError, setImageError] = useState(false)

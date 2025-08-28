@@ -30,7 +30,7 @@ export function ExamReviewChatBox({ userId, examResultId }: ExamReviewChatBoxPro
     setInput("");
     try {
       if (!sessionId) {
-        const res = await aiApi.post("/sessions", {
+        const res = await aiApi.post("/sessions/", {
           user_id: userId,
           session_type: "reviewer",
           first_message: input,
@@ -43,7 +43,7 @@ export function ExamReviewChatBox({ userId, examResultId }: ExamReviewChatBoxPro
           { sender: "ai", text: data.ai_first_response }
         ]);
       } else {
-        const res = await aiApi.post("/messages", {
+        const res = await aiApi.post("/messages/", {
           session_id: sessionId,
           user_input: input,
         });
