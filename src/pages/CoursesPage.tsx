@@ -128,7 +128,7 @@ const StarRating: React.FC<{ rating: number; onRatingChange: (rating: number) =>
           </button>
         ))}
       </div>
-      <span className="text-[11px] text-gray-600">{rating > 0 ? `${rating}+` : "Any"}</span>
+      <span className="text-[11px] text-gray-600">{rating > 0 ? `${rating}+` : "0+"}</span>
     </fieldset>
   )
 }

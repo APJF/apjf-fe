@@ -462,7 +462,7 @@ export const ExamDoing: React.FC<ExamDoingProps> = ({ examData, questionOptions,
       {showConfirmSubmit && (
         <div className="fixed inset-0 bg-opacity-30 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
-            <h3 className="text-lg font-semibold mb-4">Submit Exam</h3>
+            <h3 className="text-lg font-semibold mb-4">Nộp bài kiểm tra</h3>
             <p className="text-gray-600 mb-4">
               Bạn có chắc muốn nộp bài kiểm tra? Bạn đã trả lời {answeredSet.size} trên {total} câu hỏi.
             </p>
@@ -476,13 +476,13 @@ export const ExamDoing: React.FC<ExamDoingProps> = ({ examData, questionOptions,
                 onClick={() => setShowConfirmSubmit(false)}
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
               >
-                Cancel
+                Hủy
               </button>
               <button
                 onClick={handleConfirmSubmit}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
               >
-                Submit
+                Nộp bài
               </button>
             </div>
           </div>
