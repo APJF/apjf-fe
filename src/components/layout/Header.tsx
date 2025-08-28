@@ -107,7 +107,7 @@ export function Header() {
   const refreshRef = useRef<(() => void) | null>(null)
   
   // Use language hook
-  const { currentLanguage, availableLanguages, changeLanguage, t } = useLanguage();
+  const { availableLanguages, changeLanguage, t } = useLanguage();
   
   // Use the notifications hook - it will handle authentication internally
   const notificationsData = useNotifications();
