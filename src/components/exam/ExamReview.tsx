@@ -210,7 +210,7 @@ export function ExamReview({ examResult, onBack }: ExamReviewProps) {
   // Navigation functions
   const scrollToIdx = (idx: number) => {
     const clamped = Math.min(Math.max(idx, 1), total) - 1;
-    cardRefs.current[clamped]?.scrollIntoView({ behavior: "smooth", block: "start" });
+    cardRefs.current[clamped]?.scrollIntoView({ behavior: "smooth", block: "center" });
     setActive(clamped + 1);
   };
 
