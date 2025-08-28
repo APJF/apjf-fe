@@ -1632,12 +1632,12 @@ const StaffUpdateUnitPage: React.FC = () => {
                                         }
                                       }}
                                       placeholder="Nhập script tiếng Nhật"
-                                      maxLength={255}
+                                      maxLength={20000}
                                       className="border-purple-300 focus:border-purple-500 focus:ring-purple-500 min-h-[100px]"
                                       rows={4}
                                     />
-                                    <p className={`text-xs mt-1 ${(material.script?.length || 0) > 200 ? 'text-red-600' : 'text-gray-500'}`}>
-                                      {material.script?.length || 0}/255 ký tự
+                                    <p className={`text-xs mt-1 ${(material.script?.length || 0) > 18000 ? 'text-red-600' : 'text-gray-500'}`}>
+                                      {material.script?.length || 0}/20000 ký tự
                                     </p>
                                   </div>
                                   <div className="space-y-2">
@@ -1652,12 +1652,12 @@ const StaffUpdateUnitPage: React.FC = () => {
                                         }
                                       }}
                                       placeholder="Nhập bản dịch tiếng Việt"
-                                      maxLength={255}
+                                      maxLength={20000}
                                       className="border-purple-300 focus:border-purple-500 focus:ring-purple-500 min-h-[100px]"
                                       rows={4}
                                     />
-                                    <p className={`text-xs mt-1 ${(material.translation?.length || 0) > 200 ? 'text-red-600' : 'text-gray-500'}`}>
-                                      {material.translation?.length || 0}/255 ký tự
+                                    <p className={`text-xs mt-1 ${(material.translation?.length || 0) > 18000 ? 'text-red-600' : 'text-gray-500'}`}>
+                                      {material.translation?.length || 0}/20000 ký tự
                                     </p>
                                   </div>
                                 </div>

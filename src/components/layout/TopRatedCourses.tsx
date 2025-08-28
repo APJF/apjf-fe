@@ -187,7 +187,7 @@ export function TopRatedCourses() {
       <section className="py-20 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-3xl lg:text-4xl font-bold mb-4">Top Rated Courses</h2>
+            <h2 className="text-3xl lg:text-4xl font-bold mb-4">Khóa học đánh giá cao nhất</h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               {t('home.loadingCourses')}
             </p>
@@ -205,7 +205,7 @@ export function TopRatedCourses() {
       <section className="py-20 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
-            <h2 className="text-3xl lg:text-4xl font-bold mb-4">Top Rated Courses</h2>
+            <h2 className="text-3xl lg:text-4xl font-bold mb-4">Khóa học đánh giá cao nhất</h2>
             <p className="text-xl text-red-600 max-w-2xl mx-auto">
               {error}
             </p>
@@ -219,9 +219,9 @@ export function TopRatedCourses() {
     <section className="py-20 bg-gray-50">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
-          <h2 className="text-3xl lg:text-4xl font-bold mb-4">Top Rated Courses</h2>
+          <h2 className="text-3xl lg:text-4xl font-bold mb-4">Khóa học đánh giá cao nhất</h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Discover our highest-rated Japanese language courses
+            Khám phá các khóa học tiếng Nhật được đánh giá cao nhất của chúng tôi
           </p>
         </div>
 

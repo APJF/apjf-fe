@@ -1321,11 +1321,11 @@ const StaffCreateUnitPage: React.FC = () => {
                                       onChange={(e) => updateMaterial(material.id, 'script', e.target.value)}
                                       placeholder="Nhập kịch bản cho tài liệu nghe..."
                                       rows={3}
-                                      maxLength={255}
+                                      maxLength={20000}
                                       className="mt-1 border-purple-200 focus:border-purple-500 focus:ring-purple-500"
                                     />
-                                    <p className={`text-xs mt-1 ${(material.script?.length || 0) > 200 ? 'text-red-600' : 'text-gray-500'}`}>
-                                      {material.script?.length || 0}/255 ký tự
+                                    <p className={`text-xs mt-1 ${(material.script?.length || 0) > 18000 ? 'text-red-600' : 'text-gray-500'}`}>
+                                      {material.script?.length || 0}/20000 ký tự
                                     </p>
                                   </div>
                                   
@@ -1339,11 +1339,11 @@ const StaffCreateUnitPage: React.FC = () => {
                                       onChange={(e) => updateMaterial(material.id, 'translation', e.target.value)}
                                       placeholder="Nhập bản dịch cho tài liệu nghe..."
                                       rows={3}
-                                      maxLength={255}
+                                      maxLength={20000}
                                       className="mt-1 border-purple-200 focus:border-purple-500 focus:ring-purple-500"
                                     />
-                                    <p className={`text-xs mt-1 ${(material.translation?.length || 0) > 200 ? 'text-red-600' : 'text-gray-500'}`}>
-                                      {material.translation?.length || 0}/255 ký tự
+                                    <p className={`text-xs mt-1 ${(material.translation?.length || 0) > 18000 ? 'text-red-600' : 'text-gray-500'}`}>
+                                      {material.translation?.length || 0}/20000 ký tự
                                     </p>
                                   </div>
                                 </div>

@@ -65,7 +65,7 @@ function SummaryHighlight({ summary, threshold = 60 }: Readonly<{ summary: AIOve
         </div>
         <div className={`mt-3 text-3xl font-semibold ${pass ? "text-emerald-900" : "text-rose-900"}`}>{score}</div>
         <div className="mt-1 flex items-center gap-2">
-          <span className={`text-xs px-2 py-0.5 rounded-md border ${pass ? "border-emerald-200 text-emerald-800" : "border-rose-200 text-rose-800"}`}>{pass ? "Pass" : "Fail"}</span>
+          <span className={`text-xs px-2 py-0.5 rounded-md border ${pass ? "border-emerald-200 text-emerald-800" : "border-rose-200 text-rose-800"}`}>{pass ? "Đậu" : "Trượt"}</span>
           <span className="text-xs text-gray-500">ngưỡng {threshold}%</span>
         </div>
       </div>
@@ -296,8 +296,8 @@ export default function ExamOverviewPage() {
     <div className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-4 py-6 flex items-center justify-between">
-          <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2"><Sparkles className="size-5 text-indigo-600" />AI Exam Overview</h1>
-          <span className="text-xs text-gray-500">Result ID: {aiOverview.exam_result_id}</span>
+          <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2"><Sparkles className="size-5 text-indigo-600" />Tổng quan bài thi</h1>
+          <span className="text-xs text-gray-500">ID Kết Quả: {aiOverview.exam_result_id}</span>
         </div>
       </header>
 
