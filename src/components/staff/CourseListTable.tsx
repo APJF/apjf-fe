@@ -299,7 +299,7 @@ export const CourseListTable: React.FC<CourseListTableProps> = ({
               onChange={(e) => setSelectedLevel(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="all">Tất cả mức độ</option>
+              <option value="all">Tất cả trình độ</option>
               {uniqueLevels.map((level) => (
                 <option key={level} value={level}>{level}</option>
               ))}
@@ -368,7 +368,7 @@ export const CourseListTable: React.FC<CourseListTableProps> = ({
             <div className="col-span-1">STT</div>
             <div className="col-span-2">ID</div>
             <div className="col-span-3">Tên khóa học</div>
-            <div className="col-span-2">Mức độ</div>
+            <div className="col-span-2">Trình độ</div>
             <div className="col-span-2">Trạng thái</div>
             <div className="col-span-2">Thao tác</div>
           </div>

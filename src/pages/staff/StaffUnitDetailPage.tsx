@@ -5,6 +5,7 @@ import { AlertCircle, BookOpen, ArrowLeft, FileText, ExternalLink, Music, Edit, 
 import { Button } from '../../components/ui/Button'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card'
 import { Badge } from '../../components/ui/Badge'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { StaffNavigation } from '../../components/layout/StaffNavigation'
 import { StaffUnitService, type UnitDetail } from '../../services/staffUnitService'
 import { StaffCourseService } from '../../services/staffCourseService'
@@ -58,6 +59,8 @@ export const StaffUnitDetailPage: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState<string | null>(
     locationState.message || null
   )
+  const [showDeactivateDialog, setShowDeactivateDialog] = useState(false)
+  const [isDeactivating, setIsDeactivating] = useState(false)
 
   useEffect(() => {
     if (!courseId || !chapterId || !unitId) {
@@ -259,20 +262,15 @@ export const StaffUnitDetailPage: React.FC = () => {
   const handleDeactivateUnit = async () => {
     if (!unitId || !unit) return
 
-    const confirmDeactivate = window.confirm(
-      `Bạn có chắc chắn muốn tạm dừng hoạt động bài học "${unit.title}"?\n\nHành động này sẽ khiến bài học không còn hiển thị cho người dùng.`
-    )
-
-    if (!confirmDeactivate) return
-
     try {
-      setIsLoading(true)
+      setIsDeactivating(true)
       
       // Sử dụng API deactivate thay vì update
       const result = await StaffUnitService.deactivateUnit(unitId)
       
       if (result.success) {
         setSuccessMessage('Đã tạm dừng hoạt động bài học thành công!')
+        setShowDeactivateDialog(false)
         // Refresh unit data to show updated status
         await fetchUnitData()
       } else {
@@ -282,7 +280,7 @@ export const StaffUnitDetailPage: React.FC = () => {
       console.error('Error deactivating unit:', error)
       setError('Có lỗi xảy ra khi tạm dừng hoạt động bài học')
     } finally {
-      setIsLoading(false)
+      setIsDeactivating(false)
     }
   }
 
@@ -666,7 +664,7 @@ export const StaffUnitDetailPage: React.FC = () => {
                     <Edit className="h-4 w-4 mr-2" />
                     Chỉnh sửa bài học
                   </Button>
-                  <Button 
+                  {/* <Button 
                     variant="outline" 
                     className="w-full text-purple-600 border-purple-300 hover:bg-purple-50"
                     onClick={() => navigate('/staff/create-exam', { 
@@ -679,13 +677,13 @@ export const StaffUnitDetailPage: React.FC = () => {
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Tạo bài kiểm tra
-                  </Button>
+                  </Button> */}
                   
                   {unit.status === 'ACTIVE' && (
                     <Button
                       variant="outline"
                       className="w-full border-orange-200 text-orange-600 hover:bg-orange-50 hover:border-orange-300"
-                      onClick={handleDeactivateUnit}
+                      onClick={() => setShowDeactivateDialog(true)}
                       disabled={isLoading}
                     >
                       <XCircle className="h-4 w-4 mr-2" />
@@ -923,6 +921,19 @@ export const StaffUnitDetailPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Confirm Deactivate Dialog */}
+        <ConfirmDialog
+          isOpen={showDeactivateDialog}
+          onClose={() => setShowDeactivateDialog(false)}
+          onConfirm={handleDeactivateUnit}
+          title="Tạm dừng hoạt động bài học"
+          description={`Bạn có chắc chắn muốn tạm dừng hoạt động bài học "${unit?.title}"?\n\nHành động này sẽ khiến bài học không còn hiển thị cho người dùng.`}
+          confirmText="Tạm dừng"
+          cancelText="Hủy"
+          variant="danger"
+          isLoading={isDeactivating}
+        />
       </div>
     </StaffNavigation>
   )

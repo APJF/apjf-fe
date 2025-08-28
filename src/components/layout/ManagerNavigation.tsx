@@ -193,8 +193,8 @@ export const ManagerNavigation: React.FC<ManagerNavigationProps> = ({
                   <TrendingUp className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-bold text-gray-900">Manager Panel</h1>
-                  <p className="text-xs text-gray-500">管理パネル</p>
+                  <h1 className="text-lg font-bold text-gray-900">Bảng điều khiển</h1>
+                  <p className="text-xs text-gray-500">Quản lý tài liệu học tập</p>
                 </div>
               </div>
             )}
@@ -264,7 +264,7 @@ export const ManagerNavigation: React.FC<ManagerNavigationProps> = ({
               title={isCollapsed ? "Trang chủ" : undefined}
             >
               <Home className="h-4 w-4" />
-              {!isCollapsed && <span className="font-medium">Homepage</span>}
+              {!isCollapsed && <span className="font-medium">Trang chủ</span>}
             </button>
             <button
               onClick={handleLogout}
@@ -272,7 +272,7 @@ export const ManagerNavigation: React.FC<ManagerNavigationProps> = ({
               title={isCollapsed ? "Đăng xuất" : undefined}
             >
               <LogOut className="h-4 w-4" />
-              {!isCollapsed && <span className="font-medium">Sign Out</span>}
+              {!isCollapsed && <span className="font-medium">Đăng xuất</span>}
             </button>
 
             

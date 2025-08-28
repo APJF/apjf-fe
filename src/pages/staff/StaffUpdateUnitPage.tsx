@@ -251,24 +251,44 @@ const StaffUpdateUnitPage: React.FC = () => {
         return
       }
 
-      // Find current material to check if materialId is already set by user
+      // Find current material to check if this is an existing material
       const currentMaterial = materials.find(m => m.id === frontendId)
-      const shouldOverrideMaterialId = !currentMaterial?.materialId || currentMaterial.materialId === ''
       
-      // If materialId is already set by user, use the existing one, otherwise use from filename
-      const finalMaterialId = shouldOverrideMaterialId ? newMaterialId : (currentMaterial?.materialId || newMaterialId)
-      
-      // Check if material ID exists
-      const currentMaterialId = currentMaterial?.originalData?.id || currentMaterial?.materialId || ''
-      const exists = await checkMaterialIdExists(finalMaterialId, currentMaterialId)
-      
-      if (exists) {
-        const errorMessage = `Material ID "${finalMaterialId}" đã tồn tại. ${shouldOverrideMaterialId ? 'Vui lòng đổi tên file.' : 'Vui lòng sửa Material ID.'}`
-        setMaterialFileErrors(prev => ({
-          ...prev,
-          [frontendId]: errorMessage
-        }))
-        return
+      // For existing materials (not new), keep the original material ID
+      if (currentMaterial && !currentMaterial.isNew) {
+        // Keep existing material ID, don't change it
+        // Update material with file but keep original materialId
+        setMaterials(prev =>
+          prev.map(m => 
+            m.id === frontendId 
+              ? { ...m, selectedFile: file, isUpdated: true }
+              : m
+          )
+        )
+      } else {
+        // For new materials, use materialId from filename
+        const newMaterialId = extractMaterialIdFromFilename(file.name)
+        
+        // Check if material ID exists for new materials only
+        const exists = await checkMaterialIdExists(newMaterialId, '')
+        
+        if (exists) {
+          const errorMessage = `Material ID "${newMaterialId}" đã tồn tại. Vui lòng đổi tên file hoặc tạo Material ID khác.`
+          setMaterialFileErrors(prev => ({
+            ...prev,
+            [frontendId]: errorMessage
+          }))
+          return
+        }
+
+        // Update new material with file and materialId from filename
+        setMaterials(prev =>
+          prev.map(m => 
+            m.id === frontendId 
+              ? { ...m, selectedFile: file, materialId: newMaterialId, isUpdated: false }
+              : m
+          )
+        )
       }
 
       // Clear lỗi nếu file hợp lệ
@@ -277,15 +297,6 @@ const StaffUpdateUnitPage: React.FC = () => {
         delete newErrors[frontendId]
         return newErrors
       })
-
-      // Update material with file and materialId (only override if not already set)
-      setMaterials(prev =>
-        prev.map(m => 
-          m.id === frontendId 
-            ? { ...m, selectedFile: file, materialId: finalMaterialId, isUpdated: !m.isNew }
-            : m
-        )
-      )
     } else {
       // Clear lỗi khi không chọn file
       setMaterialFileErrors(prev => {
@@ -569,6 +580,7 @@ const StaffUpdateUnitPage: React.FC = () => {
       if (material.isNew) {
         await processNewMaterial(material)
         console.log('✅ New material created successfully')
+        showToast('success', 'Tạo tài liệu mới thành công!')
         
         setMaterials(prev => prev.map(m => 
           m.id === frontendId 
@@ -578,6 +590,7 @@ const StaffUpdateUnitPage: React.FC = () => {
       } else {
         await processUpdatedMaterial(material)
         console.log('✅ Material updated successfully')
+        showToast('success', 'Cập nhật tài liệu thành công!')
         
         setMaterials(prev => prev.map(m => 
           m.id === frontendId 
@@ -589,7 +602,9 @@ const StaffUpdateUnitPage: React.FC = () => {
       await fetchMaterials()
     } catch (error) {
       console.error('❌ Failed to save material:', error)
-      setError('Không thể lưu tài liệu. Vui lòng thử lại.')
+      const errorMessage = material.isNew ? 'Không thể tạo tài liệu mới. Vui lòng thử lại.' : 'Không thể cập nhật tài liệu. Vui lòng thử lại.'
+      setError(errorMessage)
+      showToast('error', errorMessage)
     }
   }
 
@@ -623,18 +638,23 @@ const StaffUpdateUnitPage: React.FC = () => {
     if (materialToRemove.isNew) {
       console.log('🆕 Removing new material completely from UI')
       setMaterials(prev => prev.filter(m => m.id !== frontendId))
+      showToast('success', 'Đã hủy tài liệu mới!')
     } else {
       console.log('📝 Deleting existing material via API:', materialToRemove.materialId)
       try {
         if (materialToRemove.materialId) {
           await MaterialService.deleteMaterial(materialToRemove.materialId)
           console.log('✅ Material deleted successfully')
+          showToast('success', 'Xóa tài liệu thành công!')
           
           setMaterials(prev => prev.filter(m => m.id !== frontendId))
         }
       } catch (error) {
         console.error('❌ Failed to delete material:', error)
-        setError('Không thể xóa tài liệu. Vui lòng thử lại.')
+        const errorMessage = 'Không thể xóa tài liệu. Vui lòng thử lại.'
+        setError(errorMessage)
+        showToast('error', errorMessage)
+        return // Don't close dialog if delete failed
       }
     }
 
@@ -694,6 +714,70 @@ const StaffUpdateUnitPage: React.FC = () => {
           : m
       )
     );
+  }
+
+  const updateMaterialId = async (frontendId: string, newMaterialId: string) => {
+    const material = materials.find(m => m.id === frontendId)
+    if (!material) return
+
+    // Chỉ cho phép thay đổi Material ID cho tài liệu mới
+    if (!material.isNew) {
+      showToast('warning', 'Không thể thay đổi Material ID của tài liệu đã tồn tại.')
+      return
+    }
+
+    // Clear old error first
+    setMaterialFileErrors(prev => {
+      const newErrors = { ...prev }
+      delete newErrors[frontendId]
+      return newErrors
+    })
+
+    // Validate format if not empty
+    if (newMaterialId.trim()) {
+      const formatError = validateMaterialIdFormat(newMaterialId.trim())
+      if (formatError) {
+        setMaterialFileErrors(prev => ({
+          ...prev,
+          [frontendId]: formatError
+        }))
+        setMaterials(prev =>
+          prev.map(m => 
+            m.id === frontendId 
+              ? { ...m, materialId: newMaterialId }
+              : m
+          )
+        )
+        return
+      }
+
+      // Check if material ID exists
+      const exists = await checkMaterialIdExists(newMaterialId.trim(), '')
+      if (exists) {
+        const errorMessage = `Material ID "${newMaterialId.trim()}" đã tồn tại. Vui lòng sử dụng Material ID khác.`
+        setMaterialFileErrors(prev => ({
+          ...prev,
+          [frontendId]: errorMessage
+        }))
+        setMaterials(prev =>
+          prev.map(m => 
+            m.id === frontendId 
+              ? { ...m, materialId: newMaterialId }
+              : m
+          )
+        )
+        return
+      }
+    }
+
+    // Update material ID if valid
+    setMaterials(prev =>
+      prev.map(m => 
+        m.id === frontendId 
+          ? { ...m, materialId: newMaterialId }
+          : m
+      )
+    )
   }
 
   const toggleMaterial = (frontendId: string) => {
@@ -822,6 +906,25 @@ const StaffUpdateUnitPage: React.FC = () => {
       return response
     } catch (error) {
       console.error('❌ Create material failed:', error)
+      
+      // Xử lý lỗi cụ thể cho trùng Material ID
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status: number; data?: { message?: string } } }
+        
+        if (axiosError.response?.status === 400 && axiosError.response?.data?.message) {
+          const errorMsg = axiosError.response.data.message
+          
+          // Kiểm tra lỗi trùng Material ID
+          if (errorMsg.includes('duplicate') || errorMsg.includes('already exists') || 
+              errorMsg.includes('đã tồn tại') || errorMsg.includes('trùng lặp')) {
+            throw new Error(`Material ID "${material.materialId}" đã tồn tại trong hệ thống. Vui lòng sử dụng tên file khác để tạo Material ID mới.`)
+          }
+          
+          // Các lỗi khác từ server
+          throw new Error(errorMsg)
+        }
+      }
+      
       throw error
     }
   }
@@ -1443,32 +1546,44 @@ const StaffUpdateUnitPage: React.FC = () => {
                               id={`material-content-${material.id}`}
                               aria-labelledby={`material-header-${material.id}`}
                             >
-                              {/* Material ID - Read only */}
+                              {/* Material ID - Có thể chỉnh sửa cho tài liệu mới */}
                               <div className="space-y-2">
                                 <Label className="text-purple-800 font-medium">
                                   Material ID <span className="text-red-500">*</span>
-                                  <span className="text-xs text-gray-500 font-normal ml-2">(Có thể chỉnh sửa)</span>
+                                  {!material.isNew && <span className="text-xs text-gray-500 font-normal ml-2">(Không thể thay đổi)</span>}
+                                  {material.isNew && <span className="text-xs text-gray-500 font-normal ml-2">(Có thể chỉnh sửa)</span>}
                                 </Label>
                                 <Input
                                   value={material.materialId || ''}
                                   onChange={(e) => {
-                                    setMaterials(prev => prev.map(m => 
-                                      m.id === material.id ? { ...m, materialId: e.target.value } : m
-                                    ))
+                                    if (material.isNew && material.id) {
+                                      updateMaterialId(material.id, e.target.value)
+                                    }
                                   }}
-                                  placeholder="Nhập Material ID hoặc chọn file để tự động tạo"
-                                  className="bg-white text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                                  placeholder={material.isNew ? "Nhập Material ID hoặc chọn file để tự động tạo" : "Material ID cố định"}
+                                  className={`text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 ${
+                                    material.isNew ? 'bg-white' : 'bg-gray-100 cursor-not-allowed'
+                                  }`}
                                   maxLength={60}
+                                  readOnly={!material.isNew}
                                 />
                                 <div className={`text-xs mt-1 ${(material.materialId || '').length >= 32 ? 'text-red-500' : 'text-gray-500'}`}>
                                   {(material.materialId || '').length}/60 ký tự
                                 </div>
-                                <p className="text-purple-600 text-xs">
-                                  💡 Bạn có thể nhập Material ID tùy ý hoặc chọn file để tự động tạo từ tên file
-                                </p>
-                                <p className="text-purple-600 text-xs">
-                                  💡 Format khuyến nghị: [Mã Khóa Học]__CHAPTER_[Số]__UNIT_[Số]__[Kỹ Năng]__JA_VI__[Số]
-                                </p>
+                                {material.isNew ? (
+                                  <>
+                                    <p className="text-purple-600 text-xs">
+                                      💡 Bạn có thể nhập Material ID tùy ý hoặc chọn file để tự động tạo từ tên file
+                                    </p>
+                                    <p className="text-purple-600 text-xs">
+                                      💡 Format khuyến nghị: [Mã Khóa Học]__CHAPTER_[Số]__UNIT_[Số]__[Kỹ Năng]__JA_VI__[Số]
+                                    </p>
+                                  </>
+                                ) : (
+                                  <p className="text-amber-600 text-xs">
+                                    ⚠️ Material ID không thể thay đổi sau khi tạo
+                                  </p>
+                                )}
                               </div>
 
                               <div className="space-y-2">
