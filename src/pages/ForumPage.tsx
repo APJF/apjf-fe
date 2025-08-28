@@ -2,8 +2,11 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { forumAPIService } from "../services/forumAPIService";
 import { commentAPIService } from "../services/commentAPIService";
+import { reportApi } from "../services/reportService";
 import type { PostResponse } from "../services/forumAPIService";
 import { Breadcrumb, type BreadcrumbItem } from '../components/ui/Breadcrumb';
+import { ReportModal } from "../components/forum/ReportModal";
+import { useToast } from "../hooks/useToast";
 import { CreatePostCard } from "../components/forum/CreatePostCard";
 import { PostCard } from "../components/forum/PostCard";
 import type { Post } from "../types/forum";
@@ -48,11 +51,26 @@ const convertAPIPostToUIPost = (apiPost: PostResponse): Post => {
 
 export function ForumPage() {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [showReportMenu, setShowReportMenu] = useState(false);
+  
+  // Report modal state
+  const [reportModal, setReportModal] = useState<{
+    isOpen: boolean;
+    type: 'post' | 'comment';
+    targetId: string;
+    title: string;
+  }>({
+    isOpen: false,
+    type: 'post',
+    targetId: '',
+    title: ''
+  });
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
 
   const breadcrumbItems: BreadcrumbItem[] = [
     { label: 'Trang chủ', href: '/' },
@@ -285,18 +303,56 @@ export function ForumPage() {
 
   // Handle report comment
   const handleReportComment = (commentId: string, reason: string) => {
-    console.log('Reporting comment:', commentId, 'Reason:', reason);
-    // Report functionality will be implemented in future updates
+    console.log('=== FORUMPAGE handleReportComment called ===', commentId, reason);
+    
+    // Open modal for user input
+    setReportModal({
+      isOpen: true,
+      type: 'comment',
+      targetId: commentId,
+      title: 'Báo cáo bình luận'
+    });
   };
 
-  // Handle report post
+  // Handle report post - Open modal instead of direct call
   const handleReportPost = (postId: string, reason: string) => {
+    console.log('=== FORUMPAGE handleReportPost called ===', postId, reason);
+    
+    // Open modal for user input
+    setReportModal({
+      isOpen: true,
+      type: 'post',
+      targetId: postId,
+      title: 'Báo cáo bài viết'
+    });
+    
+    setShowReportMenu(false);
+  };
+
+  // Handle actual report submission from modal
+  const handleSubmitReport = async (reason: string) => {
+    setIsSubmittingReport(true);
+    
     try {
-      console.log('Reporting post:', postId, 'Reason:', reason);
-      setShowReportMenu(false);
-      // Report functionality will be implemented in future updates
-    } catch (err) {
-      console.error('Error reporting post:', err);
+      console.log('Submitting report:', reportModal.type, reportModal.targetId, 'Reason:', reason);
+      
+      let response;
+      if (reportModal.type === 'post') {
+        response = await reportApi.reportPost(parseInt(reportModal.targetId), reason);
+      } else {
+        response = await reportApi.reportComment(parseInt(reportModal.targetId), reason);
+      }
+      
+      console.log('Report submitted successfully:', response);
+      showToast("success", `Đã báo cáo ${reportModal.type === 'post' ? 'bài viết' : 'bình luận'} thành công`);
+      
+      // Close modal
+      setReportModal({ isOpen: false, type: 'post', targetId: '', title: '' });
+    } catch (error) {
+      console.error(`Error reporting ${reportModal.type}:`, error);
+      showToast("error", `Có lỗi khi báo cáo ${reportModal.type === 'post' ? 'bài viết' : 'bình luận'}`);
+    } finally {
+      setIsSubmittingReport(false);
     }
   };
 
@@ -417,6 +473,15 @@ export function ForumPage() {
           ))}
         </div>
       </div>
+      
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={reportModal.isOpen}
+        onClose={() => setReportModal({ isOpen: false, type: 'post', targetId: '', title: '' })}
+        onSubmit={handleSubmitReport}
+        title={reportModal.title}
+        isSubmitting={isSubmittingReport}
+      />
     </div>
   );
 }

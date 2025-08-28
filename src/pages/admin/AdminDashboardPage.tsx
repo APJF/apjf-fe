@@ -144,9 +144,9 @@ export const AdminDashboardPage: React.FC = () => {
     if (!statsData || !allUsers.length) return []
     
     // Calculate ratio of enabled vs total users for estimation
-    const enabledUsers = allUsers.filter(user => user.enabled).length
-    const totalUsersFromList = allUsers.length
-    const enabledRatio = enabledUsers > 0 ? enabledUsers / totalUsersFromList : 1
+    // const enabledUsers = allUsers.filter(user => user.enabled).length
+    // const totalUsersFromList = allUsers.length
+    // const enabledRatio = enabledUsers > 0 ? enabledUsers / totalUsersFromList : 1
     
     const yearData = statsData.userMonth
       .filter(item => item.month.startsWith(selectedYear.toString()))

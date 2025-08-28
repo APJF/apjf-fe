@@ -18,7 +18,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../../compo
 import { AudioPlayer } from "../../components/chapter/AudioPlayer"
 import { PDFViewer } from "../../components/chapter/PDFViewer"
 import { ScriptViewer } from "../../components/chapter/ScriptViewer"
+import { LearningChatBox } from "../../components/chapter/LearningChatBox"
 import { getChapterById, getUnitsByChapterId, getMaterialsByUnitId } from '../../services/chapterDetailService'
+import { getCurrentUserId } from '../../services/chatbotService'
 import type { Material, MaterialType } from '../../types/material'
 import { Breadcrumb, type BreadcrumbItem } from '../../components/ui/Breadcrumb'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -388,99 +390,106 @@ export default function ChapterDetailPage() {
           </div>
 
           {/* Right Sidebar - Units List (4/12) */}
-          <div className="col-span-4">
-            <Card className="border-gray-200 shadow-sm">
-              <CardHeader className="py-2 px-4">
-                <div className="flex items-center">
-                  <div className="w-1 h-5 bg-gradient-to-b from-blue-500 to-blue-600 rounded mr-3"></div>
-                  <h3 className="text-base font-semibold text-gray-800">Danh sách Units</h3>
-                </div>
-              </CardHeader>
-              <CardContent className="p-3">
-                <div className="max-h-[650px] overflow-y-auto space-y-3 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 pr-2">
-                  {unitsData.map((unit, index) => (
-                    <div
-                      key={unit.id}
-                      className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-all duration-200"
-                    >
-                      <Collapsible open={openUnits.includes(unit.id)} onOpenChange={() => toggleUnit(unit.id)}>
-                        <CollapsibleTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            className="w-full justify-between p-4 h-auto min-h-[52px] hover:bg-gray-50 transition-all duration-200"
-                          >
-                            <div className="flex items-center space-x-3 flex-1 min-w-0">
-                              <div className="flex items-center space-x-3">
-                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white text-sm font-bold flex items-center justify-center flex-shrink-0 shadow-sm">
-                                  {index + 1}
-                                </div>
-                                <div
-                                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
-                                    unit.completed
-                                      ? "bg-green-500 border-green-500"
-                                      : "border-gray-300 hover:border-gray-400"
-                                  }`}
-                                >
-                                  {unit.completed && <Check className="w-3 h-3 text-white" />}
-                                </div>
+          <div className="col-span-4 flex flex-col sticky" style={{top: '64px', maxHeight: 'calc(100vh - 64px)'}}>
+            {/* Units List Card - Limited Height */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 flex flex-col" style={{height: '400px', padding: '16px'}}>
+              <div className="flex items-center mb-3">
+                <div className="w-1 h-5 bg-gradient-to-b from-blue-500 to-blue-600 rounded mr-3"></div>
+                <h3 className="text-base font-semibold text-gray-800">Danh sách Units</h3>
+              </div>
+              <div className="flex-1 overflow-y-auto space-y-3 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 pr-2">
+                {unitsData.map((unit, index) => (
+                  <div
+                    key={unit.id}
+                    className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm hover:shadow-md transition-all duration-200"
+                  >
+                    <Collapsible open={openUnits.includes(unit.id)} onOpenChange={() => toggleUnit(unit.id)}>
+                      <CollapsibleTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-between p-4 h-auto min-h-[52px] hover:bg-gray-50 transition-all duration-200"
+                        >
+                          <div className="flex items-center space-x-3 flex-1 min-w-0">
+                            <div className="flex items-center space-x-3">
+                              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-white text-sm font-bold flex items-center justify-center flex-shrink-0 shadow-sm">
+                                {index + 1}
                               </div>
-                              <span className="text-sm font-medium text-left truncate text-gray-700" title={unit.title}>
-                                {truncateText(unit.title, 25)}
-                              </span>
+                              <div
+                                className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
+                                  unit.completed
+                                    ? "bg-green-500 border-green-500"
+                                    : "border-gray-300 hover:border-gray-400"
+                                }`}
+                              >
+                                {unit.completed && <Check className="w-3 h-3 text-white" />}
+                              </div>
                             </div>
-                            {openUnits.includes(unit.id) ? (
-                              <ChevronUp className="w-4 h-4 text-gray-600 flex-shrink-0" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                            )}
-                          </Button>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="px-3 pb-3">
-                          <div className="relative ml-4">
-                            <div className="absolute left-[13px] top-[-8px] bottom-2 w-0.5 bg-gradient-to-b from-blue-300 to-blue-200"></div>
-                            <div className="space-y-2 pl-6">
-                              {unit.materials?.map((material) => {
-                                const IconComponent = materialTypeIcons[material.type]
-                                const isSelected = selectedMaterial?.id === material.id
-                                return (
-                                  <Button
-                                    key={material.id}
-                                    variant={isSelected ? "secondary" : "ghost"}
-                                    className={`w-full justify-start text-sm h-auto py-2 px-3 transition-all duration-200 ${
-                                      isSelected
-                                        ? "bg-gradient-to-r from-blue-100 to-blue-50 text-blue-800 border border-blue-200 shadow-sm"
-                                        : "hover:bg-gray-50 text-gray-600"
-                                    }`}
-                                    onClick={() => handleMaterialSelect(material)}
-                                  >
-                                    <div className="flex items-center w-full">
-                                      <IconComponent
-                                        className={`w-4 h-4 mr-2 flex-shrink-0 ${materialIconColors[material.type]}`}
-                                      />
-                                      <div className="flex flex-col items-start flex-1 min-w-0">
-                                        <span className="truncate w-full text-left" title={material.title}>
-                                          {truncateText(material.title, 18)}
-                                        </span>
-                                        <Badge 
-                                          variant="outline" 
-                                          className={`${materialTypeColors[material.type]} text-xs mt-1 h-5`}
-                                        >
-                                          {material.type}
-                                        </Badge>
-                                      </div>
-                                    </div>
-                                  </Button>
-                                )
-                              })}
-                            </div>
+                            <span className="text-sm font-medium text-left truncate text-gray-700" title={unit.title}>
+                              {truncateText(unit.title, 25)}
+                            </span>
                           </div>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                          {openUnits.includes(unit.id) ? (
+                            <ChevronUp className="w-4 h-4 text-gray-600 flex-shrink-0" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                          )}
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="px-3 pb-3">
+                        <div className="relative ml-4">
+                          <div className="absolute left-[13px] top-[-8px] bottom-2 w-0.5 bg-gradient-to-b from-blue-300 to-blue-200"></div>
+                          <div className="space-y-2 pl-6">
+                            {unit.materials?.map((material) => {
+                              const IconComponent = materialTypeIcons[material.type]
+                              const isSelected = selectedMaterial?.id === material.id
+                              return (
+                                <Button
+                                  key={material.id}
+                                  variant={isSelected ? "secondary" : "ghost"}
+                                  className={`w-full justify-start text-sm h-auto py-2 px-3 transition-all duration-200 ${
+                                    isSelected
+                                      ? "bg-gradient-to-r from-blue-100 to-blue-50 text-blue-800 border border-blue-200 shadow-sm"
+                                      : "hover:bg-gray-50 text-gray-600"
+                                  }`}
+                                  onClick={() => handleMaterialSelect(material)}
+                                >
+                                  <div className="flex items-center w-full">
+                                    <IconComponent
+                                      className={`w-4 h-4 mr-2 flex-shrink-0 ${materialIconColors[material.type]}`}
+                                    />
+                                    <div className="flex flex-col items-start flex-1 min-w-0">
+                                      <span className="truncate w-full text-left" title={material.title}>
+                                        {truncateText(material.title, 18)}
+                                      </span>
+                                      <Badge 
+                                        variant="outline" 
+                                        className={`${materialTypeColors[material.type]} text-xs mt-1 h-5`}
+                                      >
+                                        {material.type}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                </Button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Learning ChatBox */}
+            {selectedMaterial && (
+              <div style={{height: 'calc(100vh - 400px - 64px)'}} className="flex-shrink-0 flex items-end">
+                <LearningChatBox 
+                  userId={getCurrentUserId() || ''} 
+                  materialId={selectedMaterial.id} 
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>

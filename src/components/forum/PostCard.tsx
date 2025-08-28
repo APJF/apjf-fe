@@ -138,7 +138,7 @@ export function PostCard({
                   </DropdownMenuItem>
                 </>
               ) : (
-                <DropdownMenuItem onClick={() => onReport("Nội dung không phù hợp")}>
+                <DropdownMenuItem onClick={() => onReport("")}>
                   <Flag className="mr-2 h-4 w-4" />
                   Báo cáo
                 </DropdownMenuItem>

@@ -3,7 +3,9 @@
 import { useState, useEffect } from "react"
 import { CreatePostCard } from "./CreatePostCard"
 import { PostCard } from "./PostCard"
+import { ReportModal } from "./ReportModal"
 import { useAuth } from "../../hooks/useAuth"
+import { useToast } from "../../hooks/useToast"
 import { postApi, commentApi } from "../../services/forumService"
 import { reportApi } from "../../services/reportService"
 import type { Post, Comment, ForumPost, ForumComment } from "../../types/forum"
@@ -62,8 +64,24 @@ export default function SocialForum() {
   const [commentInputs, setCommentInputs] = useState<{[key: string]: string}>({})
   const [showReportMenu, setShowReportMenu] = useState<{[key: string]: boolean}>({})
   const [showCommentMenus, setShowCommentMenus] = useState<{[key: string]: boolean}>({})
+  
+  // Report modal states
+  const [reportModal, setReportModal] = useState<{
+    isOpen: boolean;
+    type: 'post' | 'comment';
+    targetId: string;
+    postId?: string; // For comments
+    title: string;
+  }>({
+    isOpen: false,
+    type: 'post',
+    targetId: '',
+    title: ''
+  })
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false)
 
   const { user } = useAuth()
+  const { showToast } = useToast()
 
   // Fetch posts from backend
   useEffect(() => {
@@ -172,18 +190,19 @@ export default function SocialForum() {
     }))
   }
 
+  // Open report modal instead of direct API call
   const handleReport = async (postId: string, reason: string) => {
-    try {
-      await reportApi.createReport({
-        targetType: "post",
-        targetId: postId,
-        reason: reason,
-      })
-      alert(`Đã báo cáo bài viết với lý do: ${reason}`)
-      setShowReportMenu(prev => ({ ...prev, [postId]: false }))
-    } catch (error) {
-      console.error("Error reporting post:", error)
-    }
+    console.log('=== FORUM handleReport called ===', postId, reason)
+    
+    // Always open modal for user input
+    setReportModal({
+      isOpen: true,
+      type: 'post',
+      targetId: postId,
+      title: 'Báo cáo bài viết'
+    })
+    console.log('=== Modal state set, reportModal.isOpen should be true ===')
+    setShowReportMenu(prev => ({ ...prev, [postId]: false }))
   }
 
   const handleDeletePost = async (postId: string) => {
@@ -210,18 +229,51 @@ export default function SocialForum() {
     setShowCommentMenus(prev => ({ ...prev, [key]: false }))
   }
 
+  // Open report modal for comment
   const handleReportComment = async (postId: string, commentId: string, reason: string) => {
+    console.log('handleReportComment called with:', postId, commentId, reason)
+    
+    setReportModal({
+      isOpen: true,
+      type: 'comment', 
+      targetId: commentId,
+      postId: postId,
+      title: 'Báo cáo bình luận'
+    })
+    const key = `${postId}-${commentId}`
+    setShowCommentMenus(prev => ({ ...prev, [key]: false }))
+  }
+
+  // Actual report submission from modal
+  const handleSubmitReport = async (reason: string) => {
+    setIsSubmittingReport(true)
+    
     try {
-      await reportApi.createReport({
-        targetType: "comment",
-        targetId: commentId,
-        reason: reason,
-      })
-      alert(`Đã báo cáo bình luận với lý do: ${reason}`)
-      const key = `${postId}-${commentId}`
-      setShowCommentMenus(prev => ({ ...prev, [key]: false }))
+      console.log('Submitting report:', reportModal.type, reportModal.targetId, 'Reason:', reason)
+      
+      let response
+      if (reportModal.type === 'post') {
+        response = await reportApi.reportPost(parseInt(reportModal.targetId), reason)
+      } else {
+        response = await reportApi.reportComment(parseInt(reportModal.targetId), reason)
+      }
+      
+      console.log('Report response:', response)
+      
+      // Debug toast - Test if toast is working
+      console.log('Testing showToast function:', typeof showToast)
+      alert(`Testing: ${response.message || 'Success'}`) // Temporary debug
+      
+      showToast("success", response.message || `Đã báo cáo ${reportModal.type === 'post' ? 'bài viết' : 'bình luận'} thành công`)
+      
+      // Close modal
+      setReportModal({ isOpen: false, type: 'post', targetId: '', title: '' })
     } catch (error) {
-      console.error("Error reporting comment:", error)
+      console.error(`Error reporting ${reportModal.type}:`, error)
+      alert('Error occurred') // Temporary debug
+      showToast("error", `Có lỗi khi báo cáo ${reportModal.type === 'post' ? 'bài viết' : 'bình luận'}`)
+    } finally {
+      setIsSubmittingReport(false)
     }
   }
 
@@ -262,6 +314,15 @@ export default function SocialForum() {
           ))}
         </div>
       </main>
+
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={reportModal.isOpen}
+        onClose={() => setReportModal({ isOpen: false, type: 'post', targetId: '', title: '' })}
+        onSubmit={handleSubmitReport}
+        title={reportModal.title}
+        isSubmitting={isSubmittingReport}
+      />
     </div>
   )
 }

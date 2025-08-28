@@ -14,7 +14,6 @@ import {
   CheckCircle,
   XCircle,
   Eye,
-  Filter,
   TrendingUp,
   Calendar,
   RefreshCw,
@@ -70,7 +69,7 @@ export function ManagerApprovalRequestsPage() {
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)
   const [rejectingRequest, setRejectingRequest] = useState<ApprovalRequest | null>(null)
   const [rejectFeedback, setRejectFeedback] = useState("")
-  const [currentTab, setCurrentTab] = useState("all")
+  const [currentTab] = useState("all")
   const [unitMaterials, setUnitMaterials] = useState<Material[]>([])
   const [isLoadingMaterials, setIsLoadingMaterials] = useState(false)
   

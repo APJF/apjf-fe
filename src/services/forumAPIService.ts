@@ -49,6 +49,30 @@ export interface CreatePostResponse {
   timestamp: number;
 }
 
+export interface ReportPostRequest {
+  content: string;
+  postId: number;
+}
+
+export interface ReportCommentRequest {
+  content: string;
+  commentId: number;
+}
+
+export interface ReportResponse {
+  success: boolean;
+  message: string;
+  data: {
+    id: number;
+    content: string;
+    createdAt: string;
+    userId: number;
+    postId?: number;
+    commentId?: number;
+  };
+  timestamp: number;
+}
+
 export interface UpdatePostResponse {
   success: boolean;
   message: string;
@@ -256,6 +280,32 @@ export class ForumAPIService {
     if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} ngày trước`;
     if (diffInSeconds < 31536000) return `${Math.floor(diffInSeconds / 2592000)} tháng trước`;
     return `${Math.floor(diffInSeconds / 31536000)} năm trước`;
+  }
+
+  // Report post
+  async reportPost(request: ReportPostRequest): Promise<ReportResponse> {
+    try {
+      console.log('Reporting post:', request);
+      const response = await api.post('/post-reports', request);
+      console.log('Report post response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error reporting post:', error);
+      throw error;
+    }
+  }
+
+  // Report comment
+  async reportComment(request: ReportCommentRequest): Promise<ReportResponse> {
+    try {
+      console.log('Reporting comment:', request);
+      const response = await api.post('/comment-reports', request);
+      console.log('Report comment response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Error reporting comment:', error);
+      throw error;
+    }
   }
 }
 

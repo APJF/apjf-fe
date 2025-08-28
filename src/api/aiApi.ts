@@ -3,7 +3,16 @@ import { refreshToken } from '../services/authService';
 
 // Get AI API base URL from environment variable
 const getAIApiUrl = (): string => {
-  return import.meta.env.VITE_AI_URL || 'http://localhost:8000/api';
+  let baseUrl = import.meta.env.VITE_AI_URL || 'http://localhost:8000/api';
+  
+  // Production fix: Force HTTPS if running on HTTPS site to avoid mixed content
+  if (window.location.protocol === 'https:' && baseUrl.startsWith('http://')) {
+    baseUrl = baseUrl.replace('http://', 'https://');
+    console.log('🔒 Production: Converted HTTP to HTTPS for AI API:', baseUrl);
+  }
+  
+  console.log('🌐 AI API Base URL:', baseUrl);
+  return baseUrl;
 };
 
 // Create AI API instance for port 8000 with /api prefix
@@ -68,5 +77,20 @@ aiApi.interceptors.response.use(
     return Promise.reject(new Error(error instanceof Error ? error.message : 'AI API request failed'));
   }
 );
+
+// Find recent session by parameters
+export const findSession = async (params: {
+  user_id: number;
+  session_type: 'LEARNING' | 'PLANNER' | 'QNA' | 'REVIEWER' | 'SPEAKING';
+  material_id?: string | null;
+  exam_result_id?: string | null;
+}): Promise<{ id: number; session_name: string; updated_at: string }> => {
+  console.log('🔍 Finding session with params:', params);
+  
+  const response = await aiApi.get('/sessions/find', { params });
+  console.log('✅ Found session:', response.data);
+  
+  return response.data;
+};
 
 export default aiApi;
