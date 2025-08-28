@@ -122,14 +122,14 @@ export function ScriptViewer({ script, translation }: ScriptViewerProps) {
                 className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-all duration-200 shadow-sm"
               >
                 <div className="flex items-start justify-between mb-3">
-                  <Badge variant="outline" className="text-xs border-gray-300 text-gray-600 bg-gray-50 px-2 py-1">
+                  {/* <Badge variant="outline" className="text-xs border-gray-300 text-gray-600 bg-gray-50 px-2 py-1">
                     {sentence.timeStart}s - {sentence.timeEnd}s
-                  </Badge>
+                  </Badge> */}
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => toggleVietnamese(sentence.id)}
-                    className="h-7 px-3 text-xs text-gray-600 hover:bg-gray-100 transition-all duration-200"
+                    className="h-7 px-3 text-xs text-gray-600 hover:bg-blue-100 hover:text-blue-600 border border-gray-400 rounded transition-all duration-200 shadow-sm"
                   >
                     {showVietnamese.includes(sentence.id) ? "Ẩn" : "Dịch"}
                   </Button>

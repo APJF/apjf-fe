@@ -16,40 +16,12 @@ const Footer: React.FC = () => {
       title: t('footer.learning'),
       links: [
         { href: "/courses", label: t('footer.allCourses') },
-        { href: "/hiragana", label: t('footer.hiragana') },
-        { href: "/katakana", label: t('footer.katakana') },
-        { href: "/kanji", label: t('footer.kanji') },
-        { href: "/grammar", label: t('footer.grammar') },
-      ],
-    },
-    {
-      title: t('footer.practice'),
-      links: [
-        { href: "/flashcards", label: t('footer.flashcards') },
-        { href: "/quizzes", label: t('footer.quizzes') },
-        { href: "/speaking", label: t('footer.speaking') },
-        { href: "/listening", label: t('footer.listening') },
-        { href: "/writing", label: t('footer.writing') },
       ],
     },
     {
       title: t('footer.resources'),
       links: [
-        { href: "/dictionary", label: t('footer.dictionary') },
-        { href: "/blog", label: t('footer.blog') },
-        { href: "/culture", label: t('footer.culture') },
-        { href: "/news", label: t('footer.news') },
-        { href: "/community", label: t('header.community') },
-      ],
-    },
-    {
-      title: t('footer.support'),
-      links: [
-        { href: "/help", label: t('footer.helpCenter') },
-        { href: "/contact", label: t('footer.contact') },
-        { href: "/privacy", label: t('footer.privacy') },
-        { href: "/terms", label: t('footer.terms') },
-        { href: "/faq", label: t('footer.faq') },
+        { href: "/forum", label: t('header.community') },
       ],
     },
   ]
@@ -87,6 +59,29 @@ const Footer: React.FC = () => {
               </ul>
             </div>
           ))}
+
+          {/* Contact Section */}
+          <div>
+            <h3 className="font-semibold mb-4">Liên hệ</h3>
+            <ul className="space-y-2">
+              <li>
+                <span className="text-gray-400 text-sm">Số điện thoại: </span>
+                <span className="text-white text-sm">0911353975</span>
+              </li>
+              <li>
+                <span className="text-gray-400 text-sm">Email hỗ trợ: </span>
+                <span className="text-white text-sm">phuongpvhe170793@fpt.edu.vn</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Address Section */}
+          <div>
+            <h3 className="font-semibold mb-4">Địa chỉ</h3>
+            <p className="text-gray-400 text-sm">
+              Khu Giáo dục và Đào tạo - Khu Công nghệ cao Hòa Lạc - Km29 Đại lộ Thăng Long, xã Hòa Lạc, TP. Hà Nội
+            </p>
+          </div>
         </div>
 
         <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400 text-sm">

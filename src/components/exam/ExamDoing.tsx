@@ -47,7 +47,7 @@ function ExamHeader({ title, total, answered }: { title: string; total: number; 
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">{title}</h1>
-            <p className="text-sm text-gray-600 mt-1">{answered} / {total} answered</p>
+            <p className="text-sm text-gray-600 mt-1">{answered} / {total} câu đã trả lời</p>
           </div>
         </div>
       </div>
@@ -167,13 +167,13 @@ function QuestionNavigator({
         <div className="text-sm text-gray-600">{answeredSet.size}/{total}</div>
       </div>
       <ProgressBar value={pct} timePercentage={timePercentage} />
-      <div className="mt-1 text-xs text-gray-500">{pct}% completed</div>
+      <div className="mt-1 text-xs text-gray-500">{pct}% hoàn thành</div>
 
       {/* Legend */}
       <div className="mt-4 flex items-center gap-4 text-xs text-gray-600">
-        <span className="inline-flex items-center gap-2"><span className="size-3 rounded-sm bg-blue-600 inline-block" /> Answered</span>
-        <span className="inline-flex items-center gap-2"><span className="size-3 rounded-sm bg-rose-600 inline-block" /> Flag</span>
-        <span className="inline-flex items-center gap-2"><span className="size-3 rounded-sm bg-emerald-600 inline-block" /> Current</span>
+        <span className="inline-flex items-center gap-2"><span className="size-3 rounded-sm bg-blue-600 inline-block" /> Đã trả lời</span>
+        <span className="inline-flex items-center gap-2"><span className="size-3 rounded-sm bg-rose-600 inline-block" /> Đánh dấu</span>
+        <span className="inline-flex items-center gap-2"><span className="size-3 rounded-sm bg-emerald-600 inline-block" /> Hiện tại</span>
       </div>
 
       {/* Grid of square question buttons - 6 rows (36 questions) with scroll */}
@@ -223,10 +223,10 @@ function QuestionNavigator({
       {/* Prev / Next controls inside navigator */}
       <div className="mt-4 grid grid-cols-2 gap-2">
         <button onClick={onPrev} className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50">
-          <ChevronLeft className="size-4" /> Prev
+          <ChevronLeft className="size-4" /> Trước
         </button>
         <button onClick={onNext} className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50">
-          Next <ChevronRight className="size-4" />
+          Tiếp <ChevronRight className="size-4" />
         </button>
       </div>
     </aside>
@@ -380,12 +380,12 @@ export const ExamDoing: React.FC<ExamDoingProps> = ({ examData, questionOptions,
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600">No questions available</p>
+          <p className="text-gray-600">Không có câu hỏi nào</p>
           <button
             onClick={() => navigate(-1)}
             className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
-            Go Back
+            Quay lại
           </button>
         </div>
       </div>
@@ -418,15 +418,15 @@ export const ExamDoing: React.FC<ExamDoingProps> = ({ examData, questionOptions,
               disabled={currentQuestion === 0}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <ChevronLeft className="size-4" /> Previous
+              <ChevronLeft className="size-4" /> Trước
             </button>
-            <div className="text-sm text-gray-600">Question {currentQuestion + 1} of {total}</div>
+            <div className="text-sm text-gray-600">Câu hỏi {currentQuestion + 1} trên {total}</div>
             <button 
               onClick={goNext}
               disabled={currentQuestion === total - 1}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Next <ChevronRight className="size-4" />
+              Tiếp <ChevronRight className="size-4" />
             </button>
           </div>
         </section>
@@ -451,9 +451,9 @@ export const ExamDoing: React.FC<ExamDoingProps> = ({ examData, questionOptions,
               disabled={isSubmitting}
               className="w-full px-4 py-2 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? 'Submitting...' : 'Submit Exam'}
+              {isSubmitting ? 'Đang nộp...' : 'Nộp Bài'}
             </button>
-            <p className="mt-2 text-xs text-gray-500">You can submit anytime. Unanswered questions will be saved as blank.</p>
+            <p className="mt-2 text-xs text-gray-500">Bạn có thể nộp bất cứ lúc nào.</p>
           </div>
         </aside>
       </main>
@@ -464,11 +464,11 @@ export const ExamDoing: React.FC<ExamDoingProps> = ({ examData, questionOptions,
           <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <h3 className="text-lg font-semibold mb-4">Submit Exam</h3>
             <p className="text-gray-600 mb-4">
-              Are you sure you want to submit your exam? You have answered {answeredSet.size} out of {total} questions.
+              Bạn có chắc muốn nộp bài kiểm tra? Bạn đã trả lời {answeredSet.size} trên {total} câu hỏi.
             </p>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6">
               <p className="text-blue-700 text-sm font-medium">
-                Time remaining: {formatTime(timeLeft)}
+                Thời gian còn lại: {formatTime(timeLeft)}
               </p>
             </div>
             <div className="flex gap-3">

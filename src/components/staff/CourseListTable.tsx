@@ -121,12 +121,12 @@ export const CourseListTable: React.FC<CourseListTableProps> = ({
     
     // Filter by search term (title or ID)
     if (debouncedSearchTerm.trim()) {
-      const searchLower = debouncedSearchTerm.toLowerCase().trim()
+      const searchLower = debouncedSearchTerm.toLowerCase().trim();
       filtered = filtered.filter(course => 
         course.title.toLowerCase().includes(searchLower) ||
-        course.id.toString().includes(searchLower)
-      )
-      console.log('- After search filter:', filtered.length)
+        course.id.toString().toLowerCase().includes(searchLower) // Ensure partial match in ID
+      );
+      console.log('- After search filter:', filtered.length);
     }
     
     // Filter by level

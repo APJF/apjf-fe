@@ -206,7 +206,7 @@ export function Header() {
           {/* Right side - Language & Notifications */}
           <div className="hidden md:flex items-center space-x-2">
             {/* Language Switcher - Globe Icon */}
-            <DropdownMenu>
+            {/* <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button 
                   variant="ghost" 
@@ -235,7 +235,7 @@ export function Header() {
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
-            </DropdownMenu>
+            </DropdownMenu> */}
 
             {/* Notifications - Bell Icon with Subtle Badge */}
             <Popover open={notificationOpen} onOpenChange={setNotificationOpen}>
