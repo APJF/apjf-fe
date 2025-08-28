@@ -108,7 +108,9 @@ export default function CourseDetailPage() {
       }
       
       if (chaptersRes.success) {
-        const sortedChapters = sortChaptersByPrerequisite(chaptersRes.data || []);
+        // Only show active chapters
+        const activeChapters = (chaptersRes.data || []).filter(chapter => chapter.status === "ACTIVE");
+        const sortedChapters = sortChaptersByPrerequisite(activeChapters);
         setChapters(sortedChapters);
       } else {
         console.warn('Could not load chapters:', chaptersRes.message);

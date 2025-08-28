@@ -88,7 +88,7 @@ export function ManagerApprovalRequestsPage() {
   const [isLoadingTargetDetails, setIsLoadingTargetDetails] = useState(false)
   const [courseImageError, setCourseImageError] = useState(false)
  
-  const itemsPerPage = 6
+  const itemsPerPage = 10
 
 
   const { user } = useAuth()

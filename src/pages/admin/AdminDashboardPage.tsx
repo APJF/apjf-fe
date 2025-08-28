@@ -157,7 +157,7 @@ export const AdminDashboardPage: React.FC = () => {
     
     return yearData.map(item => {
       // Use totalUsers or estimate from totalEnabledUsers
-      cumulative += item.totalUsers ?? Math.round(item.totalEnabledUsers / enabledRatio)
+      cumulative += item.totalEnabledUsers ?? 0
       const [, month] = item.month.split('-')
       return {
         month: monthNames[parseInt(month) - 1],

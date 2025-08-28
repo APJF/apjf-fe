@@ -190,12 +190,12 @@ export const AuthSection: React.FC = () => {
               {/* Staff Dashboard Link - chỉ hiển thị cho ROLE_STAFF và ROLE_ADMIN */}
               {hasStaffRole() && (
                 <Link
-                  to="/staff/dashboard"
+                  to="/staff/courses"
                   className="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
                   onClick={() => setIsDropdownOpen(false)}
                 >
                   <Shield className="w-4 h-4" />
-                  Staff Dashboard
+                  Staff 
                 </Link>
               )}
 
@@ -207,7 +207,7 @@ export const AuthSection: React.FC = () => {
                   onClick={() => setIsDropdownOpen(false)}
                 >
                   <Users className="w-4 h-4" />
-                  Manager Dashboard
+                  Manager 
                 </Link>
               )}
 
@@ -219,7 +219,7 @@ export const AuthSection: React.FC = () => {
                   onClick={() => setIsDropdownOpen(false)}
                 >
                   <Crown className="w-4 h-4" />
-                  Admin Dashboard
+                  Admin 
                 </Link>
               )}
 

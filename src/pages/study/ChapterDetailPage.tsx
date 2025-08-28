@@ -129,8 +129,10 @@ export default function ChapterDetailPage() {
         // 2. Fetch units in this chapter
         const unitsResponse = await getUnitsByChapterId(chapterId)
         if (unitsResponse.success) {
+          // Only show active units
+          const activeUnits = (unitsResponse.data || []).filter(unit => unit.status === "ACTIVE");
           const unitsWithMaterials = await Promise.all(
-            unitsResponse.data.map(async (unit) => {
+            activeUnits.map(async (unit) => {
               try {
                 // 3. Fetch materials for each unit
                 const materialsResponse = await getMaterialsByUnitId(unit.id)
