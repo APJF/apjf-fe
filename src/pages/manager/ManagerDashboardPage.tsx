@@ -1,17 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
-  Users, 
   BookOpen, 
-  DollarSign,
   Award,
-  Bell,
   Search,
   Plus,
   Filter,
-  Download,
   Eye,
   Edit,
-  Trash2
+  Trash2,
+  FileText,
+  Target,
+  BarChart3,
+  Activity,
+  Layers,
+  File,
+  ClipboardCheck,
+  Star,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -19,42 +25,126 @@ import { Badge } from '../../components/ui/Badge';
 import { Input } from '../../components/ui/Input';
 import { ManagerNavigation } from '../../components/layout/ManagerNavigation';
 import ManagerApprovalRequestsPage from './ManagerApprovalRequestsPage';
+import { ManagerDashboardService, type DashboardStats } from '../../services/managerDashboardService';
+import { CourseService } from '../../services/courseService';
+import type { Course } from '../../types/course';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 
-// Overview Tab Component
+// Helper function to render stars
+const renderStars = (rating: number) => {
+  return Array.from({ length: 5 }, (_, i) => (
+    <Star key={i} className={`h-4 w-4 ${i < Math.floor(rating) ? "text-yellow-400 fill-current" : "text-gray-300"}`} />
+  ))
+}
+
+// Overview Tab Component - Updated with real data
 function OverviewTab() {
-  const stats = [
-    { title: 'Tổng người dùng', value: '12,543', change: '+12%', icon: Users, color: 'text-red-600', bgColor: 'bg-red-50' },
-    { title: 'Khóa học hoạt động', value: '156', change: '+5%', icon: BookOpen, color: 'text-red-700', bgColor: 'bg-red-100' },
-    { title: 'Doanh thu tháng', value: '₫ 45.2M', change: '+18%', icon: DollarSign, color: 'text-red-800', bgColor: 'bg-red-200' },
-    { title: 'Đánh giá trung bình', value: '4.8/5', change: '+0.2%', icon: Award, color: 'text-red-900', bgColor: 'bg-red-300' },
-  ];
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
+  const [topRatedCourses, setTopRatedCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedYear, setSelectedYear] = useState<number>(2025);
 
-  const recentActivities = [
-    { id: 1, action: 'Khóa học mới được tạo', detail: '"Tiếng Nhật N4 Nâng cao"', time: '2 giờ trước', type: 'success' },
-    { id: 2, action: 'Người dùng mới đăng ký', detail: 'Nguyễn Văn A', time: '4 giờ trước', type: 'info' },
-    { id: 3, action: 'Thanh toán hoàn tất', detail: '₫ 2,400,000', time: '6 giờ trước', type: 'success' },
-    { id: 4, action: 'Phản hồi mới', detail: 'Khóa học cần cải thiện', time: '8 giờ trước', type: 'warning' },
-    { id: 5, action: 'Giảng viên mới ứng tuyển', detail: 'Tanaka Sensei', time: '1 ngày trước', type: 'info' },
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch dashboard stats and courses in parallel
+      const [dashboardResponse, coursesResponse] = await Promise.all([
+        ManagerDashboardService.getDashboardStats(),
+        CourseService.getCourses({})
+      ]);
+
+      if (dashboardResponse.success) {
+        setDashboardStats(dashboardResponse.data);
+      } else {
+        throw new Error(dashboardResponse.message);
+      }
+
+      if (coursesResponse.success) {
+        // Get top 5 courses with highest rating, filter out courses with no rating
+        const coursesWithRating = coursesResponse.data
+          .filter(course => course.averageRating && course.averageRating > 0)
+          .sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0))
+          .slice(0, 5);
+        setTopRatedCourses(coursesWithRating);
+      } else {
+        console.warn('Failed to fetch courses:', coursesResponse.message);
+        setTopRatedCourses([]);
+      }
+
+    } catch (err) {
+      console.error('Error fetching dashboard data:', err);
+      setError(err instanceof Error ? err.message : 'Lỗi không xác định');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="flex items-center gap-3">
+          <div className="w-6 h-6 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+          <span className="text-gray-600">Đang tải dữ liệu dashboard...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !dashboardStats) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-600 mb-4">{error || 'Không thể tải dữ liệu dashboard'}</p>
+        <Button onClick={fetchDashboardData} variant="outline">
+          Thử lại
+        </Button>
+      </div>
+    );
+  }
+
+  // Calculate completion rate from monthly activity
+  const totalEnrollments = dashboardStats.courseMonthlyActivity.reduce((sum, month) => sum + month.totalEnrolled, 0);
+  const totalCompletions = dashboardStats.courseMonthlyActivity.reduce((sum, month) => sum + month.totalCompleted, 0);
+  const completionRate = totalEnrollments > 0 ? Math.round((totalCompletions / totalEnrollments) * 100) : 0;
+
+  // Calculate average rating from top rated courses
+  const avgRating = topRatedCourses.length > 0 
+    ? topRatedCourses.reduce((sum, course) => sum + (course.averageRating || 0), 0) / topRatedCourses.length 
+    : 0;
+
+  // Updated styles for Manager Dashboard
+  const stats = [
+    { title: 'Tổng khóa học', value: dashboardStats.totalCourse.toString(), change: `${dashboardStats.totalActiveCourse} đang hoạt động`, icon: BookOpen, color: 'text-blue-600', bgColor: 'bg-gradient-to-br from-blue-50 to-blue-100' },
+    { title: 'Tổng chương', value: dashboardStats.totalChapter.toString(), change: `${dashboardStats.totalActiveChapter} đang hoạt động`, icon: Layers, color: 'text-green-600', bgColor: 'bg-gradient-to-br from-green-50 to-green-100' },
+    { title: 'Tổng bài học', value: dashboardStats.totalUnit.toString(), change: `${dashboardStats.totalActiveUnit} đang hoạt động`, icon: FileText, color: 'text-purple-600', bgColor: 'bg-gradient-to-br from-purple-50 to-purple-100' },
+    { title: 'Tổng tài liệu', value: dashboardStats.totalMaterial.toString(), change: 'PDF, MP3', icon: File, color: 'text-orange-600', bgColor: 'bg-gradient-to-br from-orange-50 to-orange-100' },
+    { title: 'Tổng số exam', value: dashboardStats.totalExam.toString(), change: 'Tests', icon: ClipboardCheck, color: 'text-red-600', bgColor: 'bg-gradient-to-br from-red-50 to-red-100' },
   ];
 
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <Card key={stat.title} className="border-0 shadow-sm">
+            <Card key={stat.title} className="border-0 shadow-md bg-white rounded-lg hover:shadow-lg transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                    <p className="text-2xl font-bold text-gray-900 mt-1">{stat.value}</p>
-                    <p className={`text-sm mt-1 ${stat.change.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
-                      {stat.change} so với tháng trước
+                    <p className="text-3xl font-bold text-gray-900 mt-1">{stat.value}</p>
+                    <p className="text-sm mt-1 text-gray-600">
+                      {stat.change}
                     </p>
                   </div>
-                  <div className={`w-12 h-12 ${stat.bgColor} rounded-lg flex items-center justify-center`}>
+                  <div className={`w-12 h-12 ${stat.bgColor} rounded-lg flex items-center justify-center shadow-inner`}>
                     <Icon className={`h-6 w-6 ${stat.color}`} />
                   </div>
                 </div>
@@ -64,51 +154,330 @@ function OverviewTab() {
         })}
       </div>
 
-      {/* Charts and Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Chart Placeholder */}
+        {/* Tổng quan hệ thống */}
         <Card>
           <CardHeader>
-            <CardTitle>Thống kê doanh thu 6 tháng gần đây</CardTitle>
+            <CardTitle className="flex items-center space-x-2">
+              <BarChart3 className="h-5 w-5" />
+              <span>Tổng quan hệ thống</span>
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
-              <p className="text-gray-500">Biểu đồ doanh thu sẽ hiển thị ở đây</p>
+            <div className="grid grid-cols-3 gap-4">
+              {/* Courses Chart */}
+              <div className="text-center">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Khóa học</h4>
+                <div className="relative w-24 h-24 mx-auto">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'Hoạt động', value: dashboardStats.totalActiveCourse, color: '#34D399' },
+                          { name: 'Tạm dừng', value: dashboardStats.totalInactiveCourse, color: '#E5E7EB' }
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={25}
+                        outerRadius={40}
+                        dataKey="value"
+                        startAngle={90}
+                        endAngle={450}
+                      >
+                        <Cell fill="#34D399" />
+                        <Cell fill="#E5E7EB" />
+                      </Pie>
+                      <RechartsTooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-lg font-bold text-gray-900">{dashboardStats.totalCourse}</span>
+                  </div>
+                </div>
+                <div className="mt-2 space-y-1">
+                  <div className="flex items-center justify-center space-x-2 text-xs">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span>{dashboardStats.totalActiveCourse} hoạt động</span>
+                  </div>
+                  <div className="flex items-center justify-center space-x-2 text-xs">
+                    <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                    <span>{dashboardStats.totalInactiveCourse} tạm dừng</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Chapters Chart */}
+              <div className="text-center">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Chương</h4>
+                <div className="relative w-24 h-24 mx-auto">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'Hoạt động', value: dashboardStats.totalActiveChapter, color: '#3B82F6' },
+                          { name: 'Tạm dừng', value: dashboardStats.totalInactiveChapter, color: '#E5E7EB' }
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={25}
+                        outerRadius={40}
+                        dataKey="value"
+                        startAngle={90}
+                        endAngle={450}
+                      >
+                        <Cell fill="#3B82F6" />
+                        <Cell fill="#E5E7EB" />
+                      </Pie>
+                      <RechartsTooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-lg font-bold text-gray-900">{dashboardStats.totalChapter}</span>
+                  </div>
+                </div>
+                <div className="mt-2 space-y-1">
+                  <div className="flex items-center justify-center space-x-2 text-xs">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <span>{dashboardStats.totalActiveChapter} hoạt động</span>
+                  </div>
+                  <div className="flex items-center justify-center space-x-2 text-xs">
+                    <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                    <span>{dashboardStats.totalInactiveChapter} tạm dừng</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Units Chart */}
+              <div className="text-center">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Bài học</h4>
+                <div className="relative w-24 h-24 mx-auto">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'Hoạt động', value: dashboardStats.totalActiveUnit, color: '#8B5CF6' },
+                          { name: 'Tạm dừng', value: dashboardStats.totalInactiveUnit, color: '#E5E7EB' }
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={25}
+                        outerRadius={40}
+                        dataKey="value"
+                        startAngle={90}
+                        endAngle={450}
+                      >
+                        <Cell fill="#8B5CF6" />
+                        <Cell fill="#E5E7EB" />
+                      </Pie>
+                      <RechartsTooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-lg font-bold text-gray-900">{dashboardStats.totalUnit}</span>
+                  </div>
+                </div>
+                <div className="mt-2 space-y-1">
+                  <div className="flex items-center justify-center space-x-2 text-xs">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                    <span>{dashboardStats.totalActiveUnit} hoạt động</span>
+                  </div>
+                  <div className="flex items-center justify-center space-x-2 text-xs">
+                    <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                    <span>{dashboardStats.totalInactiveUnit} tạm dừng</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Recent Activities */}
+        {/* Khóa học hiệu quả nhất */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Hoạt động gần đây</span>
-              <Button variant="outline" size="sm">
-                <Eye className="h-4 w-4 mr-2" />
-                Xem tất cả
-              </Button>
+            <CardTitle className="flex items-center space-x-2">
+              <Target className="h-5 w-5" />
+              <span>Khóa học hiệu quả nhất</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {recentActivities.map((activity) => {
-                const getActivityColor = (type: string) => {
-                  if (type === 'success') return 'bg-red-500';
-                  if (type === 'warning') return 'bg-red-300';
-                  return 'bg-red-600';
+            <div className="space-y-3 max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+              {dashboardStats.coursesTotalCompletedPercent.map((course, index) => {
+                const colors = ["bg-blue-500", "bg-green-500", "bg-purple-500", "bg-yellow-500", "bg-red-500"];
+                const colorMap = {
+                  "bg-blue-500": "#3B82F6",
+                  "bg-green-500": "#10B981", 
+                  "bg-purple-500": "#8B5CF6",
+                  "bg-yellow-500": "#F59E0B",
+                  "bg-red-500": "#EF4444"
                 };
 
                 return (
-                  <div key={activity.id} className="flex items-start space-x-3">
-                    <div className={`w-2 h-2 rounded-full mt-2 ${getActivityColor(activity.type)}`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">{activity.action}</p>
-                      <p className="text-sm text-gray-600">{activity.detail}</p>
-                      <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
+                  <div
+                    key={course.id}
+                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border-l-4"
+                    style={{
+                      borderLeftColor: colorMap[colors[index] as keyof typeof colorMap],
+                    }}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-4 h-4 ${colors[index]} rounded-full`}></div>
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium text-gray-900">#{index + 1}</span>
+                          <span className="text-sm font-medium">{course.title}</span>
+                        </div>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <span className="text-xs bg-gray-200 px-2 py-1 rounded">{course.level}</span>
+                          <span className="text-xs text-gray-600">
+                            {course.totalCompleted}/{course.totalEnrolled} hoàn thành
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-bold text-green-600">{course.percent.toFixed(1)}%</div>
+                      <div className="w-16 bg-gray-200 rounded-full h-2 mt-1">
+                        <div
+                          className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${course.percent}%` }}
+                        ></div>
+                      </div>
                     </div>
                   </div>
                 );
               })}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Thống kê theo thời gian */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Activity className="h-5 w-5" />
+              <span>Hoạt động theo tháng</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {/* Chart Legend */}
+              <div className="flex justify-center space-x-6 mb-4">
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 bg-blue-500 rounded"></div>
+                  <span className="text-sm text-gray-600">Số Lượt Đăng ký</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 bg-green-500 rounded"></div>
+                  <span className="text-sm text-gray-600">Số Lượt Hoàn thành</span>
+                </div>
+              </div>
+
+              {/* Bar Chart */}
+              <div className="flex items-end justify-between h-64 px-4">
+                {dashboardStats.courseMonthlyActivity.map((month) => {
+                  const maxValue = Math.max(...dashboardStats.courseMonthlyActivity.map((m) => m.totalEnrolled));
+                  const enrollmentHeight = maxValue > 0 ? (month.totalEnrolled / maxValue) * 200 : 0;
+                  const completionHeight = maxValue > 0 ? (month.totalCompleted / maxValue) * 200 : 0;
+
+                  return (
+                    <div key={month.month} className="flex flex-col items-center space-y-2">
+                      <div className="flex items-end space-x-1 h-52">
+                        {/* Enrollment Bar */}
+                        <div className="relative group">
+                          <div
+                            className="w-8 bg-gradient-to-t from-blue-500 to-blue-300 rounded-t hover:from-blue-600 hover:to-blue-400 transition-colors cursor-pointer"
+                            style={{ height: `${enrollmentHeight}px` }}
+                          ></div>
+                          <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                            {month.totalEnrolled} đăng ký
+                          </div>
+                        </div>
+
+                        {/* Completion Bar */}
+                        <div className="relative group">
+                          <div
+                            className="w-8 bg-gradient-to-t from-green-500 to-green-300 rounded-t hover:from-green-600 hover:to-green-400 transition-colors cursor-pointer"
+                            style={{ height: `${completionHeight}px` }}
+                          ></div>
+                          <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                            {month.totalCompleted} hoàn thành
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Month Label */}
+                      <span className="text-xs text-gray-600 text-center transform -rotate-45 origin-center">
+                        {month.month}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Summary Stats */}
+              <div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {totalEnrollments.toLocaleString()}
+                  </div>
+                  <div className="text-sm text-gray-600">Tổng số lượt đăng ký khóa học </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">
+                    {totalCompletions.toLocaleString()}
+                  </div>
+                  <div className="text-sm text-gray-600">Tổng số lượt hoàn thành khóa học</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-purple-600">
+                    {completionRate}%
+                  </div>
+                  <div className="text-sm text-gray-600">Tỷ lệ hoàn thành khóa học</div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Đánh giá xuất sắc */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Award className="h-5 w-5" />
+              <span>Đánh giá xuất sắc</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center mb-6">
+              <div className="text-4xl font-bold text-yellow-600 mb-2">{avgRating.toFixed(1)}/5.0</div>
+              <div className="flex justify-center mb-2">{renderStars(avgRating)}</div>
+              <p className="text-gray-600">{topRatedCourses.length} khóa học được đánh giá</p>
+            </div>
+
+            <div className="space-y-3 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+              <h4 className="font-semibold text-gray-900 mb-3">Khóa học được đánh giá cao</h4>
+              {topRatedCourses.map((course, index) => (
+                <div key={course.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium text-gray-900">#{index + 1}</span>
+                      <span className="text-sm font-medium">{course.title}</span>
+                    </div>
+                    <div className="flex items-center space-x-4 mt-1">
+                      <div className="flex items-center space-x-1">
+                        {renderStars(course.averageRating || 0)}
+                        <span className="text-xs text-gray-600">({course.totalEnrolled || 0})</span>
+                      </div>
+                      <span className="text-xs text-gray-600">{course.level}</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm font-bold text-yellow-600">{(course.averageRating || 0).toFixed(1)}</div>
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -327,16 +696,6 @@ export function ManagerDashboardPage() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Manager Dashboard</h1>
               <p className="text-gray-600">Quản lý và theo dõi hoạt động của hệ thống</p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-2" />
-                Xuất báo cáo
-              </Button>
-              <Button variant="ghost" size="sm" className="relative">
-                <Bell className="h-5 w-5" />
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
-              </Button>
             </div>
           </div>
         </div>

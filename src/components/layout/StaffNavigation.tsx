@@ -69,11 +69,11 @@ export const StaffNavigation: React.FC<StaffNavigationProps> = ({ children }) =>
   const { user, logout } = useAuth();
 
   const navigationItems = [
-    {
-      to: '/staff/dashboard',
-      icon: <BarChart3 className="h-5 w-5" />,
-      label: 'Trang tổng quan'
-    },
+    // {
+    //   to: '/staff/dashboard',
+    //   icon: <BarChart3 className="h-5 w-5" />,
+    //   label: 'Trang tổng quan'
+    // },
     {
       to: '/staff/courses',
       icon: <BookOpen className="h-5 w-5" />,
