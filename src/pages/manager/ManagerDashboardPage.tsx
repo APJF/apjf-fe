@@ -16,8 +16,8 @@ import {
   File,
   ClipboardCheck,
   Star,
-  ChevronLeft,
-  ChevronRight,
+  // ChevronLeft,
+  // ChevronRight,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -43,7 +43,6 @@ function OverviewTab() {
   const [topRatedCourses, setTopRatedCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedYear, setSelectedYear] = useState<number>(2025);
 
   const fetchDashboardData = useCallback(async () => {
     try {
