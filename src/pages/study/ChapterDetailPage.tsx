@@ -362,10 +362,10 @@ export default function ChapterDetailPage() {
   }
 
   // Handle chapter exam click - open in new tab
-  const handleChapterExamClick = (examId: string) => {
-    const examUrl = `/exam/${examId}/detail`
-    window.open(examUrl, '_blank')
-  }
+  // const handleChapterExamClick = (examId: string) => {
+  //   const examUrl = `/exam/${examId}/detail`
+  //   window.open(examUrl, '_blank')
+  // }
 
   // Calculate progress
   const completedUnits = unitsData.filter(unit => unit.completed).length
@@ -446,7 +446,7 @@ export default function ChapterDetailPage() {
             </div>
             
             {/* Chapter Exams Section */}
-            {chapterData.exams.length > 0 && (
+            {/* {chapterData.exams.length > 0 && (
               <div className="mt-4 p-4 bg-orange-50 rounded-lg border border-orange-200">
                 <div className="flex items-center gap-2 mb-3">
                   <CheckCircle className="w-5 h-5 text-orange-600" />
@@ -480,7 +480,7 @@ export default function ChapterDetailPage() {
                   ))}
                 </div>
               </div>
-            )}
+            )} */}
           </CardContent>
         </Card>
 
