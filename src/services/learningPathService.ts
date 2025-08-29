@@ -23,6 +23,8 @@ export interface LearningPath {
   username: string;
   createdAt: string;
   lastUpdatedAt: string;
+  isCompleted: boolean;
+  percent: number;
   courses: LearningPathCourse[];
 }
 

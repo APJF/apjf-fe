@@ -30,6 +30,10 @@ interface LearningModule {
   title: string;
   description: string;
   level: "N5" | "N4" | "N3" | "N2" | "N1";
+  primaryGoal: string;
+  focusSkill: string;
+  isCompleted: boolean;
+  percent: number;
   progress?: number;
   totalLessons?: number;
   completedLessons?: number;
@@ -247,12 +251,16 @@ export function LearningPathPage() {
           description: path.description || "Không có mô tả",
           level: (path.targetLevel || 'N5') as "N5" | "N4" | "N3" | "N2" | "N1",
           status: path.status,
+          primaryGoal: path.primaryGoal || "Chưa xác định",
+          focusSkill: path.focusSkill || "Tổng hợp",
+          isCompleted: path.isCompleted || false,
+          percent: path.percent || 0,
           // Các trường phụ có thể không có trong API response
           estimatedTime: `${path.duration || 0} ngày`,
           difficulty: (path.focusSkill === 'Cơ bản' || path.focusSkill === 'Trung bình' || path.focusSkill === 'Nâng cao') 
             ? path.focusSkill 
             : "Cơ bản",
-          progress: 0,
+          progress: path.percent || 0,
           totalLessons: path.courses?.length || 0,
           completedLessons: 0,
           skills: [],
@@ -326,44 +334,53 @@ export function LearningPathPage() {
             <Badge className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(module.status)}`}>
               {getStatusText(module.status)}
             </Badge>
+            {module.isCompleted && (
+              <Badge className="px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                Hoàn thành
+              </Badge>
+            )}
           </div>
+        </div>
+      </div>
+
+      {/* Primary Goal and Focus Skill */}
+      <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="bg-blue-50 p-3 rounded-lg">
+          <div className="text-xs text-blue-600 font-medium mb-1">Mục tiêu chính</div>
+          <div className="text-sm font-semibold text-blue-900">{module.primaryGoal}</div>
+        </div>
+        <div className="bg-purple-50 p-3 rounded-lg">
+          <div className="text-xs text-purple-600 font-medium mb-1">Kỹ năng tập trung</div>
+          <div className="text-sm font-semibold text-purple-900">{module.focusSkill}</div>
         </div>
       </div>
 
       {/* Progress Section */}
       <div className="mb-6">
-        {module.completedLessons !== undefined && module.totalLessons !== undefined ? (
-          <>
-            <div className="flex justify-between text-sm text-gray-600 mb-2">
-              <span>Tiến độ học tập</span>
-              <span className="font-semibold text-red-600">
-                {Math.round((module.completedLessons/module.totalLessons)*100)}%
-              </span>
-            </div>
-            <div className="w-full h-2 bg-gray-200 rounded-full mb-2">
-              <div 
-                className="h-2 rounded-full bg-gradient-to-r from-red-500 to-red-600 transition-all duration-300" 
-                style={{ 
-                  width: `${(module.completedLessons/module.totalLessons)*100}%`
-                }}
-              ></div>
-            </div>
-            <div className="text-xs text-gray-500">
-              {module.completedLessons}/{module.totalLessons} bài học hoàn thành
-            </div>
-          </>
-        ) : (
-          <div className="text-sm text-gray-600">
-            <div className="flex items-center gap-2 mb-2">
-              <Clock className="h-4 w-4 text-red-500" />
-              <span>Thời gian dự kiến: {module.estimatedTime || 'Chưa xác định'}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-4 w-4 text-red-500" />
-              <span>{module.totalLessons} bài học</span>
-            </div>
+        <div className="flex justify-between text-sm text-gray-600 mb-2">
+          <span>Tiến độ học tập</span>
+          <span className="font-semibold text-red-600">
+            {Math.round(module.percent)}%
+          </span>
+        </div>
+        <div className="w-full h-3 bg-gray-200 rounded-full mb-3">
+          <div 
+            className="h-3 rounded-full bg-gradient-to-r from-red-500 to-red-600 transition-all duration-300" 
+            style={{ 
+              width: `${module.percent}%`
+            }}
+          ></div>
+        </div>
+        <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-red-500" />
+            <span>Thời gian dự kiến: {module.estimatedTime}</span>
           </div>
-        )}
+          <div className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4 text-red-500" />
+            <span>{module.totalLessons} bài học</span>
+          </div>
+        </div>
       </div>
 
       {/* Action Buttons */}

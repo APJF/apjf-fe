@@ -42,7 +42,9 @@ interface LearningPathDetail {
   username: string;
   createdAt: string;
   lastUpdatedAt: string;
-  courses: LearningPathCourse[];
+  isCompleted: boolean;
+  percent: number;
+  courses?: LearningPathCourse[]; // Make courses optional since API might not always return it
 }
 
 interface ApiResponse<T> {
@@ -66,6 +68,8 @@ const createMockLearningPathDetail = (id: string): LearningPathDetail => ({
   username: "APJF Admin",
   createdAt: "2024-01-15T00:00:00.000Z",
   lastUpdatedAt: "2025-01-20T00:00:00.000Z",
+  isCompleted: false,
+  percent: 65.5,
   courses: [
     {
       courseId: "course1",
@@ -155,7 +159,12 @@ const LearningPathDetailPage = () => {
       try {
         const response = await getLearningPathDetail(id);
         if (response.success) {
-          setLearningPath(response.data);
+          // Ensure courses array exists
+          const pathData = {
+            ...response.data,
+            courses: response.data.courses || []
+          };
+          setLearningPath(pathData);
         } else {
           setError(response.message || "Không thể tải dữ liệu lộ trình");
         }
@@ -177,10 +186,8 @@ const LearningPathDetailPage = () => {
   ];
 
   const calculateProgress = () => {
-    if (!learningPath?.courses?.length) return 0;
-    // For now, return a mock progress value
-    // In real implementation, this would be calculated based on course completion
-    return 45;
+    if (!learningPath) return 0;
+    return learningPath.percent || 0;
   };
 
   if (loading) {
@@ -311,11 +318,22 @@ const LearningPathDetailPage = () => {
                   <span>Tạo bởi {learningPath.username}</span>
                 </div>
                 <Badge 
-                  variant={learningPath.status === 'ACTIVE' ? 'default' : 'secondary'}
+                  variant={learningPath.status === 'STUDYING' ? 'default' : 'secondary'}
                   className="text-xs px-2 py-1"
                 >
-                  {learningPath.status === 'ACTIVE' ? 'Đang hoạt động' : 'Tạm dừng'}
+                  {(() => {
+                    switch (learningPath.status) {
+                      case 'STUDYING': return 'Đang học';
+                      case 'FINISHED': return 'Hoàn thành';
+                      default: return 'Chờ bắt đầu';
+                    }
+                  })()}
                 </Badge>
+                {learningPath.isCompleted && (
+                  <Badge className="bg-green-100 text-green-800 text-xs px-2 py-1">
+                    Đã hoàn thành
+                  </Badge>
+                )}
               </div>
 
               <div className="flex items-center space-x-3">
@@ -323,7 +341,7 @@ const LearningPathDetailPage = () => {
                 <div className="flex-1 max-w-xs">
                   <Progress value={overallProgress} className="h-2" />
                 </div>
-                <span className="text-xs font-bold text-orange-600">{overallProgress}%</span>
+                <span className="text-xs font-bold text-orange-600">{overallProgress.toFixed(1)}%</span>
               </div>
             </div>
 
@@ -334,7 +352,7 @@ const LearningPathDetailPage = () => {
         </div>
 
         {/* Learning Path Info Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="border border-blue-200 bg-blue-50/50">
             <CardContent className="p-4">
               <div className="flex items-center space-x-3">
@@ -357,7 +375,7 @@ const LearningPathDetailPage = () => {
                 </div>
                 <div>
                   <p className="text-xs text-green-600 font-medium">Kỹ năng tập trung</p>
-                  <p className="text-sm font-bold text-green-900">{learningPath.focusSkill}</p>
+                  <p className="text-sm font-bold text-green-900">{learningPath.focusSkill || 'Tổng hợp'}</p>
                 </div>
               </div>
             </CardContent>
@@ -371,7 +389,21 @@ const LearningPathDetailPage = () => {
                 </div>
                 <div>
                   <p className="text-xs text-orange-600 font-medium">Tổng khóa học</p>
-                  <p className="text-sm font-bold text-orange-900">{learningPath.courses.length}</p>
+                  <p className="text-sm font-bold text-orange-900">{learningPath.courses?.length || 0}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-purple-200 bg-purple-50/50">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-3">
+                <div className="bg-purple-100 p-2 rounded-lg">
+                  <TrendingUp className="h-5 w-5 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-purple-600 font-medium">Tiến độ hoàn thành</p>
+                  <p className="text-sm font-bold text-purple-900">{overallProgress.toFixed(1)}%</p>
                 </div>
               </div>
             </CardContent>
