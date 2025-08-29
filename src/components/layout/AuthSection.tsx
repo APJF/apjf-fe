@@ -187,7 +187,7 @@ export const AuthSection: React.FC = () => {
                 Lịch sử thi
               </Link>
 
-              {/* Staff Dashboard Link - chỉ hiển thị cho ROLE_STAFF và ROLE_ADMIN */}
+              {/* Staff Dashboard Link - chỉ hiển thị cho ROLE_STAFF */}
               {hasStaffRole() && (
                 <Link
                   to="/staff/courses"
@@ -199,7 +199,7 @@ export const AuthSection: React.FC = () => {
                 </Link>
               )}
 
-              {/* Manager Dashboard Link - chỉ hiển thị cho ROLE_MANAGER và ROLE_ADMIN */}
+              {/* Manager Dashboard Link - chỉ hiển thị cho ROLE_MANAGER */}
               {hasManagerRole() && (
                 <Link
                   to="/manager/dashboard"

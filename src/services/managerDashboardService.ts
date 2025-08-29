@@ -42,7 +42,7 @@ interface DashboardApiResponse {
 export class ManagerDashboardService {
   static async getDashboardStats(): Promise<DashboardApiResponse> {
     const token = localStorage.getItem('access_token');
-    const response = await api.get('/admin/dashboard', {
+    const response = await api.get('/approval-requests/dashboard', {
       headers: {
         Authorization: `Bearer ${token}`
       }
