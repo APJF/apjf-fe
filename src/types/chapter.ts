@@ -8,6 +8,8 @@ export interface Chapter {
   status: "ACTIVE" | "INACTIVE";
   courseId: string;
   prerequisiteChapterId: string | null;
+  isCompleted?: boolean;
+  percent?: number;
   exams: Exam[];
   units?: Unit[];
 }

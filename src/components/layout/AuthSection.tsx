@@ -16,7 +16,7 @@ export const AuthSection: React.FC = () => {
   const hasStaffRole = useCallback(() => {
     if (!user?.roles) return false;
     return user.roles.some(role => 
-      role && ['ROLE_STAFF', 'ROLE_ADMIN'].includes(role)
+      role && role === 'ROLE_STAFF' // Chỉ kiểm tra ROLE_STAFF
     );
   }, [user?.roles]);
 
@@ -24,7 +24,7 @@ export const AuthSection: React.FC = () => {
   const hasManagerRole = useCallback(() => {
     if (!user?.roles) return false;
     return user.roles.some(role => 
-      role && ['ROLE_MANAGER', 'ROLE_ADMIN'].includes(role)
+      role && role === 'ROLE_MANAGER' // Chỉ kiểm tra ROLE_MANAGER
     );
   }, [user?.roles]);
 
@@ -187,7 +187,7 @@ export const AuthSection: React.FC = () => {
                 Lịch sử thi
               </Link>
 
-              {/* Staff Dashboard Link - chỉ hiển thị cho ROLE_STAFF và ROLE_ADMIN */}
+              {/* Staff Dashboard Link - chỉ hiển thị cho ROLE_STAFF */}
               {hasStaffRole() && (
                 <Link
                   to="/staff/courses"
@@ -199,7 +199,7 @@ export const AuthSection: React.FC = () => {
                 </Link>
               )}
 
-              {/* Manager Dashboard Link - chỉ hiển thị cho ROLE_MANAGER và ROLE_ADMIN */}
+              {/* Manager Dashboard Link - chỉ hiển thị cho ROLE_MANAGER */}
               {hasManagerRole() && (
                 <Link
                   to="/manager/dashboard"
