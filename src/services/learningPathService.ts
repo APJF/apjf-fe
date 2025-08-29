@@ -8,6 +8,10 @@ export interface LearningPathCourse {
   description: string | null;
   duration: number;
   level: string;
+  courseProgress?: {
+    completed: boolean;
+    percent: number;
+  } | null;
 }
 
 // Interface for the new active learning path API

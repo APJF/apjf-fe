@@ -7,8 +7,7 @@ import { Badge } from "../../components/ui/Badge";
 import { Alert } from "../../components/ui/Alert";
 import { learningPathService } from "../../services/learningPathService";
 import type { 
-  LearningPath, 
-  ActiveLearningPath
+  LearningPath
 } from "../../services/learningPathService";
 import api from "../../api/axios";
 import { Breadcrumb, type BreadcrumbItem } from '../../components/ui/Breadcrumb';
@@ -41,40 +40,17 @@ interface LearningModule {
   status: "PENDING" | "STUDYING" | "FINISHED"; // Ensures we use API status enum
 }
 
-// Current Learning Roadmap Component - using JapanRoadmapView
-function CurrentLearningRoadmap({ activePath }: { readonly activePath: LearningPath | null }) {
+// Current Learning Roadmap Component - using RoadmapView
+function CurrentLearningRoadmap({ 
+  activePath, 
+  activePathDetail, 
+  loading 
+}: { 
+  readonly activePath: LearningPath | null;
+  readonly activePathDetail: LearningPath | null;
+  readonly loading: boolean;
+}) {
   const navigate = useNavigate();
-  const [activePathDetail, setActivePathDetail] = useState<ActiveLearningPath | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  // Fetch active learning path detail từ API khi có activePath
-  useEffect(() => {
-    const fetchActivePathDetail = async () => {
-      if (!activePath) {
-        setActivePathDetail(null);
-        return;
-      }
-
-      setLoading(true);
-      try {
-        const response = await learningPathService.getActiveLearningPath();
-        if (response.success) {
-          setActivePathDetail(response.data);
-          console.log('✅ Active learning path detail loaded:', response.data);
-        } else {
-          console.warn('❌ Failed to load active learning path detail:', response.message);
-          setActivePathDetail(null);
-        }
-      } catch (error) {
-        console.error('❌ Error fetching active learning path detail:', error);
-        setActivePathDetail(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchActivePathDetail();
-  }, [activePath]);
 
   // Hiển thị thông báo nếu không có lộ trình nào đang học
   if (!activePath) {
@@ -123,8 +99,8 @@ function CurrentLearningRoadmap({ activePath }: { readonly activePath: LearningP
       }
 
       return {
-        id: parseInt(course.id) || index + 1,
-        title: course.id, // Hiển thị course ID
+        id: parseInt(course.courseId) || index + 1,
+        title: course.courseId, // Hiển thị course ID
         description: `${courseProgress?.percent?.toFixed(2) || '0.00'}%`, // Hiển thị percent với 2 chữ số thập phân
         status,
         progress: courseProgress?.percent || 0,
@@ -197,17 +173,17 @@ function CurrentLearningRoadmap({ activePath }: { readonly activePath: LearningP
             targetCourse = sortedCourses[courseIndex];
           }
           
-          // Method 2: Nếu không tìm được, thử tìm theo course.id
+          // Method 2: Nếu không tìm được, thử tìm theo course.courseId
           if (!targetCourse) {
             targetCourse = sortedCourses.find(course => 
-              parseInt(course.id) === stageId || course.id === stageId.toString()
+              parseInt(course.courseId) === stageId || course.courseId === stageId.toString()
             );
           }
           
           console.log('targetCourse found:', targetCourse);
           if (targetCourse) {
-            console.log(`Navigating to /courses/${targetCourse.id}`);
-            navigate(`/courses/${targetCourse.id}`);
+            console.log(`Navigating to /courses/${targetCourse.courseId}`);
+            navigate(`/courses/${targetCourse.courseId}`);
           } else {
             console.log('No target course found for stageId:', stageId);
           }
@@ -228,6 +204,7 @@ export function LearningPathPage() {
   const [sortOrder, setSortOrder] = useState("newest");
   const [modules, setModules] = useState<LearningModule[]>([]);
   const [activePath, setActivePath] = useState<LearningPath | null>(null);
+  const [activePathDetail, setActivePathDetail] = useState<LearningPath | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -342,6 +319,26 @@ export function LearningPathPage() {
         
         // Cập nhật state
         setActivePath(studyingPath || null);
+        
+        // Fetch detail cho studying path nếu có
+        if (studyingPath) {
+          try {
+            console.log(`🔍 Fetching detail for studying path: ${studyingPath.id}`);
+            const detailResponse = await learningPathService.getLearningPath(studyingPath.id);
+            if (detailResponse.success) {
+              setActivePathDetail(detailResponse.data);
+              console.log('✅ Active learning path detail loaded:', detailResponse.data);
+            } else {
+              console.warn('❌ Failed to load active learning path detail:', detailResponse.message);
+              setActivePathDetail(null);
+            }
+          } catch (error) {
+            console.error('❌ Error fetching active learning path detail:', error);
+            setActivePathDetail(null);
+          }
+        } else {
+          setActivePathDetail(null);
+        }
         
         // Hiển thị TẤT CẢ lộ trình trong danh sách bên trái (bao gồm cả STUDYING)
         const modulesData: LearningModule[] = paths.map((path: LearningPath) => ({
@@ -641,7 +638,11 @@ export function LearningPathPage() {
             <div className="flex flex-col sticky" style={{top: '24px', maxHeight: 'calc(100vh - 24px)'}}>
               {/* Roadmap tăng không gian lên */}
               <div style={{height: '420px', overflow: 'auto'}} className="flex-shrink-0">
-                <CurrentLearningRoadmap activePath={activePath} />
+                <CurrentLearningRoadmap 
+                  activePath={activePath} 
+                  activePathDetail={activePathDetail}
+                  loading={isLoading}
+                />
               </div>
               
               {/* ChatBox giảm không gian xuống 4/5 */}
