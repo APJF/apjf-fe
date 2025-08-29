@@ -37,7 +37,22 @@ export function ExamReviewPage() {
           targetResultId = examResultIdFromState.toString()
           console.log("ExamReviewPage - Using examResultId from navigation state:", targetResultId)
         } else {
+          console.error("ExamReviewPage - Missing result ID!")
+          console.log("ExamReviewPage - URL params:", { resultId })
+          console.log("ExamReviewPage - Navigation state:", location.state)
           throw new Error("Không có ID kết quả bài thi")
+        }
+        
+        console.log("ExamReviewPage - Final targetResultId:", targetResultId)
+        console.log("ExamReviewPage - Current environment:", {
+          hostname: window.location.hostname,
+          origin: window.location.origin,
+          userAgent: navigator.userAgent
+        })
+        
+        // Additional validation
+        if (!targetResultId || targetResultId.trim() === '' || targetResultId === 'undefined' || targetResultId === 'null') {
+          throw new Error(`ID kết quả bài thi không hợp lệ: "${targetResultId}"`)
         }
         
         console.log("ExamReviewPage - Fetching exam result for ID:", targetResultId)
@@ -46,10 +61,22 @@ export function ExamReviewPage() {
         
         setExamResult(result)
       } catch (err) {
-        console.error("Error fetching exam result:", err)
+        console.error("ExamReviewPage - Error fetching exam result:", err)
+        
         let errorMessage = "Không thể tải kết quả bài kiểm tra. Vui lòng thử lại."
         
-        if (err instanceof Error) {
+        // Enhanced error handling
+        if (err && typeof err === 'object' && 'response' in err) {
+          const axiosError = err as { response?: { status?: number; data?: unknown } };
+          if (axiosError.response?.status === 422) {
+            errorMessage = "Dữ liệu không hợp lệ. ID kết quả bài thi có thể đã hết hạn hoặc không tồn tại."
+          } else if (axiosError.response?.status === 404) {
+            errorMessage = "Không tìm thấy kết quả bài thi. ID có thể không đúng."
+          } else if (axiosError.response?.status === 401) {
+            errorMessage = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
+          }
+          console.error("ExamReviewPage - HTTP Error:", axiosError.response?.status, axiosError.response?.data)
+        } else if (err instanceof Error) {
           errorMessage = err.message
         }
         
@@ -60,7 +87,7 @@ export function ExamReviewPage() {
     }
 
     fetchExamResult()
-  }, [resultId, examResultIdFromState])
+  }, [resultId, examResultIdFromState, location.state])
 
   const handleBack = () => {
     navigate(-1) // Quay lại trang trước đó
