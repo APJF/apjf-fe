@@ -29,30 +29,66 @@ export function PDFViewer({ fileUrl }: Readonly<PDFViewerProps>) {
   const textLayerRef = useRef<HTMLDivElement>(null)
   const [isExpanded, setIsExpanded] = useState(false)
   const [pageInput, setPageInput] = useState('')
+  const renderTaskRef = useRef<pdfjs.RenderTask | null>(null)
+  const loadingTaskRef = useRef<pdfjs.PDFDocumentLoadingTask | null>(null)
 
   // Load PDF document
   useEffect(() => {
+    let cancelled = false
+    
     const loadPDF = async () => {
       try {
         setLoading(true)
         setError(null)
         
+        // Cancel previous loading task if exists
+        if (loadingTaskRef.current) {
+          loadingTaskRef.current.destroy()
+          loadingTaskRef.current = null
+        }
+        
         const loadingTask = pdfjs.getDocument(fileUrl)
+        loadingTaskRef.current = loadingTask
+        
         const pdf = await loadingTask.promise
         
-        setPdfDoc(pdf)
-        setTotalPages(pdf.numPages)
-        setPageNum(1)
+        // Check if component is still mounted and this load wasn't cancelled
+        if (!cancelled) {
+          setPdfDoc(pdf)
+          setTotalPages(pdf.numPages)
+          setPageNum(1)
+        }
       } catch (err) {
-        console.error('Error loading PDF:', err)
-        setError('Không thể tải file PDF')
+        // Only show error if it's not a cancel error and component is still mounted
+        if (!cancelled && err && typeof err === 'object' && 'name' in err && 
+            err.name !== 'UnexpectedResponseException' && 
+            err.name !== 'AbortException') {
+          console.error('Error loading PDF:', err)
+          setError('Không thể tải file PDF')
+        }
       } finally {
-        setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+        }
+        loadingTaskRef.current = null
       }
     }
 
     if (fileUrl) {
       loadPDF()
+    }
+    
+    // Cleanup on unmount or fileUrl change
+    return () => {
+      cancelled = true
+      if (loadingTaskRef.current) {
+        try {
+          loadingTaskRef.current.destroy()
+        } catch {
+          // Ignore destroy errors
+        }
+        loadingTaskRef.current = null
+      }
     }
   }, [fileUrl])
 
@@ -69,15 +105,29 @@ export function PDFViewer({ fileUrl }: Readonly<PDFViewerProps>) {
 
   // Render page when PDF doc, page num, or zoom changes
   useEffect(() => {
+    let cancelled = false
+    
     const renderPage = async (num: number, scale: number) => {
-      if (!pdfDoc || !canvasRef.current) return
+      if (!pdfDoc || !canvasRef.current || cancelled) return
 
       try {
+        // Cancel previous render task if exists
+        if (renderTaskRef.current) {
+          try {
+            renderTaskRef.current.cancel()
+          } catch {
+            // Ignore cancel errors
+          }
+          renderTaskRef.current = null
+        }
+
         const page = await pdfDoc.getPage(num)
+        if (cancelled) return
+        
         const canvas = canvasRef.current
         const context = canvas.getContext('2d')
         
-        if (!context) return
+        if (!context || cancelled) return
 
         // Use higher DPI for better quality
         const devicePixelRatio = window.devicePixelRatio || 1
@@ -102,7 +152,15 @@ export function PDFViewer({ fileUrl }: Readonly<PDFViewerProps>) {
           canvas: canvas
         }
 
-        await page.render(renderContext).promise
+        // Store render task so we can cancel it if needed
+        const renderTask = page.render(renderContext)
+        renderTaskRef.current = renderTask
+
+        await renderTask.promise
+        
+        if (cancelled) return
+        
+        renderTaskRef.current = null
         
         // Clear existing text layer
         if (textLayerRef.current) {
@@ -110,7 +168,7 @@ export function PDFViewer({ fileUrl }: Readonly<PDFViewerProps>) {
         }
 
         // Create text layer for search highlighting
-        if (searchTerm && textLayerRef.current) {
+        if (searchTerm && textLayerRef.current && !cancelled) {
           const textContent = await page.getTextContent()
           const textLayer = textLayerRef.current
           const pageViewport = page.getViewport({ scale })
@@ -127,7 +185,7 @@ export function PDFViewer({ fileUrl }: Readonly<PDFViewerProps>) {
           // Find current page highlights
           const currentPageHighlights = highlightMatches.find(h => h.pageNum === num)
           
-          if (currentPageHighlights) {
+          if (currentPageHighlights && !cancelled) {
             const searchTermLower = searchTerm.toLowerCase()
             
             textContent.items.forEach((item: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -185,16 +243,54 @@ export function PDFViewer({ fileUrl }: Readonly<PDFViewerProps>) {
           }
         }
       } catch (err) {
-        console.error('Error rendering page:', err)
-        setError('Không thể hiển thị trang PDF')
+        // Only show error if it's not a cancel error and not cancelled
+        if (!cancelled && err && typeof err === 'object' && 'message' in err && 
+            typeof err.message === 'string' && 
+            !err.message.includes('cancelled') && !err.message.includes('render')) {
+          console.error('Error rendering page:', err)
+          setError('Không thể hiển thị trang PDF')
+        }
       }
     }
 
-    if (pdfDoc) {
+    if (pdfDoc && !cancelled) {
       const scale = zoom / 100
       renderPage(pageNum, scale)
     }
+    
+    // Cleanup on effect change
+    return () => {
+      cancelled = true
+      if (renderTaskRef.current) {
+        try {
+          renderTaskRef.current.cancel()
+        } catch {
+          // Ignore cancel errors
+        }
+        renderTaskRef.current = null
+      }
+    }
   }, [pdfDoc, pageNum, zoom, searchTerm, highlightMatches])
+
+  // Cleanup all tasks on unmount
+  useEffect(() => {
+    return () => {
+      if (renderTaskRef.current) {
+        try {
+          renderTaskRef.current.cancel()
+        } catch {
+          // Ignore cancel errors
+        }
+      }
+      if (loadingTaskRef.current) {
+        try {
+          loadingTaskRef.current.destroy()
+        } catch {
+          // Ignore destroy errors  
+        }
+      }
+    }
+  }, [])
 
   // Control functions
   const zoomIn = () => {

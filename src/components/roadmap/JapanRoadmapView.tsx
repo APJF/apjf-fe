@@ -256,7 +256,7 @@ export function JapanRoadmapView({
                 {headerInfo.duration && (
                   <div className="flex items-center text-gray-600">
                     <span className={`${sizeClasses.text} font-medium`}>
-                      {headerInfo.duration} ngày
+                      {headerInfo.duration} giờ
                     </span>
                   </div>
                 )}
