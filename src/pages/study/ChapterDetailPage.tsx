@@ -420,7 +420,7 @@ export default function ChapterDetailPage() {
             <p className="text-gray-600 text-base mt-2">{chapterData.description}</p>
           </CardHeader>
           <CardContent className="py-3">
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-3 gap-3">
               <div className="text-center">
                 <div className="text-xl font-bold text-blue-600">{completedUnits}</div>
                 <div className="text-sm text-gray-600">Hoàn thành</div>
@@ -433,10 +433,10 @@ export default function ChapterDetailPage() {
                 <div className="text-xl font-bold text-blue-600">{progress}%</div>
                 <div className="text-sm text-gray-600">Tiến độ</div>
               </div>
-              <div className="text-center">
+              {/* <div className="text-center">
                 <div className="text-xl font-bold text-orange-600">{chapterData.exams.length}</div>
                 <div className="text-sm text-gray-600">Bài kiểm tra</div>
-              </div>
+              </div> */}
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2.5 mt-3">
               <div
