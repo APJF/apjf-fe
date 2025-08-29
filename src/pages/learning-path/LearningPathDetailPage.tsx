@@ -20,7 +20,7 @@ import {
 
 // API Types
 interface LearningPathCourse {
-  courseId: string;
+  id: string;
   learningPathId: number;
   courseOrderNumber: number;
   title: string;
@@ -72,7 +72,7 @@ const createMockLearningPathDetail = (id: string): LearningPathDetail => ({
   percent: 65.5,
   courses: [
     {
-      courseId: "course1",
+      id: "course1",
       learningPathId: parseInt(id) || 1,
       courseOrderNumber: 1,
       title: "Hiragana và Katakana cơ bản",
@@ -81,7 +81,7 @@ const createMockLearningPathDetail = (id: string): LearningPathDetail => ({
       level: "N5"
     },
     {
-      courseId: "course2",
+  id: "course2",
       learningPathId: parseInt(id) || 1,
       courseOrderNumber: 2,
       title: "Ngữ pháp N5 cơ bản",
@@ -90,7 +90,7 @@ const createMockLearningPathDetail = (id: string): LearningPathDetail => ({
       level: "N5"
     },
     {
-      courseId: "course3",
+  id: "course3",
       learningPathId: parseInt(id) || 1,
       courseOrderNumber: 3,
       title: "Từ vựng thiết yếu N5",
@@ -99,7 +99,7 @@ const createMockLearningPathDetail = (id: string): LearningPathDetail => ({
       level: "N5"
     },
     {
-      courseId: "course4",
+  id: "course4",
       learningPathId: parseInt(id) || 1,
       courseOrderNumber: 4,
       title: "Luyện nghe N5",
@@ -108,7 +108,7 @@ const createMockLearningPathDetail = (id: string): LearningPathDetail => ({
       level: "N5"
     },
     {
-      courseId: "course5",
+  id: "course5",
       learningPathId: parseInt(id) || 1,
       courseOrderNumber: 5,
       title: "Kanji N5 - Chữ Hán cơ bản",
@@ -432,7 +432,7 @@ const LearningPathDetailPage = () => {
                     .sort((a, b) => a.courseOrderNumber - b.courseOrderNumber)
                     .map((course) => (
                       <div 
-                        key={course.courseId} 
+                        key={course.id} 
                         className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow bg-white relative min-h-[180px] flex flex-col"
                       >
                         <div className="flex items-center space-x-2 mb-2">
@@ -459,7 +459,7 @@ const LearningPathDetailPage = () => {
                           <Button 
                             size="sm" 
                             className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 text-xs shadow-md"
-                            onClick={() => navigate(`/courses/${course.courseId}`)}
+                            onClick={() => navigate(`/courses/${course.id}`)}
                           >
                             Tiếp tục học
                           </Button>

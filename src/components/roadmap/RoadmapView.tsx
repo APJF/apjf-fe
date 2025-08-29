@@ -196,7 +196,7 @@ export function RoadmapView({
                     <Badge className="bg-blue-100 text-blue-800 text-xs">{headerInfo.status}</Badge>
                   )}
                   {headerInfo.duration && (
-                    <span className="text-xs text-gray-600">Thời gian: {headerInfo.duration} ngày</span>
+                    <span className="text-xs text-gray-600">Thời gian: {headerInfo.duration} giờ</span>
                   )}
                 </div>
               )}
