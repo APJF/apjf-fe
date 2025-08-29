@@ -5,6 +5,8 @@ import { StarDisplay } from "../../components/ui/StarDisplay";
 import EnrollButton from "../../components/course/EnrollButton";
 import CourseTabs from "../../components/course/CourseTabs";
 import { CourseService } from "../../services/courseService";
+import { learningPathService } from "../../services/learningPathService";
+import type { ActiveLearningPath } from "../../services/learningPathService";
 import type { Course, Chapter } from "../../types/course";
 import { Breadcrumb, type BreadcrumbItem } from '../../components/ui/Breadcrumb';
 import { useLanguage } from "../../contexts/LanguageContext";
@@ -71,6 +73,7 @@ export default function CourseDetailPage() {
   const navigate = useNavigate();
   const [course, setCourse] = useState<Course | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [activePathDetail, setActivePathDetail] = useState<ActiveLearningPath | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,30 +94,46 @@ export default function CourseDetailPage() {
     try {
       console.log('Fetching course detail for ID:', courseId);
       
-      // Gọi song song 2 API
-      const [courseRes, chaptersRes] = await Promise.all([
+      // Gọi song song 3 API: course detail, chapters, và active learning path
+      const [courseRes, chaptersRes, activePathRes] = await Promise.allSettled([
         CourseService.getCourseDetail(courseId!),
-        CourseService.getChaptersByCourseId(courseId!)
+        CourseService.getChaptersByCourseId(courseId!),
+        learningPathService.getActiveLearningPath()
       ]);
       
       console.log('Course response:', courseRes);
       console.log('Chapters response:', chaptersRes);
+      console.log('Active path response:', activePathRes);
       
-      if (courseRes.success) {
-        setCourse(courseRes.data);
+      // Process course data
+      if (courseRes.status === 'fulfilled' && courseRes.value.success) {
+        setCourse(courseRes.value.data);
       } else {
-        setError(courseRes.message || "Không thể tải thông tin khóa học");
+        const errorMsg = courseRes.status === 'fulfilled' 
+          ? courseRes.value.message || "Không thể tải thông tin khóa học"
+          : "Lỗi kết nối khi tải khóa học";
+        setError(errorMsg);
         return;
       }
       
-      if (chaptersRes.success) {
+      // Process chapters data
+      if (chaptersRes.status === 'fulfilled' && chaptersRes.value.success) {
         // Only show active chapters
-        const activeChapters = (chaptersRes.data || []).filter(chapter => chapter.status === "ACTIVE");
+        const activeChapters = (chaptersRes.value.data || []).filter(chapter => chapter.status === "ACTIVE");
         const sortedChapters = sortChaptersByPrerequisite(activeChapters);
         setChapters(sortedChapters);
       } else {
-        console.warn('Could not load chapters:', chaptersRes.message);
+        console.warn('Could not load chapters:', chaptersRes.status === 'fulfilled' ? chaptersRes.value.message : 'Connection error');
         setChapters([]);
+      }
+
+      // Process active learning path data
+      if (activePathRes.status === 'fulfilled' && activePathRes.value.success) {
+        setActivePathDetail(activePathRes.value.data);
+        console.log('✅ Active learning path loaded:', activePathRes.value.data);
+      } else {
+        console.warn('⚠️ Could not load active learning path:', activePathRes.status === 'fulfilled' ? activePathRes.value.message : 'Connection error');
+        setActivePathDetail(null);
       }
       
     } catch (error) {
@@ -168,37 +187,84 @@ export default function CourseDetailPage() {
     { label: course.title } // Current page - no href
   ];
 
-  // Mock roadmap data for this course
-  const roadmapStages: RoadmapStage[] = [
-    {
-      id: 1,
-      title: "Cơ bản",
-      description: "Nắm vững kiến thức nền tảng",
-      status: course.isEnrolled ? "completed" : "locked",
-      progress: course.isEnrolled ? 100 : 0,
-    },
-    {
-      id: 2,
-      title: "Thực hành",
-      description: "Luyện tập với bài tập",
-      status: course.isEnrolled ? "in_progress" : "locked",
-      progress: course.isEnrolled ? 65 : 0,
-    },
-    {
-      id: 3,
-      title: "Nâng cao",
-      description: "Kiến thức chuyên sâu",
-      status: "locked",
-      progress: 0,
-    },
-    {
-      id: 4,
-      title: "Kiểm tra",
-      description: "Đánh giá kết quả",
-      status: "locked",
-      progress: 0,
-    },
-  ];
+  // Create roadmap stages based on active learning path or fallback data
+  const createRoadmapStages = (): RoadmapStage[] => {
+    // Nếu có active learning path và courseId này có trong path đó
+    if (activePathDetail?.courses) {
+      const currentCourse = activePathDetail.courses.find(c => c.id === courseId);
+      if (currentCourse) {
+        // Tạo roadmap từ tất cả courses trong learning path, highlight current course
+        return activePathDetail.courses
+          .sort((a, b) => (a.courseOrderNumber || 0) - (b.courseOrderNumber || 0)) // Sắp xếp theo courseOrderNumber
+          .map((course, index) => {
+            let status: "completed" | "in_progress" | "locked";
+            
+            // Safe check cho courseProgress
+          const courseProgress = course.courseProgress;
+          if (!courseProgress) {
+            status = "locked";
+          } else if (courseProgress.completed) {
+            status = "completed";
+          } else if (courseProgress.percent > 0) {
+            status = "in_progress";
+          } else {
+            status = "locked";
+          }
+
+          return {
+            id: parseInt(course.id) || index + 1,
+            title: course.id, // Hiển thị course ID
+            description: `${courseProgress?.percent?.toFixed(2) || '0.00'}%`, // Hiển thị percent với 2 chữ số thập phân
+            status,
+            progress: courseProgress?.percent || 0,
+          };
+        });
+      }
+    }
+
+    // Fallback: Mock roadmap data for this course
+    return [
+      {
+        id: 1,
+        title: "Cơ bản",
+        description: "Nắm vững kiến thức nền tảng",
+        status: course.isEnrolled ? "completed" : "locked",
+        progress: course.isEnrolled ? 100 : 0,
+      },
+      {
+        id: 2,
+        title: "Thực hành",
+        description: "Luyện tập với bài tập",
+        status: course.isEnrolled ? "in_progress" : "locked",
+        progress: course.isEnrolled ? 65 : 0,
+      },
+      {
+        id: 3,
+        title: "Nâng cao",
+        description: "Kiến thức chuyên sâu",
+        status: "locked",
+        progress: 0,
+      },
+      {
+        id: 4,
+        title: "Kiểm tra",
+        description: "Đánh giá kết quả",
+        status: "locked",
+        progress: 0,
+      },
+    ];
+  };
+
+  const roadmapStages: RoadmapStage[] = createRoadmapStages();
+
+  // Determine status text
+  const getStatusText = () => {
+    if (activePathDetail) {
+      return activePathDetail.status === 'ACTIVE' ? "Đang học" : "Tạm dừng";
+    } else {
+      return course.isEnrolled ? "Đang học" : "Chưa đăng ký";
+    }
+  };
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -272,17 +338,37 @@ export default function CourseDetailPage() {
         <div className="lg:col-span-4">
           <RoadmapView
             stages={roadmapStages}
-            title="Lộ trình"
+            title={activePathDetail ? "Lộ trình học tập" : "Tiến độ khóa học"}
             compact={true}
             showHeader={true}
             showNavigation={false}
             showStageCards={false}
             headerInfo={{
-              targetLevel: course.level,
-              status: course.isEnrolled ? "Đang học" : "Chưa đăng ký",
-              coursesCount: chapters.length
+              targetLevel: activePathDetail?.targetLevel || course.level,
+              status: getStatusText(),
+              coursesCount: activePathDetail?.courses?.length || chapters.length
             }}
-            onStageClick={(stageId) => console.log('Clicked stage:', stageId)}
+            onStageClick={(stageId) => {
+              console.log('Clicked stage:', stageId);
+              // Nếu có active learning path, navigate đến course tương ứng
+              if (activePathDetail?.courses) {
+                // Sắp xếp courses theo courseOrderNumber trước khi tìm kiếm
+                const sortedCourses = activePathDetail.courses
+                  .sort((a, b) => (a.courseOrderNumber || 0) - (b.courseOrderNumber || 0));
+                  
+                // Tìm course dựa trên index trong danh sách đã sắp xếp
+                const courseIndex = stageId - 1;
+                let targetCourse;
+                
+                if (courseIndex >= 0 && courseIndex < sortedCourses.length) {
+                  targetCourse = sortedCourses[courseIndex];
+                }
+                
+                if (targetCourse && targetCourse.id !== courseId) {
+                  navigate(`/courses/${targetCourse.id}`);
+                }
+              }
+            }}
           />
         </div>
       </section>
