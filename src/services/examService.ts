@@ -464,24 +464,7 @@ export class ExamService {
   static async getExamResult(resultId: string): Promise<ExamResult> {
     try {
       console.log('🔍 Fetching exam result for ID:', resultId);
-      console.log('🔍 Result ID type:', typeof resultId);
-      console.log('🔍 Result ID length:', resultId?.length);
-      console.log('🔍 Is Result ID valid:', !!resultId && resultId.trim() !== '');
-      
-      // Validate resultId
-      if (!resultId || resultId.trim() === '') {
-        throw new Error('Result ID is required and cannot be empty');
-      }
-      
-      // Clean resultId (remove any whitespace)
-      const cleanResultId = resultId.toString().trim();
-      console.log('🔍 Clean Result ID:', cleanResultId);
-      
-      const url = `/student/exams/result/${cleanResultId}`;
-      console.log('🔍 Making GET request to:', url);
-      
-      const response = await api.get(url);
-      console.log('✅ Exam result response status:', response.status);
+      const response = await api.get(`/student/exams/result/${resultId}`);
       console.log('✅ Exam result response:', response.data);
       
       // Check if response has the expected structure {success: true, data: {...}}
@@ -493,17 +476,8 @@ export class ExamService {
       // Fallback to direct data if not wrapped
       console.log('📦 Using direct response.data as fallback');
       return response.data;
-    } catch (error: unknown) {
+    } catch (error) {
       console.error('❌ Error fetching exam result:', error);
-      
-      // Type-safe error handling
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { status?: number; data?: unknown } };
-        console.error('❌ Error status:', axiosError.response?.status);
-        console.error('❌ Error data:', axiosError.response?.data);
-      }
-      
-      console.error('❌ Full error object:', error);
       throw error;
     }
   }
