@@ -8,6 +8,58 @@ export interface LearningPathCourse {
   description: string | null;
   duration: number;
   level: string;
+  courseProgress?: {
+    completed: boolean;
+    percent: number;
+  } | null;
+}
+
+// Interface for the new active learning path API
+export interface ActiveLearningPathCourse {
+  id: string;
+  title: string;
+  description: string;
+  duration: number;
+  level: string;
+  image: string;
+  requirement: string;
+  status: string;
+  prerequisiteCourseId: string;
+  topics: Array<{
+    id: number;
+    name: string;
+  }>;
+  averageRating: number;
+  courseProgress: {
+    completed: boolean;
+    percent: number;
+  };
+  courseOrderNumber: number;
+}
+
+export interface ActiveLearningPath {
+  id: number;
+  title: string;
+  description: string;
+  targetLevel: string;
+  primaryGoal: string;
+  focusSkill: string;
+  status: string;
+  duration: number;
+  userId: number;
+  username: string;
+  createdAt: string;
+  lastUpdatedAt: string;
+  isCompleted: boolean;
+  percent: number;
+  courses: ActiveLearningPathCourse[];
+}
+
+export interface ActiveLearningPathResponse {
+  success: boolean;
+  message: string;
+  data: ActiveLearningPath;
+  timestamp: number;
 }
 
 export interface LearningPath {
@@ -172,6 +224,31 @@ class LearningPathService {
       console.error("Error setting learning path active:", error);
       if (error && typeof error === "object" && "response" in error) {
         const axiosError = error as { response?: { data?: { success: boolean; message: string; data: LearningPath; timestamp: number } } };
+        if (axiosError.response?.data) {
+          return axiosError.response.data;
+        }
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Lấy learning path đang active (STUDYING) với thông tin chi tiết về courses và progress
+   */
+  async getActiveLearningPath(): Promise<ActiveLearningPathResponse> {
+    try {
+      console.log('🔍 Fetching active learning path...');
+      const response = await api.get<ActiveLearningPathResponse>("/learning-paths/active");
+      console.log('✅ Active learning path response:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error("❌ Error fetching active learning path:", error);
+      if (error && typeof error === "object" && "response" in error) {
+        const axiosError = error as { response?: { data?: ActiveLearningPathResponse; status?: number } };
+        console.error("❌ API Error details:", {
+          status: axiosError.response?.status,
+          data: axiosError.response?.data
+        });
         if (axiosError.response?.data) {
           return axiosError.response.data;
         }

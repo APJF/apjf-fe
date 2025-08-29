@@ -6,15 +6,14 @@ import { Input } from "../../components/ui/Input";
 import { Badge } from "../../components/ui/Badge";
 import { Alert } from "../../components/ui/Alert";
 import { learningPathService } from "../../services/learningPathService";
-import type { LearningPath } from "../../services/learningPathService";
+import type { 
+  LearningPath
+} from "../../services/learningPathService";
 import api from "../../api/axios";
 import { Breadcrumb, type BreadcrumbItem } from '../../components/ui/Breadcrumb';
-import { JapanRoadmapView, type RoadmapStage } from '../../components/roadmap/JapanRoadmapView';
+import { RoadmapView, type RoadmapStage } from '../../components/roadmap/RoadmapView';
 import { PlannerChatBox } from '../../components/roadmap/PlannerChatBox';
 import { getCurrentUserId } from '../../services/chatbotService';
-
-// Import CSS cho compact roadmap
-import '../../components/roadmap/CompactRoadmap.css';
 
 import {
   BookOpen,
@@ -41,8 +40,16 @@ interface LearningModule {
   status: "PENDING" | "STUDYING" | "FINISHED"; // Ensures we use API status enum
 }
 
-// Current Learning Roadmap Component - using JapanRoadmapView
-function CurrentLearningRoadmap({ activePath }: { readonly activePath: LearningPath | null }) {
+// Current Learning Roadmap Component - using RoadmapView
+function CurrentLearningRoadmap({ 
+  activePath, 
+  activePathDetail, 
+  loading 
+}: { 
+  readonly activePath: LearningPath | null;
+  readonly activePathDetail: LearningPath | null;
+  readonly loading: boolean;
+}) {
   const navigate = useNavigate();
 
   // Hiển thị thông báo nếu không có lộ trình nào đang học
@@ -61,8 +68,45 @@ function CurrentLearningRoadmap({ activePath }: { readonly activePath: LearningP
     );
   }
 
-  // Convert to RoadmapStage format
-  const roadmapStages: RoadmapStage[] = [
+  // Hiển thị loading state
+  if (loading) {
+    return (
+      <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-2 border-blue-200">
+        <CardContent className="p-3 text-center">
+          <RefreshCw className="h-8 w-8 mx-auto mb-3 text-blue-500 animate-spin" />
+          <h2 className="text-sm font-bold text-gray-900 mb-2">Đang tải lộ trình...</h2>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Convert courses từ API thành RoadmapStage format
+  const roadmapStages: RoadmapStage[] = activePathDetail?.courses
+    ?.sort((a, b) => (a.courseOrderNumber || 0) - (b.courseOrderNumber || 0)) // Sắp xếp theo courseOrderNumber
+    ?.map((course, index) => {
+      let status: "completed" | "in_progress" | "locked";
+      
+      // Safe check cho courseProgress
+      const courseProgress = course.courseProgress;
+      if (!courseProgress) {
+        status = "locked";
+      } else if (courseProgress.completed) {
+        status = "completed";
+      } else if (courseProgress.percent > 0) {
+        status = "in_progress";
+      } else {
+        status = "locked";
+      }
+
+      return {
+        id: parseInt(course.courseId) || index + 1,
+        title: course.courseId, // Hiển thị course ID
+        description: `${courseProgress?.percent?.toFixed(2) || '0.00'}%`, // Hiển thị percent với 2 chữ số thập phân
+        status,
+        progress: courseProgress?.percent || 0,
+      };
+    }) || [
+    // Fallback static data nếu không có data từ API
     {
       id: 1,
       title: "Hiragana & Katakana",
@@ -94,32 +138,63 @@ function CurrentLearningRoadmap({ activePath }: { readonly activePath: LearningP
   ];
 
   return (
-    <div className="roadmap-compact">
-      <JapanRoadmapView
-        stages={roadmapStages}
-        title="Lộ trình đang học"
-        subtitle={activePath.title}
-        theme="blue"
-        showHeader={true}
-        showNavigation={false} // Ẩn navigation để tiết kiệm space
-        showActionButtons={true}
-        headerInfo={{
-          targetLevel: activePath.targetLevel,
-          status: "Đang học",
-          duration: activePath.duration,
-          coursesCount: activePath.courses?.length || 0,
-        }}
-        onSecondaryAction={() => navigate(`/roadmap-detail/${activePath.id}`)}
-        onStageClick={(stageId: number) => {
-          console.log(`Clicked stage ${stageId}`);
-          navigate(`/roadmap-detail/${activePath.id}?stage=${stageId}`);
-        }}
-        primaryActionLabel="Tiếp tục học"
-        secondaryActionLabel="Chi tiết"
-        primaryActionIcon={<Flag className="h-3 w-3" />}
-        className="compact-roadmap"
-      />
-    </div>
+    <RoadmapView
+      stages={roadmapStages}
+      title="Lộ trình học tập"
+      subtitle={activePathDetail?.title || activePath.title}
+      compact={true}
+      showHeader={true}
+      showNavigation={false}
+      showStageCards={false}
+      headerInfo={{
+        targetLevel: activePathDetail?.targetLevel || activePath.targetLevel,
+        status: "Đang học",
+        duration: activePathDetail?.duration || activePath.duration,
+        coursesCount: activePathDetail?.courses?.length || activePath.courses?.length || 0,
+      }}
+      onViewDetail={() => navigate(`/roadmap-detail/${activePath.id}`)}
+      onStageClick={(stageId: number) => {
+        console.log(`Clicked stage ${stageId}`);
+        console.log('activePathDetail:', activePathDetail);
+        console.log('activePathDetail?.courses:', activePathDetail?.courses);
+        
+        // Navigate to CourseDetailPage dựa trên course ID
+        if (activePathDetail?.courses) {
+          // Sắp xếp courses theo courseOrderNumber trước khi tìm kiếm
+          const sortedCourses = activePathDetail.courses
+            .sort((a, b) => (a.courseOrderNumber || 0) - (b.courseOrderNumber || 0));
+            
+          // Tìm course dựa trên index (stageId - 1) trong danh sách đã sắp xếp
+          let targetCourse;
+          
+          // Method 1: Tìm theo index (vì stage.id = index + 1 trong sorted array)
+          const courseIndex = stageId - 1;
+          if (courseIndex >= 0 && courseIndex < sortedCourses.length) {
+            targetCourse = sortedCourses[courseIndex];
+          }
+          
+          // Method 2: Nếu không tìm được, thử tìm theo course.courseId
+          if (!targetCourse) {
+            targetCourse = sortedCourses.find(course => 
+              parseInt(course.courseId) === stageId || course.courseId === stageId.toString()
+            );
+          }
+          
+          console.log('targetCourse found:', targetCourse);
+          if (targetCourse) {
+            console.log(`Navigating to /courses/${targetCourse.courseId}`);
+            navigate(`/courses/${targetCourse.courseId}`);
+          } else {
+            console.log('No target course found for stageId:', stageId);
+          }
+        } else {
+          console.log('No activePathDetail.courses available');
+          // Fallback: Try to use the stage ID directly as course ID
+          console.log(`Fallback: Navigating to /courses/${stageId}`);
+          navigate(`/courses/${stageId}`);
+        }
+      }}
+    />
   );
 }
 
@@ -129,6 +204,7 @@ export function LearningPathPage() {
   const [sortOrder, setSortOrder] = useState("newest");
   const [modules, setModules] = useState<LearningModule[]>([]);
   const [activePath, setActivePath] = useState<LearningPath | null>(null);
+  const [activePathDetail, setActivePathDetail] = useState<LearningPath | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -243,6 +319,26 @@ export function LearningPathPage() {
         
         // Cập nhật state
         setActivePath(studyingPath || null);
+        
+        // Fetch detail cho studying path nếu có
+        if (studyingPath) {
+          try {
+            console.log(`🔍 Fetching detail for studying path: ${studyingPath.id}`);
+            const detailResponse = await learningPathService.getLearningPath(studyingPath.id);
+            if (detailResponse.success) {
+              setActivePathDetail(detailResponse.data);
+              console.log('✅ Active learning path detail loaded:', detailResponse.data);
+            } else {
+              console.warn('❌ Failed to load active learning path detail:', detailResponse.message);
+              setActivePathDetail(null);
+            }
+          } catch (error) {
+            console.error('❌ Error fetching active learning path detail:', error);
+            setActivePathDetail(null);
+          }
+        } else {
+          setActivePathDetail(null);
+        }
         
         // Hiển thị TẤT CẢ lộ trình trong danh sách bên trái (bao gồm cả STUDYING)
         const modulesData: LearningModule[] = paths.map((path: LearningPath) => ({
@@ -542,7 +638,11 @@ export function LearningPathPage() {
             <div className="flex flex-col sticky" style={{top: '24px', maxHeight: 'calc(100vh - 24px)'}}>
               {/* Roadmap tăng không gian lên */}
               <div style={{height: '420px', overflow: 'auto'}} className="flex-shrink-0">
-                <CurrentLearningRoadmap activePath={activePath} />
+                <CurrentLearningRoadmap 
+                  activePath={activePath} 
+                  activePathDetail={activePathDetail}
+                  loading={isLoading}
+                />
               </div>
               
               {/* ChatBox giảm không gian xuống 4/5 */}

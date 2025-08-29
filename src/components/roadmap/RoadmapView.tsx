@@ -258,16 +258,22 @@ export function RoadmapView({
                         stage.id === 3 ? 'bottom-10' : 'top-10'
                       }`}>
                         <h4 className="font-semibold text-xs mb-1">{stage.title}</h4>
-                        <p className="text-xs text-gray-600 mb-1">{stage.description}</p>
+                        {/* Hiển thị progress bar chỉ cho in_progress */}
                         {stage.status === "in_progress" && (
                           <div className="space-y-1 mb-1">
                             <div className="flex justify-between text-xs">
                               <span>Tiến độ</span>
-                              <span className="font-semibold text-blue-600">{stage.progress}%</span>
+                              <span className="font-semibold text-blue-600">{stage.progress.toFixed(2)}%</span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-1">
                               <div className="bg-blue-600 h-1 rounded-full" style={{ width: `${stage.progress}%` }} />
                             </div>
+                          </div>
+                        )}
+                        {/* Hiển thị completion status cho completed */}
+                        {stage.status === "completed" && (
+                          <div className="mb-1">
+                            <span className="text-xs font-medium text-green-600">✓ Hoàn thành</span>
                           </div>
                         )}
                         <div className={`text-xs font-medium px-1 py-0.5 rounded-full text-center ${getStageColor(stage.status)}`}>
@@ -331,12 +337,18 @@ export function RoadmapView({
                   <span className="font-semibold text-xs">Chặng {stage.id}</span>
                 </div>
                 <h4 className="font-medium text-xs mb-1">{stage.title}</h4>
-                {(stage.status === "in_progress" || stage.status === "completed") && stage.progress > 0 && (
+                {/* Hiển thị progress bar chỉ cho in_progress */}
+                {stage.status === "in_progress" && stage.progress > 0 && (
                   <div className="mt-1">
                     <div className="w-full bg-white bg-opacity-50 rounded-full h-1">
                       <div className="bg-current h-1 rounded-full" style={{ width: `${stage.progress}%` }} />
                     </div>
-                    <span className="text-xs font-medium">{stage.progress}%</span>
+                  </div>
+                )}
+                {/* Hiển thị completion status cho completed */}
+                {stage.status === "completed" && (
+                  <div className="mt-1">
+                    <span className="text-xs font-medium text-green-600">✓ Hoàn thành</span>
                   </div>
                 )}
               </div>

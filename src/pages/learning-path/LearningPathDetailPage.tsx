@@ -3,10 +3,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Badge } from "../../components/ui/Badge";
-import { Progress } from "../../components/ui/Progress";
 import { Alert } from "../../components/ui/Alert";
 import { Breadcrumb, type BreadcrumbItem } from '../../components/ui/Breadcrumb';
-import { JapanRoadmapView, type RoadmapStage } from '../../components/roadmap/JapanRoadmapView';
+import { RoadmapView, type RoadmapStage } from '../../components/roadmap/RoadmapView';
+import type { 
+  ActiveLearningPath
+} from '../../services/learningPathService';
 import api from '../../api/axios';
 import {
   BookOpen,
@@ -21,12 +23,24 @@ import {
 // API Types
 interface LearningPathCourse {
   id: string;
-  learningPathId: number;
-  courseOrderNumber: number;
   title: string;
   description: string;
   duration: number;
   level: string;
+  image: string;
+  requirement: string;
+  status: string;
+  prerequisiteCourseId: string;
+  topics: Array<{
+    id: number;
+    name: string;
+  }>;
+  averageRating: number;
+  courseProgress: {
+    completed: boolean;
+    percent: number;
+  };
+  courseOrderNumber: number;
 }
 
 interface LearningPathDetail {
@@ -73,48 +87,93 @@ const createMockLearningPathDetail = (id: string): LearningPathDetail => ({
   courses: [
     {
       id: "course1",
-      learningPathId: parseInt(id) || 1,
-      courseOrderNumber: 1,
       title: "Hiragana và Katakana cơ bản",
       description: "Học cách viết và đọc hai bảng chữ cái cơ bản của tiếng Nhật. Đây là nền tảng quan trọng nhất để bắt đầu học tiếng Nhật.",
       duration: 30,
-      level: "N5"
+      level: "N5",
+      image: "",
+      requirement: "",
+      status: "ACTIVE",
+      prerequisiteCourseId: "",
+      topics: [],
+      averageRating: 4.5,
+      courseProgress: {
+        completed: true,
+        percent: 100
+      },
+      courseOrderNumber: 1
     },
     {
-  id: "course2",
-      learningPathId: parseInt(id) || 1,
-      courseOrderNumber: 2,
+      id: "course2",
       title: "Ngữ pháp N5 cơ bản",
       description: "Những cấu trúc ngữ pháp thiết yếu cho người mới học. Bao gồm các mẫu câu cơ bản và cách sử dụng trong giao tiếp hàng ngày.",
       duration: 45,
-      level: "N5"
+      level: "N5",
+      image: "",
+      requirement: "",
+      status: "ACTIVE",
+      prerequisiteCourseId: "",
+      topics: [],
+      averageRating: 4.3,
+      courseProgress: {
+        completed: false,
+        percent: 65.5
+      },
+      courseOrderNumber: 2
     },
     {
-  id: "course3",
-      learningPathId: parseInt(id) || 1,
-      courseOrderNumber: 3,
+      id: "course3",
       title: "Từ vựng thiết yếu N5",
       description: "800 từ vựng quan trọng nhất cho kỳ thi N5. Được phân loại theo chủ đề và tình huống sử dụng thực tế.",
       duration: 35,
-      level: "N5"
+      level: "N5",
+      image: "",
+      requirement: "",
+      status: "ACTIVE",
+      prerequisiteCourseId: "",
+      topics: [],
+      averageRating: 4.7,
+      courseProgress: {
+        completed: false,
+        percent: 25.0
+      },
+      courseOrderNumber: 3
     },
     {
-  id: "course4",
-      learningPathId: parseInt(id) || 1,
-      courseOrderNumber: 4,
+      id: "course4",
       title: "Luyện nghe N5",
       description: "Phát triển kỹ năng nghe hiểu cơ bản qua các bài tập thực tế. Làm quen với giọng điệu và tốc độ nói của người Nhật.",
       duration: 40,
-      level: "N5"
+      level: "N5",
+      image: "",
+      requirement: "",
+      status: "ACTIVE",
+      prerequisiteCourseId: "",
+      topics: [],
+      averageRating: 4.1,
+      courseProgress: {
+        completed: false,
+        percent: 0
+      },
+      courseOrderNumber: 4
     },
     {
-  id: "course5",
-      learningPathId: parseInt(id) || 1,
-      courseOrderNumber: 5,
+      id: "course5",
       title: "Kanji N5 - Chữ Hán cơ bản",
       description: "Học 100 chữ Kanji thiết yếu nhất cho trình độ N5. Bao gồm cách đọc, nghĩa và cách sử dụng trong từ vựng.",
       duration: 50,
-      level: "N5"
+      level: "N5",
+      image: "",
+      requirement: "",
+      status: "ACTIVE",
+      prerequisiteCourseId: "",
+      topics: [],
+      averageRating: 4.4,
+      courseProgress: {
+        completed: false,
+        percent: 0
+      },
+      courseOrderNumber: 5
     }
   ]
 });
@@ -146,6 +205,7 @@ const LearningPathDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   
   const [learningPath, setLearningPath] = useState<LearningPathDetail | null>(null);
+  const [activePathDetail, setActivePathDetail] = useState<ActiveLearningPath | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -157,6 +217,7 @@ const LearningPathDetailPage = () => {
       setError(null);
 
       try {
+        // Lấy thông tin learning path từ API (đã bao gồm courseProgress)
         const response = await getLearningPathDetail(id);
         if (response.success) {
           // Ensure courses array exists
@@ -165,6 +226,18 @@ const LearningPathDetailPage = () => {
             courses: response.data.courses || []
           };
           setLearningPath(pathData);
+
+          // Nếu learning path này đang active, cũng set làm activePathDetail
+          // vì API đã trả về đầy đủ thông tin courseProgress
+          if (pathData.status === 'ACTIVE' || pathData.status === 'STUDYING') {
+            // Convert pathData thành định dạng ActiveLearningPath để tương thích
+            const activePathData: ActiveLearningPath = {
+              ...pathData,
+              courses: pathData.courses || []
+            };
+            setActivePathDetail(activePathData);
+            console.log('✅ Learning path data loaded as active:', activePathData);
+          }
         } else {
           setError(response.message || "Không thể tải dữ liệu lộ trình");
         }
@@ -218,10 +291,45 @@ const LearningPathDetailPage = () => {
     );
   }
 
-  const overallProgress = calculateProgress();
-
   // Generate roadmap stages based on target level and courses progress
-  const generateRoadmapStages = (targetLevel: string): RoadmapStage[] => {
+  const generateRoadmapStages = (): RoadmapStage[] => {
+    // Ưu tiên sử dụng activePathDetail nếu có, fallback về learningPath
+    const coursesData = activePathDetail?.courses || learningPath?.courses;
+    
+    if (coursesData && coursesData.length > 0) {
+      return coursesData
+        .sort((a, b) => (a.courseOrderNumber || 0) - (b.courseOrderNumber || 0)) // Sắp xếp theo courseOrderNumber
+        .map((course, index) => {
+          let status: "completed" | "in_progress" | "locked";
+          
+          // Safe check cho courseProgress
+          const courseProgress = course.courseProgress;
+          if (!courseProgress) {
+            status = "locked";
+          } else if (courseProgress.completed) {
+            status = "completed";
+          } else if (courseProgress.percent > 0) {
+            status = "in_progress";
+          } else {
+            status = "locked";
+          }
+
+          return {
+            id: parseInt(course.id) || index + 1,
+            title: course.id, // Hiển thị course ID
+            description: `${courseProgress?.percent?.toFixed(2) || '0.00'}%`, // Hiển thị percent với 2 chữ số thập phân
+            status,
+            progress: courseProgress?.percent || 0,
+          };
+        });
+    }
+
+    // Fallback: Generate stages based on target level nếu không có API data
+    if (!learningPath) return [];
+    
+    const fallbackProgress = calculateProgress();
+    const targetLevel = learningPath.targetLevel;
+    
     const baseStages: RoadmapStage[] = [
       {
         id: 1,
@@ -242,21 +350,21 @@ const LearningPathDetailPage = () => {
         title: "Ngữ pháp N5",
         description: "Các mẫu câu N5 cơ bản",
         status: "in_progress",
-        progress: overallProgress,
+        progress: fallbackProgress,
       },
       {
         id: 4,
         title: "Kanji N5",
         description: "103 chữ Kanji cơ bản",
-        status: overallProgress > 70 ? "in_progress" : "locked",
-        progress: Math.max(0, overallProgress - 30),
+        status: fallbackProgress > 70 ? "in_progress" : "locked",
+        progress: Math.max(0, fallbackProgress - 30),
       },
       {
         id: 5,
         title: "Luyện nghe N5",
         description: "Kỹ năng nghe hiểu cơ bản",
-        status: overallProgress > 85 ? "in_progress" : "locked",
-        progress: Math.max(0, overallProgress - 50),
+        status: fallbackProgress > 85 ? "in_progress" : "locked",
+        progress: Math.max(0, fallbackProgress - 50),
       },
     ];
 
@@ -267,7 +375,7 @@ const LearningPathDetailPage = () => {
           id: 6,
           title: "Từ vựng N4",
           description: "1500 từ vựng N4",
-          status: overallProgress >= 100 ? "in_progress" : "locked",
+          status: fallbackProgress >= 100 ? "in_progress" : "locked",
           progress: 0,
         },
         {
@@ -290,7 +398,11 @@ const LearningPathDetailPage = () => {
     return baseStages;
   };
 
-  const roadmapStages = learningPath ? generateRoadmapStages(learningPath.targetLevel) : [];
+  const roadmapStages = generateRoadmapStages();
+
+  // Sử dụng activePathDetail nếu có, fallback to learningPath
+  const displayPath = activePathDetail || learningPath;
+  const overallProgress = activePathDetail?.percent || calculateProgress();
 
   return (
     <div className="min-h-screen bg-white">
@@ -302,34 +414,34 @@ const LearningPathDetailPage = () => {
         <div className="bg-gray-50 rounded-lg p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <h1 className="text-2xl font-bold text-gray-900 mb-1">{learningPath.title}</h1>
-              <p className="text-sm text-gray-600 mb-3">{learningPath.description}</p>
+              <h1 className="text-2xl font-bold text-gray-900 mb-1">{displayPath?.title}</h1>
+              <p className="text-sm text-gray-600 mb-3">{displayPath?.description}</p>
               
               <div className="flex items-center space-x-6 mb-3">
                 <Badge variant="secondary" className="bg-orange-100 text-orange-800 px-2 py-1 text-xs">
-                  Cấp độ {learningPath.targetLevel}
+                  Cấp độ {displayPath?.targetLevel}
                 </Badge>
                 <div className="flex items-center space-x-1 text-xs text-gray-600">
                   <Clock className="h-3 w-3" />
-                  <span>{learningPath.duration} giờ học</span>
+                  <span>{displayPath?.duration} giờ học</span>
                 </div>
                 <div className="flex items-center space-x-1 text-xs text-gray-600">
                   <Users className="h-3 w-3" />
-                  <span>Tạo bởi {learningPath.username}</span>
+                  <span>Tạo bởi {displayPath?.username}</span>
                 </div>
                 <Badge 
-                  variant={learningPath.status === 'STUDYING' ? 'default' : 'secondary'}
+                  variant={displayPath?.status === 'STUDYING' ? 'default' : 'secondary'}
                   className="text-xs px-2 py-1"
                 >
                   {(() => {
-                    switch (learningPath.status) {
+                    switch (displayPath?.status) {
                       case 'STUDYING': return 'Đang học';
                       case 'FINISHED': return 'Hoàn thành';
                       default: return 'Chờ bắt đầu';
                     }
                   })()}
                 </Badge>
-                {learningPath.isCompleted && (
+                {displayPath?.isCompleted && (
                   <Badge className="bg-green-100 text-green-800 text-xs px-2 py-1">
                     Đã hoàn thành
                   </Badge>
@@ -339,14 +451,19 @@ const LearningPathDetailPage = () => {
               <div className="flex items-center space-x-3">
                 <span className="text-xs text-gray-600 font-medium">Tiến độ:</span>
                 <div className="flex-1 max-w-xs">
-                  <Progress value={overallProgress} className="h-2" />
+                  <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="bg-orange-600 h-2 rounded-full transition-all duration-300" 
+                      style={{ width: `${Math.min(100, Math.max(0, overallProgress))}%` }}
+                    ></div>
+                  </div>
                 </div>
                 <span className="text-xs font-bold text-orange-600">{overallProgress.toFixed(1)}%</span>
               </div>
             </div>
 
             <div className="text-right text-xs text-gray-500">
-              Cập nhật: {new Date(learningPath.lastUpdatedAt).toLocaleDateString('vi-VN')}
+              Cập nhật: {new Date(displayPath?.lastUpdatedAt || '').toLocaleDateString('vi-VN')}
             </div>
           </div>
         </div>
@@ -361,7 +478,7 @@ const LearningPathDetailPage = () => {
                 </div>
                 <div>
                   <p className="text-xs text-blue-600 font-medium">Mục tiêu chính</p>
-                  <p className="text-sm font-bold text-blue-900">{learningPath.primaryGoal}</p>
+                  <p className="text-sm font-bold text-blue-900">{displayPath?.primaryGoal}</p>
                 </div>
               </div>
             </CardContent>
@@ -375,7 +492,7 @@ const LearningPathDetailPage = () => {
                 </div>
                 <div>
                   <p className="text-xs text-green-600 font-medium">Kỹ năng tập trung</p>
-                  <p className="text-sm font-bold text-green-900">{learningPath.focusSkill || 'Tổng hợp'}</p>
+                  <p className="text-sm font-bold text-green-900">{displayPath?.focusSkill || 'Tổng hợp'}</p>
                 </div>
               </div>
             </CardContent>
@@ -389,7 +506,7 @@ const LearningPathDetailPage = () => {
                 </div>
                 <div>
                   <p className="text-xs text-orange-600 font-medium">Tổng khóa học</p>
-                  <p className="text-sm font-bold text-orange-900">{learningPath.courses?.length || 0}</p>
+                  <p className="text-sm font-bold text-orange-900">{displayPath?.courses?.length || 0}</p>
                 </div>
               </div>
             </CardContent>
@@ -422,26 +539,34 @@ const LearningPathDetailPage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {learningPath?.courses?.length === 0 ? (
+                {displayPath?.courses?.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
                     <BookOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
                     <p>Chưa có khóa học nào trong lộ trình này</p>
                   </div>
                 ) : (
-                  [...(learningPath?.courses || [])]
+                  [...(displayPath?.courses || [])]
                     .sort((a, b) => a.courseOrderNumber - b.courseOrderNumber)
                     .map((course) => (
                       <div 
                         key={course.id} 
                         className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow bg-white relative min-h-[180px] flex flex-col"
                       >
-                        <div className="flex items-center space-x-2 mb-2">
-                          <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 text-xs px-2 py-1">
-                            #{course.courseOrderNumber}
-                          </Badge>
-                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs px-2 py-1">
-                            {course.level}
-                          </Badge>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center space-x-2">
+                            <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 text-xs px-2 py-1">
+                              #{course.courseOrderNumber}
+                            </Badge>
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs px-2 py-1">
+                              {course.level}
+                            </Badge>
+                          </div>
+                          {/* Hiển thị trạng thái completion */}
+                          {course.courseProgress?.completed && (
+                            <Badge className="bg-green-100 text-green-800 text-xs px-2 py-1">
+                              ✓ Hoàn thành
+                            </Badge>
+                          )}
                         </div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-2">
                           {course.title}
@@ -449,11 +574,36 @@ const LearningPathDetailPage = () => {
                         <p className="text-sm text-gray-600 mb-3 leading-relaxed">
                           {course.description}
                         </p>
+                        
+                        {/* Progress bar cho course */}
+                        {course.courseProgress && course.courseProgress.percent > 0 && (
+                          <div className="mb-3">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-xs text-gray-600">Tiến độ</span>
+                              <span className="text-xs font-semibold text-blue-600">
+                                {course.courseProgress.percent.toFixed(1)}%
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                              <div 
+                                className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                                style={{ width: `${Math.min(100, Math.max(0, course.courseProgress.percent))}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        )}
+                        
                         <div className="flex items-center space-x-4 text-xs text-gray-500 mb-8">
                           <div className="flex items-center space-x-1">
                             <Clock className="h-3 w-3" />
                             <span>{course.duration} giờ</span>
                           </div>
+                          {course.averageRating && (
+                            <div className="flex items-center space-x-1">
+                              <Star className="h-3 w-3" />
+                              <span>{course.averageRating.toFixed(1)}</span>
+                            </div>
+                          )}
                         </div>
                         <div className="absolute bottom-4 right-4">
                           <Button 
@@ -473,19 +623,41 @@ const LearningPathDetailPage = () => {
 
           {/* Sidebar - Roadmap */}
           <div className="lg:col-span-4">
-            <JapanRoadmapView
+            <RoadmapView
               stages={roadmapStages}
               title="Lộ trình học tập"
-              subtitle={learningPath?.title || ''}
-              theme="orange"
+              subtitle={displayPath?.title || ''}
+              compact={true}
               showHeader={true}
               showNavigation={false}
-              showActionButtons={false}
+              showStageCards={false}
               headerInfo={{
-                targetLevel: learningPath?.targetLevel || 'N5',
-                status: learningPath?.status === 'ACTIVE' ? 'Đang học' : 'Tạm dừng',
-                duration: learningPath?.duration || 0,
-                coursesCount: learningPath?.courses?.length || 0,
+                targetLevel: displayPath?.targetLevel || 'N5',
+                status: displayPath?.status === 'ACTIVE' ? 'Đang học' : 'Tạm dừng',
+                duration: displayPath?.duration || 0,
+                coursesCount: displayPath?.courses?.length || 0,
+              }}
+              onStageClick={(stageId: number) => {
+                console.log(`Clicked stage ${stageId}`);
+                // Navigate to course if it's a course-based stage
+                const coursesData = activePathDetail?.courses || learningPath?.courses;
+                if (coursesData) {
+                  // Sắp xếp courses theo courseOrderNumber trước khi tìm kiếm
+                  const sortedCourses = coursesData
+                    .sort((a, b) => (a.courseOrderNumber || 0) - (b.courseOrderNumber || 0));
+                    
+                  // Tìm course dựa trên index trong danh sách đã sắp xếp
+                  const courseIndex = stageId - 1;
+                  let targetCourse;
+                  
+                  if (courseIndex >= 0 && courseIndex < sortedCourses.length) {
+                    targetCourse = sortedCourses[courseIndex];
+                  }
+                  
+                  if (targetCourse) {
+                    navigate(`/courses/${targetCourse.id}`);
+                  }
+                }
               }}
             />
           </div>
